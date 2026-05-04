@@ -27,7 +27,7 @@ export function ClubVizLogo({ size = 'md', variant = 'full' }: LogoProps) {
             <div className="relative z-50">
                 <Image
                     src="/logo/logo.png"
-                    alt="ClubWiz Logo"
+                    alt="ClubWiz Admin Logo"
                     width={logoSizes[size].width}
                     height={logoSizes[size].height}
                     className="object-contain"
@@ -35,7 +35,7 @@ export function ClubVizLogo({ size = 'md', variant = 'full' }: LogoProps) {
                 />
             </div>
 
-            {/* ClubWiz text with neon effect */}
+            {/* ClubWiz Admin text with neon effect */}
             {variant === 'full' && (
                 <div className="relative z-50 text-center mt-2">
                     <Image

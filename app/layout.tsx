@@ -9,8 +9,8 @@ import { Toaster } from "@/components/ui/toaster"
 import { CapacitorBackButton } from "@/components/capacitor-back-button"
 
 export const metadata: Metadata = {
-  title: "ClubViz Admin - Club & Event Management Platform",
-  description: "ClubViz Admin Platform - Manage clubs, events, and bookings. Admin and SuperAdmin access only.",
+  title: "ClubWiz Admin - Club & Event Management Platform",
+  description: "ClubWiz Admin Platform - Manage clubs, events, and bookings. Admin and SuperAdmin access only.",
 }
 
 export const viewport: Viewport = {
