@@ -1,0 +1,1271 @@
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { ArrowLeft, Upload, MapPin, ChevronRight, Plus, Trash2, Eye, Edit3, Heart, Share2, Loader2, Star } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { LookupService, AllLookupData } from '@/lib/services/lookup.service';
+import { ClubService } from '@/lib/services/club.service';
+import { ProfileService } from '@/lib/services/profile.service';
+import { useToast } from '@/hooks/use-toast';
+import { fileToBase64 } from '@/lib/image-utils';
+import { getDetailedErrorMessage, logDetailedError } from '@/lib/error-utils';
+import '../new-event/styles.css';
+
+// Tag Component for reusability
+const TagComponent = ({ icon, label, iconPath }: { icon?: React.ReactNode, label: string, iconPath?: string }) => (
+    <div className="px-3 py-2 bg-[rgba(40,60,61,0.30)] rounded-full flex items-center gap-2">
+        {iconPath && <img src={iconPath} alt={label} className="w-4 h-4" />}
+        {icon && icon}
+        <span className="text-white text-xs">{label}</span>
+    </div>
+);
+
+export default function NewClubPage() {
+    const router = useRouter();
+    const { toast } = useToast();
+    const logoInputRef = useRef<HTMLInputElement>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isCheckingClubs, setIsCheckingClubs] = useState(true);
+    const [adminDetails, setAdminDetails] = useState({ email: '', phone: '' });
+    const [selectedLocation, setSelectedLocation] = useState({ lat: 0, lng: 0, city: '', state: '', pincode: '' });
+
+    const [formData, setFormData] = useState({
+        clubName: '',
+        description: '',
+        contactEmail: '',
+        contactPhone: '',
+        address1: '',
+        address2: '',
+        location: '',
+        logo: null as File | null,
+        foodCuisines: '',
+        facilities: '',
+        music: '',
+        barOptions: '',
+        hasTimeRestriction: false,
+        timeRestriction: '',
+        inclusions: '',
+        exclusions: ''
+    });
+    const [foodDrinksImages, setFoodDrinksImages] = useState<File[]>([]);
+    const [ambienceImages, setAmbienceImages] = useState<File[]>([]);
+    const [menuImages, setMenuImages] = useState<File[]>([]);
+    const [foodDrinksPreview, setFoodDrinksPreview] = useState<string[]>(['', '', '']);
+    const [ambiencePreview, setAmbiencePreview] = useState<string[]>(['', '', '']);
+    const [menuPreview, setMenuPreview] = useState<string[]>(['', '', '']);
+    const [logoPreview, setLogoPreview] = useState<string>('');
+    const [lookupData, setLookupData] = useState<AllLookupData>({});
+    const [isLoadingLookup, setIsLoadingLookup] = useState(true);
+    const [selectedMusicGenres, setSelectedMusicGenres] = useState<any[]>([]);
+    const [viewMode, setViewMode] = useState<'form' | 'preview'>('form'); // Toggle between form and preview
+
+    // References for image upload sections
+    const foodDrinksRefs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)];
+    const ambienceRefs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)];
+    const menuRefs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)];
+
+    // Check club status on mount - redirect if club already added
+    useEffect(() => {
+        const checkClubStatus = () => {
+            console.log('🔍 Checking club status...');
+            const clubStatus = ProfileService.getClubStatus();
+
+            if (clubStatus.hasClub) {
+                // Club already added - check if active or pending
+                if (clubStatus.isActive) {
+                    console.log('⚠️ Club already active! Redirecting to dashboard.');
+                    toast({
+                        title: "Club Already Active",
+                        description: "Your club is already active. Redirecting to dashboard.",
+                        variant: "default",
+                    });
+                    router.push('/bz/business');
+                } else {
+                    console.log('⚠️ Club pending approval! Redirecting to pending page.');
+                    toast({
+                        title: "Club Pending Approval",
+                        description: "Your club is under review. Please wait for approval.",
+                        variant: "default",
+                    });
+                    router.push('/bz/business/club-pending');
+                }
+                return;
+            }
+
+            console.log('✅ No club added yet. User can create one.');
+            setIsCheckingClubs(false);
+        };
+
+        checkClubStatus();
+    }, [router, toast]);
+
+    // Load contact details from localStorage on mount
+    useEffect(() => {
+        try {
+            // First try to get from separate keys (user-email, user-phone)
+            let email = localStorage.getItem('user-email');
+            let phone = localStorage.getItem('user-phone');
+
+            console.log('📱 localStorage keys - user-email:', email, 'user-phone:', phone);
+
+            // Fallback to clubviz-user if separate keys not found
+            if (!email || !phone) {
+                const userData = localStorage.getItem('clubviz-user');
+                if (userData) {
+                    const user = JSON.parse(userData);
+                    email = email || user.email || '';
+                    phone = phone || user.phoneNumber || user.mobileNumber || '';
+                    console.log('📱 Loaded from clubviz-user:', { email, phone });
+                }
+            }
+
+            if (email || phone) {
+                setAdminDetails({
+                    email: email || '',
+                    phone: phone || ''
+                });
+
+                // Pre-populate form with admin details
+                setFormData(prev => ({
+                    ...prev,
+                    contactEmail: email || '',
+                    contactPhone: phone || ''
+                }));
+
+                console.log('✅ Contact details loaded:', { email, phone });
+            }
+        } catch (error) {
+            console.error('Failed to load admin details:', error);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (isCheckingClubs) return; // Don't load anything until we verify club count
+
+        const fetchLookupData = async () => {
+            try {
+                setIsLoadingLookup(true);
+                const response = await LookupService.getAllLookupData();
+                if (response.success) {
+                    setLookupData(response.data);
+                } else {
+                    toast({
+                        title: "Error",
+                        description: "Failed to load club categories",
+                        variant: "destructive",
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to fetch lookup data:', error);
+                toast({
+                    title: "Error",
+                    description: "Failed to load club categories",
+                    variant: "destructive",
+                });
+            } finally {
+                setIsLoadingLookup(false);
+            }
+        };
+
+        // Load selected location from localStorage
+        const loadSelectedLocation = () => {
+            try {
+                const locationData = localStorage.getItem('clubviz-selected-location');
+                if (locationData) {
+                    const location = JSON.parse(locationData);
+                    setSelectedLocation(location);
+                    console.log('📍 Loaded Selected Location:', location);
+                }
+            } catch (error) {
+                console.error('Failed to load location:', error);
+            }
+        };
+
+        // Load selected music genres from localStorage
+        const loadSelectedMusicGenres = () => {
+            try {
+                const musicGenresData = localStorage.getItem('clubviz-selected-music-genres');
+                if (musicGenresData) {
+                    const genres = JSON.parse(musicGenresData);
+                    setSelectedMusicGenres(genres);
+                    console.log('🎵 Loaded Selected Music Genres:', genres);
+                }
+            } catch (error) {
+                console.error('Failed to load music genres:', error);
+            }
+        };
+
+        // Load saved form data from localStorage
+        const loadSavedFormData = () => {
+            try {
+                const savedFormData = localStorage.getItem('clubviz-form-data');
+                if (savedFormData) {
+                    const formDataFromStorage = JSON.parse(savedFormData);
+                    setFormData(prevData => ({
+                        ...prevData,
+                        ...formDataFromStorage
+                    }));
+                    console.log('📝 Loaded Saved Form Data:', formDataFromStorage);
+                }
+            } catch (error) {
+                console.error('Failed to load saved form data:', error);
+            }
+        };
+
+        fetchLookupData();
+        loadSelectedLocation();
+        loadSelectedMusicGenres();
+        loadSavedFormData();
+
+        // Listen for location updates from the location page
+        const handleStorageChange = (e: StorageEvent) => {
+            if (e.key === 'clubviz-selected-location' && e.newValue) {
+                const location = JSON.parse(e.newValue);
+                setSelectedLocation(location);
+                console.log('📍 Location Updated:', location);
+            } else if (e.key === 'clubviz-selected-music-genres' && e.newValue) {
+                const genres = JSON.parse(e.newValue);
+                setSelectedMusicGenres(genres);
+                console.log('🎵 Music Genres Updated:', genres);
+            }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
+    }, [toast]);
+
+    // Save form data to localStorage whenever it changes
+    useEffect(() => {
+        try {
+            localStorage.setItem('clubviz-form-data', JSON.stringify(formData));
+            console.log('💾 Saved Form Data to localStorage');
+        } catch (error) {
+            console.error('Failed to save form data to localStorage:', error);
+        }
+    }, [formData]);
+
+    // Helper function to get club tags from lookup data
+    const getClubTags = () => {
+        const tags = [];
+        if (lookupData.facilities && lookupData.facilities.length > 0) {
+            tags.push({ label: 'Facilities', key: 'facilities' });
+        }
+        if (lookupData.foodCuisines && lookupData.foodCuisines.length > 0) {
+            tags.push({ label: 'Food', key: 'foodCuisines' });
+        }
+        if (lookupData.music && lookupData.music.length > 0) {
+            tags.push({ label: 'Music', key: 'music' });
+        }
+        if (lookupData.barOptions && lookupData.barOptions.length > 0) {
+            tags.push({ label: 'Bar', key: 'barOptions' });
+        }
+        return tags;
+    };
+
+    const handleGoBack = () => {
+        router.push('/bz/business');
+    };
+
+    const handleInputChange = (field: string, value: string) => {
+        setFormData({ ...formData, [field]: value });
+    };
+
+    const handleLogoUpload = () => {
+        logoInputRef.current?.click();
+    };
+
+    const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setFormData({ ...formData, logo: file });
+            // Create preview
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                setLogoPreview(event.target?.result as string);
+                console.log('✅ Logo preview generated');
+            };
+            reader.readAsDataURL(file);
+            console.log('📸 Logo file stored:', file.name, file.size, 'bytes');
+        }
+    };
+
+    const handleDeleteLogo = () => {
+        setFormData({ ...formData, logo: null });
+        setLogoPreview('');
+        if (logoInputRef.current) {
+            logoInputRef.current.value = '';
+        }
+        console.log('🗑️ Logo deleted');
+    };
+
+    const handleFoodDrinksImageChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const newImages = [...foodDrinksImages];
+            newImages[index] = file;
+            setFoodDrinksImages(newImages);
+
+            // Create preview
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const newPreviews = [...foodDrinksPreview];
+                newPreviews[index] = event.target?.result as string;
+                setFoodDrinksPreview(newPreviews);
+                console.log(`✅ Food/Drinks image ${index} preview generated`);
+            };
+            reader.readAsDataURL(file);
+            console.log(`📸 Food/Drinks image ${index} uploaded:`, file.name, file.size, 'bytes');
+        }
+    };
+
+    const handleAmbienceImageChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const newImages = [...ambienceImages];
+            newImages[index] = file;
+            setAmbienceImages(newImages);
+
+            // Create preview
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const newPreviews = [...ambiencePreview];
+                newPreviews[index] = event.target?.result as string;
+                setAmbiencePreview(newPreviews);
+                console.log(`✅ Ambience image ${index} preview generated`);
+            };
+            reader.readAsDataURL(file);
+            console.log(`📸 Ambience image ${index} uploaded:`, file.name, file.size, 'bytes');
+        }
+    };
+
+    const handleMenuImageChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const newImages = [...menuImages];
+            newImages[index] = file;
+            setMenuImages(newImages);
+
+            // Create preview
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const newPreviews = [...menuPreview];
+                newPreviews[index] = event.target?.result as string;
+                setMenuPreview(newPreviews);
+                console.log(`✅ Menu image ${index} preview generated`);
+            };
+            reader.readAsDataURL(file);
+            console.log(`📸 Menu image ${index} uploaded:`, file.name, file.size, 'bytes');
+        }
+    };
+
+    const handleDeleteFoodDrinksImage = (index: number) => {
+        const newImages = [...foodDrinksImages];
+        newImages.splice(index, 1);
+        setFoodDrinksImages(newImages);
+        const newPreviews = [...foodDrinksPreview];
+        newPreviews[index] = '';
+        setFoodDrinksPreview(newPreviews);
+        if (foodDrinksRefs[index]?.current) {
+            foodDrinksRefs[index].current.value = '';
+        }
+        console.log(`🗑️ Food/Drinks image ${index} deleted`);
+    };
+
+    const handleDeleteAmbienceImage = (index: number) => {
+        const newImages = [...ambienceImages];
+        newImages.splice(index, 1);
+        setAmbienceImages(newImages);
+        const newPreviews = [...ambiencePreview];
+        newPreviews[index] = '';
+        setAmbiencePreview(newPreviews);
+        if (ambienceRefs[index]?.current) {
+            ambienceRefs[index].current.value = '';
+        }
+        console.log(`🗑️ Ambience image ${index} deleted`);
+    };
+
+    const handleDeleteMenuImage = (index: number) => {
+        const newImages = [...menuImages];
+        newImages.splice(index, 1);
+        setMenuImages(newImages);
+        const newPreviews = [...menuPreview];
+        newPreviews[index] = '';
+        setMenuPreview(newPreviews);
+        if (menuRefs[index]?.current) {
+            menuRefs[index].current.value = '';
+        }
+        console.log(`🗑️ Menu image ${index} deleted`);
+    };
+
+    const handleImageUpload = (ref: React.RefObject<HTMLInputElement>) => {
+        ref.current?.click();
+    };
+
+    const handleNavigate = (path: string) => {
+        // Navigate to specific sections
+        if (path === '/location') {
+            router.push('/bz/business/add-location');
+        } else if (path === '/tags/music') {
+            router.push('/bz/business/tags/music');
+        } else {
+            console.log(`Navigating to ${path}`);
+        }
+    };
+
+    const handleCreateClub = async () => {
+        // Validate required fields
+        if (!formData.clubName.trim()) {
+            toast({
+                title: "Error",
+                description: "Club name is required",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        // Validate contact email
+        if (!formData.contactEmail || !formData.contactEmail.trim()) {
+            toast({
+                title: "Error",
+                description: "Contact email is required",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        // Validate contact phone
+        if (!formData.contactPhone || !formData.contactPhone.trim()) {
+            toast({
+                title: "Error",
+                description: "Contact phone is required",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        // Check if user is logged in and has admin role
+        const token = typeof window !== 'undefined' ? localStorage.getItem('clubviz-accessToken') : null;
+
+        if (!token) {
+            toast({
+                title: "Authentication Required",
+                description: "Please log in as an admin to create clubs",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            // Convert logo to base64
+            let logoBase64 = "";
+            if (formData.logo) {
+                logoBase64 = await fileToBase64(formData.logo);
+            }
+
+            // Convert food/drinks images to proper format (matching event creation)
+            const foodImageData = await Promise.all(
+                foodDrinksImages.filter(img => img).map(async (img) => ({
+                    name: img.name || "food-image.jpg",
+                    contentType: img.type || "image/jpeg",
+                    data: await fileToBase64(img),
+                    url: ""
+                }))
+            );
+
+            // Convert ambience images to proper format (matching event creation)
+            const ambianceImageData = await Promise.all(
+                ambienceImages.filter(img => img).map(async (img) => ({
+                    name: img.name || "ambiance-image.jpg",
+                    contentType: img.type || "image/jpeg",
+                    data: await fileToBase64(img),
+                    url: ""
+                }))
+            );
+
+            // Convert menu images to proper format (matching event creation)
+            const menuImageData = await Promise.all(
+                menuImages.filter(img => img).map(async (img) => ({
+                    name: img.name || "menu-image.jpg",
+                    contentType: img.type || "image/jpeg",
+                    data: await fileToBase64(img),
+                    url: ""
+                }))
+            );
+
+            // ✅ BUILD PAYLOAD MATCHING API SCHEMA (clubs-apis.json)
+            const clubData: any = {
+                "name": formData.clubName.trim(),
+                "description": formData.description.trim() || "",
+                "logo": {
+                    name: formData.logo?.name || "club-logo.jpg",
+                    contentType: formData.logo?.type || "image/jpeg",
+                    data: logoBase64,
+                    url: ""
+                },
+                "contactEmail": formData.contactEmail.trim(),  // ✅ Already validated, use directly
+                "contactPhone": formData.contactPhone.trim(),  // ✅ Already validated, use directly
+                "foodImageData": foodImageData,
+                "ambianceImageData": ambianceImageData,
+                "menuImageData": menuImageData
+            };
+
+            console.log('🚀 Creating Club with Images - Payload:', clubData);
+            console.log('📡 API Call: POST /clubs/create-json-with-images');
+            console.log('📸 Total Images:', foodImageData.length + ambianceImageData.length + menuImageData.length);
+
+            // Call the service to create the club
+            const response = await ClubService.createClub(clubData as any);
+
+            console.log('✅ Club created successfully:', response);
+
+            // Update stored profile data with club status
+            ProfileService.updateStoredProfileData({
+                isClubAdded: true,
+                isActive: false // Club is pending approval
+            });
+
+            // Clear saved form data from localStorage
+            try {
+                localStorage.removeItem('clubviz-form-data');
+                console.log('🧹 Cleared saved form data');
+            } catch (error) {
+                console.error('Failed to clear saved form data:', error);
+            }
+
+            toast({
+                title: "Success",
+                description: `Club "${formData.clubName}" created successfully! Your club is now under review.`,
+                variant: "default",
+            });
+
+            // Redirect to club pending page
+            setTimeout(() => {
+                router.push('/bz/business/club-pending');
+            }, 1000);
+
+        } catch (error: any) {
+            logDetailedError('Club creation error', error);
+
+            const errorMessage = getDetailedErrorMessage(error, 'Failed to create club. Please try again.');
+
+            toast({
+                title: "Error",
+                description: errorMessage,
+                variant: "destructive",
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="min-h-screen bg-[#021313] text-white relative">
+            {/* Show loading state while checking for existing clubs */}
+            {isCheckingClubs && (
+                <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center">
+                    <div className="flex flex-col items-center gap-4">
+                        <div className="w-12 h-12 border-4 border-[#14FFEC] border-t-transparent rounded-full animate-spin"></div>
+                        <p className="text-[#14FFEC]">Checking club status...</p>
+                    </div>
+                </div>
+            )}
+
+            {/* Fixed Header with gradient background */}
+            <div className="fixed top-0 left-0 right-0 z-30 flex flex-col pt-10 bg-gradient-to-b from-[#11B9AB] to-[#222831] h-[140px] w-full">
+                <div className="absolute top-10 left-6">
+                    <button
+                        onClick={handleGoBack}
+                        className="w-10 h-10 flex items-center justify-center bg-black/20 hover:bg-black/30 rounded-full transition-all duration-300"
+                    >
+                        <span className="text-white text-xl font-bold">&lt;</span>
+                    </button>
+                </div>
+                <div className="absolute top-10 right-6">
+                    <button
+                        onClick={() => setViewMode(viewMode === 'form' ? 'preview' : 'form')}
+                        className="px-4 py-2 bg-[#14FFEC] text-black rounded-full flex items-center gap-2 font-semibold hover:bg-[#14FFEC]/90 transition-all"
+                    >
+                        {viewMode === 'form' ? (
+                            <>
+                                <Eye className="w-4 h-4" />
+                                Preview
+                            </>
+                        ) : (
+                            <>
+                                <Edit3 className="w-4 h-4" />
+                                Edit
+                            </>
+                        )}
+                    </button>
+                </div>
+                <div className="mt-2 text-center">
+                    <h1 className="text-xl font-bold text-white">Create Club</h1>
+                </div>
+            </div>
+
+            {/* Main Content - Scrollable container */}
+            <div className="px-0 pt-[100px] pb-20 relative z-40" style={{ opacity: isCheckingClubs ? 0.5 : 1, pointerEvents: isCheckingClubs ? 'none' : 'auto' }}>
+                {viewMode === 'preview' ? (
+                    /* Preview Mode - Club Display Template */
+                    <div className="min-h-screen bg-[#021313] relative w-full max-w-[430px] mx-auto">
+                        {/* Hero Image Carousel */}
+                        <div className="relative w-full h-[40vh] overflow-hidden">
+                            <div className="absolute inset-0 flex">
+                                {[logoPreview || '/venue/Screenshot 2024-12-10 195651.png'].map((image, index) => (
+                                    <img
+                                        key={index}
+                                        className="min-w-full h-full object-cover"
+                                        src={image}
+                                        alt={`Hero ${index + 1}`}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Profile picture - positioned exactly at the border */}
+                        <div className="absolute left-1/2 transform -translate-x-1/2 z-20" style={{ top: 'calc(35vh - 42.5px)' }}>
+                            <div className="w-[85px] h-[85px] rounded-full border-4 border-[#08C2B3] overflow-hidden shadow-xl">
+                                <img
+                                    src={logoPreview || '/dabo ambience main dabo page/Media.jpg'}
+                                    alt="Club Profile"
+                                    className="w-full h-full object-cover"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Rating Circle - positioned independently */}
+                        <div className="absolute left-1/2 transform -translate-x-1/2 z-20" style={{ top: 'calc(35vh + 15px)' }}>
+                            <div className="w-[40px] h-[40px] relative">
+                                <div style={{ width: "100%", height: "100%", left: "0px", top: "0px", position: "absolute", background: "#005D5C", borderRadius: "30px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                    <div style={{ color: "#FFF4F4", fontSize: "16px", fontFamily: "Manrope", fontWeight: "700", lineHeight: "21px", wordWrap: "break-word" }}>4.2</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Main content */}
+                        <div className="bg-gradient-to-b from-[#021313] to-[rgba(2,19,19,0)] mt-[-5vh] rounded-t-[40px] relative z-0 px-4 pb-[18px] w-full">
+                            <div className="flex flex-col items-center w-full" style={{ paddingTop: 'calc(6vh + 30px)' }}>
+                                {/* Title */}
+                                <h1 className="text-white text-[36px] tracking-[0.36px] text-center font-normal leading-[35px] mb-3" style={{ fontFamily: "'Anton', sans-serif" }}>
+                                    {formData.clubName || 'Club Name'}
+                                </h1>
+
+                                {/* Main Content Container */}
+                                <div className="w-full px-4 py-3 bg-[rgba(40,60,61,0.30)] rounded-[15px] flex flex-col gap-[8px]">
+                                    {/* Now Playing Section */}
+                                    <div className="flex flex-col gap-[8px] mt-2">
+                                        <h3 className="text-[#FFFEFF] text-lg font-semibold mb-1 px-1">Now Playing</h3>
+                                        <div className="relative w-full h-[110px] bg-[rgba(31.93,42.75,43.32,0.60)] rounded-[15px] overflow-hidden">
+                                            <div className="absolute left-4 top-[25px] w-[50px] h-[50px] rounded-full flex items-center justify-center bg-white/10 backdrop-blur-[10px] border border-white/20">
+                                                <img src="/club/dj.gif" alt="Music Visualization" className="w-[48px] h-[48px] object-cover rounded-full" />
+                                            </div>
+                                            <div className="absolute left-[75px] right-[15px]">
+                                                <div className="mt-[15px] text-white text-[14px] font-medium">Club Music</div>
+                                                <div className="mt-[5px] text-white text-[12px] font-normal opacity-80">Now playing</div>
+                                                <div className="flex mt-[12px] gap-3">
+                                                    {formData.music ? (
+                                                        formData.music.split(',').slice(0, 2).map((genre, idx) => (
+                                                            <div key={idx} className="px-[8px] py-[2px] bg-[#202B2B99] rounded-full border border-[#28D2DB] flex items-center gap-[3px]">
+                                                                <span className="text-white text-[10px]">{genre.trim()}</span>
+                                                                <div className="w-[4px] h-[4px] bg-[#C50000] rounded-full"></div>
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <div className="text-white/50 text-xs">No music genres</div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Entry/Booking */}
+                                    <div className="flex flex-col gap-[8px] mt-3">
+                                        <h3 className="text-[#FFFEFF] text-lg font-semibold mb-1 px-1">Entry/Booking</h3>
+                                        <div className="relative bg-[rgba(31.93,42.75,43.32,0.60)] rounded-[15px] overflow-hidden">
+                                            <div className="bg-[#263438] rounded-[15px] p-3 pb-5">
+                                                <div className="flex w-full border-b border-gray-700">
+                                                    <div className="flex-1 text-center pb-2 relative">
+                                                        <div className="text-white text-[12px] font-[600]">
+                                                            Couple & Group<br />Entry
+                                                        </div>
+                                                        <div className="absolute bottom-[-2px] left-0 right-0 h-[3px] bg-[#14FFEC] rounded-t-[4px]"></div>
+                                                    </div>
+                                                    <div className="flex-1 text-center pb-2">
+                                                        <div className="text-white text-[12px] font-[600] opacity-70">
+                                                            Male stag<br />Entry
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex-1 text-center pb-2">
+                                                        <div className="text-white text-[12px] font-[600] opacity-70">
+                                                            Female stag<br />Entry
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="pt-4 pb-2 relative">
+                                                    <div className="text-center">
+                                                        <div className="text-[#14FFEC] text-[15px] font-[500] mb-1">
+                                                            Rs {formData.coupleEntryPrice || '0'} (Cover - {formData.coverCharge || '0'})
+                                                        </div>
+                                                        <div className="text-[#D9D9D9] text-[12px] font-[500]">
+                                                            {formData.redeemDetails || 'Redeem details'}
+                                                        </div>
+                                                    </div>
+                                                    <div className="absolute right-[8px] bottom-0 w-[30px] h-[30px] bg-[#0D7377] rounded-full flex items-center justify-center">
+                                                        <ChevronRight className="w-5 h-5 text-[#14FFEC]" />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Photos Section */}
+                                <div className="w-full mt-5 mb-5">
+                                    <h3 className="text-white text-base font-semibold mb-4">Photos</h3>
+                                    <div className="w-full bg-[rgba(40,60,61,0.30)] rounded-[15px] p-4 flex flex-wrap gap-2 justify-center">
+                                        {(foodDrinksPreview.filter(Boolean).length > 0 || ambiencePreview.filter(Boolean).length > 0) ? (
+                                            [...foodDrinksPreview, ...ambiencePreview].filter(Boolean).slice(0, 5).map((img: string, idx: number) => (
+                                                <div key={idx} className={`${idx < 2 ? 'w-[48%] h-44' : 'w-[31%] h-28'} bg-gray-700 rounded-[15px]`}>
+                                                    <img src={img} alt={`Gallery ${idx + 1}`} className="w-full h-full object-cover rounded-[15px]" />
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="text-white/50 text-sm text-center py-8 w-full">No photos available</div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Facilities Section - Always show header */}
+                                <div className="w-full mt-5 mb-5">
+                                    <h3 className="text-white text-xl font-semibold mb-4">Facilities</h3>
+                                    <div className="grid grid-cols-2 gap-2 bg-[rgba(40,60,61,0.30)] rounded-[15px] p-3">
+                                        {formData.facilities ? (
+                                            formData.facilities.split(',').map((facility: string, idx: number) => (
+                                                <TagComponent
+                                                    key={idx}
+                                                    iconPath="/club/facilities/Clock (1).svg"
+                                                    label={facility.trim()}
+                                                />
+                                            ))
+                                        ) : (
+                                            <div className="text-white/50 text-xs col-span-2 text-center py-3">No facilities available</div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Food Section - Always show header */}
+                                <div className="w-full mt-5 mb-5">
+                                    <h3 className="text-white text-xl font-semibold mb-4">Food</h3>
+                                    <div className="flex flex-wrap gap-2 bg-[rgba(40,60,61,0.30)] rounded-[15px] p-3">
+                                        {formData.foodCuisines ? (
+                                            formData.foodCuisines.split(',').map((cuisine: string, idx: number) => (
+                                                <TagComponent
+                                                    key={idx}
+                                                    iconPath="/club/food/BowlFood (1).svg"
+                                                    label={cuisine.trim()}
+                                                />
+                                            ))
+                                        ) : (
+                                            <div className="text-white/50 text-xs w-full text-center py-3">No food options available</div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Music Section - Always show header */}
+                                <div className="w-full mt-5 mb-5">
+                                    <h3 className="text-white text-xl font-semibold mb-4">Music</h3>
+                                    <div className="flex flex-wrap gap-2 bg-[rgba(40,60,61,0.30)] rounded-[15px] p-3">
+                                        {formData.music ? (
+                                            formData.music.split(',').map((genre: string, idx: number) => (
+                                                <TagComponent
+                                                    key={idx}
+                                                    iconPath="/club/music/Equalizer.svg"
+                                                    label={genre.trim()}
+                                                />
+                                            ))
+                                        ) : (
+                                            <div className="text-white/50 text-xs w-full text-center py-3">No music genres available</div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Bar Section - Always show header */}
+                                <div className="w-full mt-5 mb-5">
+                                    <h3 className="text-white text-xl font-semibold mb-4">Bar</h3>
+                                    <div className="flex flex-wrap gap-2 bg-[rgba(40,60,61,0.30)] rounded-[15px] p-3">
+                                        {formData.barOptions ? (
+                                            formData.barOptions.split(',').map((option: string, idx: number) => (
+                                                <TagComponent
+                                                    key={idx}
+                                                    iconPath="/club/bar/Martini (1).svg"
+                                                    label={option.trim()}
+                                                />
+                                            ))
+                                        ) : (
+                                            <div className="text-white/50 text-xs w-full text-center py-3">No bar options available</div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    /* Form Mode */
+                    <div className="w-full bg-[#021313] rounded-t-[40px] flex flex-col items-center gap-[20px] p-[20px_14px_30px]">
+                        {/* Logo Upload */}
+                        <div
+                            onClick={handleLogoUpload}
+                            className="w-[160px] h-[160px] bg-[#0D1F1F] rounded-[15px] border border-[#14FFEC] flex flex-col items-center justify-center p-2 cursor-pointer overflow-hidden group hover:bg-[#0D1F1F]/70 transition-all"
+                        >
+                            {logoPreview ? (
+                                <div className="relative w-full h-full">
+                                    <img
+                                        src={logoPreview}
+                                        alt="Logo Preview"
+                                        className="w-full h-full object-cover rounded-[13px]"
+                                    />
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDeleteLogo();
+                                        }}
+                                        className="absolute -top-2 -right-2 w-7 h-7 bg-red-500 rounded-full flex items-center justify-center hover:bg-red-600 transition-all shadow-lg"
+                                    >
+                                        <Trash2 size={16} className="text-white" />
+                                    </button>
+                                </div>
+                            ) : (
+                                <>
+                                    <img
+                                        src="/admin/upload.svg"
+                                        alt="Upload"
+                                        width={40}
+                                        height={40}
+                                        className="mb-2"
+                                    />
+                                    <p className="text-white text-center text-[12px] font-semibold leading-[12px] tracking-[0.5px]">Upload logo</p>
+                                </>
+                            )}
+                        </div>
+                        <input
+                            ref={logoInputRef}
+                            type="file"
+                            accept="image/*"
+                            onChange={handleLogoChange}
+                            className="hidden"
+                        />
+
+                        {/* Club Name */}
+                        <div className="w-full flex flex-col gap-[11px]">
+                            <div className="px-5">
+                                <label className="text-[#14FFEC] font-semibold text-base">
+                                    Club Name <span className="text-red-500 text-lg">*</span>
+                                </label>
+                            </div>
+                            <div className="w-full bg-[#0D1F1F] border border-[#0C898B] rounded-[30px] p-[10px] px-5">
+                                <input
+                                    type="text"
+                                    value={formData.clubName}
+                                    onChange={(e) => handleInputChange('clubName', e.target.value)}
+                                    className="w-full bg-transparent text-white placeholder-[#9D9C9C] outline-none text-base font-semibold"
+                                    placeholder="Enter Club Name Here"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Description */}
+                        <div className="w-full flex flex-col gap-[11px]">
+                            <div className="px-5">
+                                <label className="text-[#14FFEC] font-semibold text-base">Description</label>
+                            </div>
+                            <div className="w-full bg-[#0D1F1F] border border-[#0C898B] rounded-[30px] p-[10px] px-5">
+                                <textarea
+                                    value={formData.description}
+                                    onChange={(e) => handleInputChange('description', e.target.value)}
+                                    className="w-full bg-transparent text-white placeholder-[#9D9C9C] outline-none text-base font-semibold min-h-[80px]"
+                                    placeholder="Enter club description"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Contact Info - Auto-filled from user account */}
+                        <div className="w-full flex flex-col gap-4">
+                            <div className="flex flex-col gap-[11px]">
+                                <div className="px-5 flex items-center justify-between">
+                                    <label className="text-[#14FFEC] font-semibold text-base">Contact Email <span className="text-red-500">*</span></label>
+                                    <span className="text-[#9D9C9C] text-xs">From your account</span>
+                                </div>
+                                <div className="w-full bg-[#0D1F1F] border border-[#0C898B] rounded-[30px] p-[10px] px-5 opacity-70">
+                                    <input
+                                        type="email"
+                                        value={formData.contactEmail}
+                                        readOnly
+                                        disabled
+                                        className="w-full bg-transparent text-white/80 placeholder-[#9D9C9C] outline-none text-base font-semibold cursor-not-allowed"
+                                        placeholder="Enter contact email"
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex flex-col gap-[11px]">
+                                <div className="px-5 flex items-center justify-between">
+                                    <label className="text-[#14FFEC] font-semibold text-base">Contact Phone <span className="text-red-500">*</span></label>
+                                    <span className="text-[#9D9C9C] text-xs">From your account</span>
+                                </div>
+                                <div className="w-full bg-[#0D1F1F] border border-[#0C898B] rounded-[30px] p-[10px] px-5 opacity-70">
+                                    <input
+                                        type="text"
+                                        value={formData.contactPhone}
+                                        readOnly
+                                        disabled
+                                        className="w-full bg-transparent text-white/80 placeholder-[#9D9C9C] outline-none text-base font-semibold cursor-not-allowed"
+                                        placeholder="Enter contact phone"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Photos Section - Hidden */}
+                        <div className="w-full hidden">
+                            <div className="px-5 mb-2">
+                                <h3 className="text-white font-semibold text-base">Photos</h3>
+                            </div>
+
+                            {/* Food/Drinks Section */}
+                            <div className="w-full bg-[#0D1F1F] rounded-[15px] p-[8px_0_12px] flex flex-col items-center gap-[6px] mb-2">
+                                <div className="w-full flex flex-col items-center gap-[9px]">
+                                    <div className="w-full px-4">
+                                        <p className="text-[#14FFEC] text-base font-medium tracking-[0.5px]">Food/Drinks</p>
+                                    </div>
+                                    <div className="flex items-center gap-[9px]">
+                                        {[0, 1, 2].map((index) => (
+                                            <div
+                                                key={`food-drink-${index}`}
+                                                onClick={() => handleImageUpload(foodDrinksRefs[index])}
+                                                className="w-[130px] h-[130px] bg-[#0D1F1F] rounded-[15px] border border-[#14FFEC] flex items-center justify-center cursor-pointer overflow-hidden group hover:bg-[#0D1F1F]/70 transition-all"
+                                            >
+                                                {foodDrinksPreview[index] ? (
+                                                    <div className="relative w-full h-full">
+                                                        <img
+                                                            src={foodDrinksPreview[index]}
+                                                            alt={`Food/Drinks ${index + 1}`}
+                                                            className="w-full h-full object-cover rounded-[13px]"
+                                                        />
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleDeleteFoodDrinksImage(index);
+                                                            }}
+                                                            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center hover:bg-red-600 transition-all shadow-lg"
+                                                        >
+                                                            <Trash2 size={14} className="text-white" />
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="w-[25px] h-[25px] bg-[#14FFEC] rounded-full flex items-center justify-center">
+                                                        <Plus className="w-[12px] h-[12px] text-[#004342]" />
+                                                    </div>
+                                                )}
+                                                <input
+                                                    ref={foodDrinksRefs[index]}
+                                                    type="file"
+                                                    accept="image/*"
+                                                    onChange={(e) => handleFoodDrinksImageChange(e, index)}
+                                                    className="hidden"
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Ambience Section */}
+                            <div className="w-full bg-[#0D1F1F] rounded-[15px] p-[8px_0_12px] flex flex-col items-center gap-[6px] mb-2">
+                                <div className="w-full flex flex-col items-center gap-[9px]">
+                                    <div className="w-full px-4">
+                                        <p className="text-[#14FFEC] text-base font-medium tracking-[0.5px]">Ambience</p>
+                                    </div>
+                                    <div className="flex items-center gap-[9px]">
+                                        {[0, 1, 2].map((index) => (
+                                            <div
+                                                key={`ambience-${index}`}
+                                                onClick={() => handleImageUpload(ambienceRefs[index])}
+                                                className="w-[130px] h-[130px] bg-[#0D1F1F] rounded-[15px] border border-[#14FFEC] flex items-center justify-center cursor-pointer overflow-hidden group hover:bg-[#0D1F1F]/70 transition-all"
+                                            >
+                                                {ambiencePreview[index] ? (
+                                                    <div className="relative w-full h-full">
+                                                        <img
+                                                            src={ambiencePreview[index]}
+                                                            alt={`Ambience ${index + 1}`}
+                                                            className="w-full h-full object-cover rounded-[13px]"
+                                                        />
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleDeleteAmbienceImage(index);
+                                                            }}
+                                                            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center hover:bg-red-600 transition-all shadow-lg"
+                                                        >
+                                                            <Trash2 size={14} className="text-white" />
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="w-[25px] h-[25px] bg-[#14FFEC] rounded-full flex items-center justify-center">
+                                                        <Plus className="w-[12px] h-[12px] text-[#004342]" />
+                                                    </div>
+                                                )}
+                                                <input
+                                                    ref={ambienceRefs[index]}
+                                                    type="file"
+                                                    accept="image/*"
+                                                    onChange={(e) => handleAmbienceImageChange(e, index)}
+                                                    className="hidden"
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Menu Section */}
+                            <div className="w-full bg-[#0D1F1F] rounded-[15px] p-[8px_0_12px] flex flex-col items-center gap-[6px]">
+                                <div className="w-full flex flex-col items-center gap-[9px]">
+                                    <div className="w-full px-4">
+                                        <p className="text-[#14FFEC] text-base font-medium tracking-[0.5px]">Menu</p>
+                                    </div>
+                                    <div className="flex items-center gap-[9px]">
+                                        {[0, 1, 2].map((index) => (
+                                            <div
+                                                key={`menu-${index}`}
+                                                onClick={() => handleImageUpload(menuRefs[index])}
+                                                className="w-[130px] h-[130px] bg-[#0D1F1F] rounded-[15px] border border-[#14FFEC] flex items-center justify-center cursor-pointer overflow-hidden group hover:bg-[#0D1F1F]/70 transition-all"
+                                            >
+                                                {menuPreview[index] ? (
+                                                    <div className="relative w-full h-full">
+                                                        <img
+                                                            src={menuPreview[index]}
+                                                            alt={`Menu ${index + 1}`}
+                                                            className="w-full h-full object-cover rounded-[13px]"
+                                                        />
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleDeleteMenuImage(index);
+                                                            }}
+                                                            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center hover:bg-red-600 transition-all shadow-lg"
+                                                        >
+                                                            <Trash2 size={14} className="text-white" />
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="w-[25px] h-[25px] bg-[#14FFEC] rounded-full flex items-center justify-center">
+                                                        <Plus className="w-[12px] h-[12px] text-[#004342]" />
+                                                    </div>
+                                                )}
+                                                <input
+                                                    ref={menuRefs[index]}
+                                                    type="file"
+                                                    accept="image/*"
+                                                    onChange={(e) => handleMenuImageChange(e, index)}
+                                                    className="hidden"
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Location */}
+                        <div className="w-full flex flex-col gap-[11px]">
+                            <div className="px-5">
+                                <label className="text-[#14FFEC] font-semibold text-base">Location</label>
+                            </div>
+                            <div
+                                onClick={() => handleNavigate('/location')}
+                                className="w-full h-[55px] bg-[#0D1F1F] border border-[#0C898B] rounded-[30px] p-[10px] px-5 flex items-center justify-between cursor-pointer mb-2"
+                            >
+                                <span className="text-white text-base font-semibold">
+                                    {selectedLocation.city && selectedLocation.state
+                                        ? `${selectedLocation.city}, ${selectedLocation.state}${selectedLocation.pincode ? ' - ' + selectedLocation.pincode : ''}`
+                                        : 'Select on Map (City/State)'}
+                                </span>
+                                <ChevronRight className="text-[#14FFEC]" size={18} />
+                            </div>
+
+                            {/* Additional Address Fields */}
+                            <div className="w-full flex flex-col gap-3">
+                                <div className="w-full bg-[#0D1F1F] border border-[#0C898B] rounded-[30px] p-[10px] px-5">
+                                    <input
+                                        type="text"
+                                        value={formData.address1}
+                                        onChange={(e) => handleInputChange('address1', e.target.value)}
+                                        className="w-full bg-transparent text-white placeholder-[#9D9C9C] outline-none text-base font-semibold"
+                                        placeholder="Address Line 1"
+                                    />
+                                </div>
+                                <div className="w-full bg-[#0D1F1F] border border-[#0C898B] rounded-[30px] p-[10px] px-5">
+                                    <input
+                                        type="text"
+                                        value={formData.address2}
+                                        onChange={(e) => handleInputChange('address2', e.target.value)}
+                                        className="w-full bg-transparent text-white placeholder-[#9D9C9C] outline-none text-base font-semibold"
+                                        placeholder="Address Line 2 (Optional)"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Details & Rules */}
+                        <div className="w-full flex flex-col gap-[11px]">
+                            <div className="px-5">
+                                <label className="text-[#14FFEC] font-semibold text-base">Details & Rules</label>
+                            </div>
+
+                            <div className="space-y-3">
+                                {/* Time Restriction Toggle */}
+                                <div className="px-5 flex items-center justify-between">
+                                    <span className="text-white">Has Time Restriction?</span>
+                                    <input
+                                        type="checkbox"
+                                        checked={formData.hasTimeRestriction}
+                                        onChange={(e) => setFormData({ ...formData, hasTimeRestriction: e.target.checked })}
+                                        className="w-5 h-5 accent-[#14FFEC]"
+                                    />
+                                </div>
+
+                                {formData.hasTimeRestriction && (
+                                    <div className="w-full bg-[#0D1F1F] border border-[#0C898B] rounded-[30px] p-[10px] px-5">
+                                        <input
+                                            type="text"
+                                            value={formData.timeRestriction}
+                                            onChange={(e) => handleInputChange('timeRestriction', e.target.value)}
+                                            className="w-full bg-transparent text-white placeholder-[#9D9C9C] outline-none text-base font-semibold"
+                                            placeholder="Time Restriction (e.g. 10 PM)"
+                                        />
+                                    </div>
+                                )}
+
+                                <div className="w-full bg-[#0D1F1F] border border-[#0C898B] rounded-[30px] p-[10px] px-5">
+                                    <textarea
+                                        value={formData.inclusions}
+                                        onChange={(e) => handleInputChange('inclusions', e.target.value)}
+                                        className="w-full bg-transparent text-white placeholder-[#9D9C9C] outline-none text-base font-semibold min-h-[60px]"
+                                        placeholder="Inclusions (comma separated)"
+                                    />
+                                </div>
+
+                                <div className="w-full bg-[#0D1F1F] border border-[#0C898B] rounded-[30px] p-[10px] px-5">
+                                    <textarea
+                                        value={formData.exclusions}
+                                        onChange={(e) => handleInputChange('exclusions', e.target.value)}
+                                        className="w-full bg-transparent text-white placeholder-[#9D9C9C] outline-none text-base font-semibold min-h-[60px]"
+                                        placeholder="Exclusions (comma separated)"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Manual Tags Entry */}
+                        <div className="w-full flex flex-col gap-[11px]">
+                            <div className="px-5">
+                                <label className="text-[#14FFEC] font-semibold text-base">Tags (Manual Entry)</label>
+                            </div>
+                            <div className="space-y-3">
+                                <div className="w-full bg-[#0D1F1F] border border-[#0C898B] rounded-[30px] p-[10px] px-5">
+                                    <input
+                                        type="text"
+                                        value={formData.foodCuisines}
+                                        onChange={(e) => handleInputChange('foodCuisines', e.target.value)}
+                                        className="w-full bg-transparent text-white placeholder-[#9D9C9C] outline-none text-base font-semibold"
+                                        placeholder="Food Cuisines (comma separated)"
+                                    />
+                                </div>
+                                <div className="w-full bg-[#0D1F1F] border border-[#0C898B] rounded-[30px] p-[10px] px-5">
+                                    <input
+                                        type="text"
+                                        value={formData.facilities}
+                                        onChange={(e) => handleInputChange('facilities', e.target.value)}
+                                        className="w-full bg-transparent text-white placeholder-[#9D9C9C] outline-none text-base font-semibold"
+                                        placeholder="Facilities (comma separated)"
+                                    />
+                                </div>
+                                <div className="w-full bg-[#0D1F1F] border border-[#0C898B] rounded-[30px] p-[10px] px-5">
+                                    <input
+                                        type="text"
+                                        value={formData.music}
+                                        onChange={(e) => handleInputChange('music', e.target.value)}
+                                        className="w-full bg-transparent text-white placeholder-[#9D9C9C] outline-none text-base font-semibold"
+                                        placeholder="Music (comma separated)"
+                                    />
+                                </div>
+                                <div className="w-full bg-[#0D1F1F] border border-[#0C898B] rounded-[30px] p-[10px] px-5">
+                                    <input
+                                        type="text"
+                                        value={formData.barOptions}
+                                        onChange={(e) => handleInputChange('barOptions', e.target.value)}
+                                        className="w-full bg-transparent text-white placeholder-[#9D9C9C] outline-none text-base font-semibold"
+                                        placeholder="Bar Options (comma separated)"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Club Tags - Create Random Tags */}
+                        <div className="w-full flex flex-col gap-[11px]">
+                            <div className="px-5">
+                                <label className="text-[#14FFEC] font-semibold text-base">Club Tags</label>
+                            </div>
+                            <div className="w-full bg-[#0D1F1F] border border-[#0C898B] rounded-[15px] p-5 flex flex-col gap-3">
+                                <p className="text-white text-sm">Create tags for your club to help members discover you</p>
+                                <button
+                                    onClick={() => {
+                                        const tags = ['Music', 'Lounge', 'Cocktails', 'Dance', 'VIP', 'Live Band', 'DJ', 'Happy Hour'];
+                                        const randomTags = tags.sort(() => Math.random() - 0.5).slice(0, 3).join(', ');
+                                        handleInputChange('music', randomTags);
+                                        toast({
+                                            title: 'Random Tags Generated',
+                                            description: `Tags: ${randomTags}`,
+                                        });
+                                    }}
+                                    className="w-full py-2 px-4 bg-[#14FFEC] text-[#004342] font-semibold rounded-lg hover:bg-[#14FFEC]/80 transition-colors"
+                                >
+                                    Generate Random Tags
+                                </button>
+                                <div className="flex items-center gap-3 flex-wrap mt-2">
+                                    {formData.music && formData.music.split(',').map((tag, idx) => (
+                                        <div key={idx} className="bg-[#14FFEC]/20 border border-[#14FFEC] text-[#14FFEC] px-3 py-1 rounded-full text-xs font-semibold">
+                                            {tag.trim()}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Bottom Save Button */}
+            <div className="fixed bottom-0 left-0 right-0 z-50">
+                <div className="w-full h-[80px] relative bg-[#0D1F1F] shadow-[0px_30px_30px_-40px_#00968A_inset] overflow-hidden rounded-t-[40px] border-t-2 border-[#14FFEC]">
+                    <div className="flex justify-center items-center px-8 h-full">
+                        <div className="w-[220px] h-[45px] bg-[#0F6861] rounded-[30px] flex justify-center items-center hover:bg-[#0D5451] transition-colors disabled:opacity-50">
+                            <button
+                                onClick={handleCreateClub}
+                                disabled={isSubmitting || !formData.clubName.trim()}
+                                className="w-full h-full flex justify-center items-center cursor-pointer disabled:cursor-not-allowed"
+                            >
+                                <span className="text-center text-white text-[16px] font-['Manrope'] font-bold tracking-[0.05px]">
+                                    {isSubmitting ? 'Creating...' : 'Save & Create Club'}
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+
+

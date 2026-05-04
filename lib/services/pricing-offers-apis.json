@@ -1,0 +1,115 @@
+{
+  "pricingOffers": {
+    "POST_/pricing-offers/clubs/{clubId}/offers": {
+      "description": "Create a special offer for a club (Admin/SuperAdmin only)",
+      "params": {
+        "clubId": "string"
+      },
+      "requestBody": {
+        "title": "string",
+        "description": "string",
+        "offerType": "PERCENTAGE_DISCOUNT",
+        "discountPercentage": 0,
+        "promoCode": "string",
+        "minimumAmount": 0,
+        "startDate": "ISO_DATE",
+        "endDate": "ISO_DATE",
+        "isActive": true
+      },
+      "success": {
+        "code": 301,
+        "message": "Offer created successfully"
+      },
+      "errors": {
+        "400": {
+          "code": 400,
+          "message": "Invalid offer data"
+        },
+        "403": {
+          "code": 403,
+          "message": "Admin access required"
+        },
+        "404": {
+          "code": 404,
+          "message": "Club not found"
+        }
+      }
+    },
+
+    "PUT_/pricing-offers/clubs/{clubId}/offers/{offerId}": {
+      "description": "Update an existing club offer (Admin/SuperAdmin only)",
+      "params": {
+        "clubId": "string",
+        "offerId": "string"
+      },
+      "requestBody": {
+        "title": "string",
+        "description": "string",
+        "offerType": "PERCENTAGE_DISCOUNT",
+        "discountPercentage": 0,
+        "promoCode": "string",
+        "minimumAmount": 0,
+        "startDate": "ISO_DATE",
+        "endDate": "ISO_DATE",
+        "isActive": true
+      },
+      "success": {
+        "code": 302,
+        "message": "Offer updated successfully"
+      },
+      "errors": {
+        "400": {
+          "code": 400,
+          "message": "Invalid offer data"
+        },
+        "403": {
+          "code": 403,
+          "message": "Admin access required"
+        },
+        "404": {
+          "code": 404,
+          "message": "Offer or club not found"
+        }
+      }
+    },
+
+    "DELETE_/pricing-offers/clubs/{clubId}/offers/{offerId}": {
+      "description": "Delete a club offer (Admin/SuperAdmin only)",
+      "params": {
+        "clubId": "string",
+        "offerId": "string"
+      },
+      "success": {
+        "code": 303,
+        "message": "Offer deleted successfully"
+      },
+      "errors": {
+        "403": {
+          "code": 403,
+          "message": "Admin access required"
+        },
+        "404": {
+          "code": 404,
+          "message": "Offer or club not found"
+        }
+      }
+    },
+
+    "GET_/pricing-offers/clubs/{clubId}/offers": {
+      "description": "Get all active offers for a club",
+      "params": {
+        "clubId": "string"
+      },
+      "success": {
+        "code": 304,
+        "message": "Club offers retrieved successfully"
+      },
+      "errors": {
+        "404": {
+          "code": 404,
+          "message": "Club not found"
+        }
+      }
+    }
+  }
+}

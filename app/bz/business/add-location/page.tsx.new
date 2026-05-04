@@ -1,0 +1,289 @@
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import '../../admin/new-event/styles.css';
+import PageHeader from '@/components/common/page-header';
+import Image from 'next/image';
+import { ArrowLeft } from 'lucide-react';
+
+export default function AddLocationPage() {
+    const router = useRouter();
+    const [address, setAddress] = useState({
+        address1: '',
+        address2: '',
+        city: '',
+        state: '',
+        country: '',
+        pincode: '',
+    });
+    const [searchQuery, setSearchQuery] = useState('');
+    const [showAddressForm, setShowAddressForm] = useState(false);
+    const [currentLocation, setCurrentLocation] = useState<string | null>(null);
+
+    const handleGoBack = () => {
+        router.back();
+    };
+
+    const handleAddressChange = (field: string, value: string) => {
+        setAddress({ ...address, [field]: value });
+    };
+
+    const handleUseCurrentLocation = () => {
+        // This would normally use the browser's geolocation API
+        // For demo purposes, we'll just set a mock location
+        setCurrentLocation("House 1915/8/1, Yogesham CHS, Wardha Road, Nagpur");
+    };
+
+    const handleAddressSubmit = () => {
+        // Here you would save the address and return to the previous page
+        // For now, we'll just go back
+        router.back();
+    };
+
+    const handleShowAddressForm = () => {
+        setShowAddressForm(true);
+    };
+
+    const handleSaveDetails = () => {
+        // Save address details and go back
+        router.back();
+    };
+
+    return (
+        <div className="min-h-screen bg-[#021313] text-white relative">
+            <PageHeader title={showAddressForm ? "Add Address Info" : "Enter your Location"} />
+
+            {/* Google Map */}
+            <div className="w-full h-[calc(100vh-250px)] pt-[10vh] z-[-1]">
+                <div className="w-full h-full bg-gray-300 relative">
+                    <iframe
+                        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d14882.301196323082!2d79.07200731381253!3d21.14599109999999!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bd4c0a1a9e94981%3A0xb7c17454491a28cd!2sNagpur%2C%20Maharashtra!5e0!3m2!1sen!2sin!4v1700143121201!5m2!1sen!2sin"
+                        className="w-full h-full border-0"
+                        allowFullScreen={false}
+                        loading="lazy"
+                        referrerPolicy="no-referrer-when-downgrade"
+                    ></iframe>
+                </div>
+            </div>
+
+            {/* Bottom Container */}
+            {!showAddressForm ? (
+                <div className="fixed bottom-0 left-0 right-0 z-40 w-full py-7 px-5 bg-[#021313] overflow-hidden rounded-t-[40px] rounded-b-[20px] border-t-2 border-[#14FFEC] flex flex-col gap-[91px]">
+                    <div className="flex flex-col gap-[20px]">
+                        {/* Search Box */}
+                        <div className="h-[51px] py-[6px]">
+                            <div className="h-[50px] py-[8px] px-[15px] bg-[#0D1F1F] shadow-[0px_4px_4px_rgba(0,0,0,0.25)] overflow-hidden rounded-[23px] flex justify-between items-center">
+                                <div className="flex items-center gap-[8px]">
+                                    <div className="w-[30px] h-[30px] relative overflow-hidden flex items-center justify-center">
+                                        <svg width="25" height="25" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M11 19C15.4183 19 19 15.4183 19 11C19 6.58172 15.4183 3 11 3C6.58172 3 3 6.58172 3 11C3 15.4183 6.58172 19 11 19Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                            <path d="M21 21L16.65 16.65" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                        </svg>
+                                    </div>
+                                    <div className="text-white text-[16px] font-bold leading-[16px] tracking-[0.5px]">Nagpur</div>
+                                </div>
+                                <div className="w-[30px] h-[30px] relative overflow-hidden flex items-center justify-center">
+                                    <Image
+                                        src="/admin/location/NavigationArrow.svg"
+                                        alt="Navigation"
+                                        width={24}
+                                        height={24}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Current Location and Address */}
+                        <div className="flex flex-col gap-[10px]">
+                            {/* Use Current Location Option */}
+                            <div
+                                onClick={handleUseCurrentLocation}
+                                className="flex items-center gap-[12px] cursor-pointer"
+                            >
+                                <div className="w-[30px] h-[30px] relative overflow-hidden flex items-center justify-center">
+                                    <Image
+                                        src="/admin/location/NavigationArrow.svg"
+                                        alt="Current Location"
+                                        width={24}
+                                        height={24}
+                                    />
+                                </div>
+                                <div className="text-white text-[16px] font-bold leading-[16px] tracking-[0.5px]">Use your current location</div>
+                            </div>
+
+                            {/* Selected Location */}
+                            {currentLocation && (
+                                <div className="py-[20px] px-[22px] bg-[#0D1F1F] rounded-[20px] flex items-start gap-[11px]">
+                                    <div className="w-[24px] h-[24px] relative overflow-hidden flex items-center justify-center">
+                                        <Image
+                                            src="/admin/location/MapPin.svg"
+                                            alt="Location Pin"
+                                            width={16.5}
+                                            height={21}
+                                        />
+                                    </div>
+                                    <div className="w-[270px]">
+                                        <p className="text-white text-[14px] font-medium leading-[20px] tracking-[0.14px]">{currentLocation}</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Add Address Button */}
+                    <div
+                        onClick={handleShowAddressForm}
+                        className="text-center text-[#14FFEC] text-[20px] font-semibold leading-[21px] tracking-[0.2px] cursor-pointer"
+                    >
+                        Add Address Information
+                    </div>
+                </div>
+            ) : (
+                <div className="fixed bottom-0 left-0 right-0 z-40 w-full pt-[28px] pb-[37px] px-[14px] bg-[#021313] overflow-hidden rounded-t-[40px] rounded-b-[20px] border-t-2 border-[#14FFEC] flex flex-col items-center gap-[44px]">
+                    <div className="flex flex-col items-center gap-[27px]">
+                        <div className="text-center text-[#14FFEC] text-[16px] font-semibold leading-[21px] tracking-[0.16px]">
+                            Enter location manually
+                        </div>
+
+                        <div className="w-full max-w-[402px] flex flex-col items-start gap-[16px]">
+                            <div className="w-full px-[20px] flex justify-center items-center gap-[10px]">
+                                <div className="flex-1 flex flex-col justify-center text-white text-[20px] font-semibold leading-[16px] tracking-[0.5px]">
+                                    Address info
+                                </div>
+                            </div>
+
+                            <div className="w-full flex flex-col items-start gap-[11px]">
+                                {/* Address 1 */}
+                                <div className="w-full px-[20px] flex justify-center items-center gap-[10px]">
+                                    <div className="flex-1 flex flex-col justify-center text-[#14FFEC] text-[16px] font-semibold leading-[16px] tracking-[0.5px]">
+                                        Address 1 *
+                                    </div>
+                                </div>
+                                <div className="w-full h-[55px] px-[20px] py-[10px] bg-[#0D1F1F] rounded-[30px] outline outline-[#0C898B] flex items-center gap-[20px]">
+                                    <input
+                                        type="text"
+                                        value={address.address1}
+                                        onChange={(e) => handleAddressChange('address1', e.target.value)}
+                                        placeholder="Enter Club Name Here"
+                                        className="w-full bg-transparent text-[#9D9C9C] text-[16px] font-semibold leading-[16px] tracking-[0.5px] outline-none"
+                                    />
+                                </div>
+
+                                {/* Address 2 */}
+                                <div className="w-full px-[20px] flex justify-center items-center gap-[10px]">
+                                    <div className="flex-1 flex flex-col justify-center text-[#14FFEC] text-[16px] font-semibold leading-[16px] tracking-[0.5px]">
+                                        Address 2 (Optional)
+                                    </div>
+                                </div>
+                                <div className="w-full h-[55px] px-[20px] py-[10px] bg-[#0D1F1F] rounded-[30px] outline outline-[#0C898B] flex items-center gap-[20px]">
+                                    <input
+                                        type="text"
+                                        value={address.address2}
+                                        onChange={(e) => handleAddressChange('address2', e.target.value)}
+                                        placeholder="Enter Club Name Here"
+                                        className="w-full bg-transparent text-[#9D9C9C] text-[16px] font-semibold leading-[16px] tracking-[0.5px] outline-none"
+                                    />
+                                </div>
+
+                                {/* City and State in one row */}
+                                <div className="w-full flex justify-between items-center">
+                                    <div className="w-[191px] flex flex-col items-start gap-[11px]">
+                                        <div className="w-full px-[20px] flex justify-center items-center gap-[10px]">
+                                            <div className="flex-1 flex flex-col justify-center text-[#14FFEC] text-[16px] font-semibold leading-[16px] tracking-[0.5px]">
+                                                City *
+                                            </div>
+                                        </div>
+                                        <div className="w-full h-[55px] px-[20px] py-[10px] bg-[#0D1F1F] rounded-[30px] outline outline-[#0C898B] flex items-center gap-[20px]">
+                                            <input
+                                                type="text"
+                                                value={address.city}
+                                                onChange={(e) => handleAddressChange('city', e.target.value)}
+                                                placeholder="Enter City"
+                                                className="w-full bg-transparent text-[#9D9C9C] text-[16px] font-semibold leading-[16px] tracking-[0.5px] outline-none"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="w-[191px] flex flex-col items-start gap-[11px]">
+                                        <div className="w-full px-[20px] flex justify-center items-center gap-[10px]">
+                                            <div className="w-[171px] flex flex-col justify-center text-[#14FFEC] text-[16px] font-semibold leading-[16px] tracking-[0.5px]">
+                                                State *
+                                            </div>
+                                        </div>
+                                        <div className="w-full h-[55px] px-[20px] py-[10px] bg-[#0D1F1F] rounded-[30px] outline outline-[#0C898B] flex items-center gap-[20px]">
+                                            <div className="w-full flex justify-between items-center">
+                                                <select
+                                                    value={address.state}
+                                                    onChange={(e) => handleAddressChange('state', e.target.value)}
+                                                    className="w-full bg-transparent text-[#9D9C9C] text-[16px] font-semibold leading-[16px] tracking-[0.5px] outline-none appearance-none"
+                                                >
+                                                    <option value="">Enter City</option>
+                                                    <option value="Maharashtra">Maharashtra</option>
+                                                    <option value="Karnataka">Karnataka</option>
+                                                    <option value="Delhi">Delhi</option>
+                                                </select>
+                                                <div className="w-[18px] h-[18px] relative overflow-hidden rotate-180">
+                                                    <div className="w-[12.94px] h-[7.32px] absolute left-[2.53px] top-[5.90px] bg-[#14FFEC]"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Country and Pincode in one row */}
+                                <div className="w-full flex justify-between items-center">
+                                    <div className="w-[191px] flex flex-col items-start gap-[11px]">
+                                        <div className="w-full px-[20px] flex justify-center items-center gap-[10px]">
+                                            <div className="flex-1 flex flex-col justify-center text-[#14FFEC] text-[16px] font-semibold leading-[16px] tracking-[0.5px]">
+                                                Country
+                                            </div>
+                                        </div>
+                                        <div className="w-full h-[55px] px-[20px] py-[10px] bg-[#0D1F1F] rounded-[30px] outline outline-[#0C898B] flex items-center gap-[20px]">
+                                            <input
+                                                type="text"
+                                                value={address.country}
+                                                onChange={(e) => handleAddressChange('country', e.target.value)}
+                                                placeholder="Enter Country"
+                                                className="w-full bg-transparent text-[#9D9C9C] text-[16px] font-semibold leading-[16px] tracking-[0.5px] outline-none"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="w-[191px] flex flex-col items-start gap-[11px]">
+                                        <div className="w-full px-[20px] flex justify-center items-center gap-[10px]">
+                                            <div className="w-[171px] flex flex-col justify-center text-[#14FFEC] text-[16px] font-semibold leading-[16px] tracking-[0.5px]">
+                                                Pincode
+                                            </div>
+                                        </div>
+                                        <div className="w-full h-[55px] px-[20px] py-[10px] bg-[#0D1F1F] rounded-[30px] outline outline-[#0C898B] flex items-center gap-[20px]">
+                                            <input
+                                                type="text"
+                                                value={address.pincode}
+                                                onChange={(e) => handleAddressChange('pincode', e.target.value)}
+                                                placeholder="Enter Pincode"
+                                                className="w-full bg-transparent text-[#9D9C9C] text-[16px] font-semibold leading-[16px] tracking-[0.5px] outline-none"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {/* Save Details Button */}
+                    <button 
+                        onClick={handleSaveDetails}
+                        className="w-full max-w-[396px] h-[55px] bg-[#0F6861] rounded-[30px] flex justify-center items-start mt-4"
+                    >
+                        <div className="w-full max-w-[375px] h-[55px] flex justify-center items-center gap-[16px]">
+                            <div className="text-center text-white text-[24px] font-bold tracking-[0.08px]">
+                                Save Details
+                            </div>
+                        </div>
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+}

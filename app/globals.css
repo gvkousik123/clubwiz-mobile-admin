@@ -1,0 +1,519 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Anton&display=swap');
+
+/* Filter popup animation */
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out forwards;
+}
+
+/* Custom scrollbar styles for story sections */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  /* Internet Explorer 10+ */
+  scrollbar-width: none;
+  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+  /* Safari and Chrome */
+}
+
+/* Ticket card cutouts */
+.ticket-container {
+  position: relative;
+  /* Create a clip-path to cut out the circular areas */
+  clip-path: circle(25px at 0% 50%), circle(25px at 100% 50%);
+  /* Alternative approach using mask for better border handling */
+  mask:
+    radial-gradient(circle 25px at 0% 50%, transparent 24px, black 25px),
+    radial-gradient(circle 25px at 100% 50%, transparent 24px, black 25px);
+  mask-composite: intersect;
+}
+
+/* LEFT side circular cutout */
+.ticket-container::before {
+  content: '';
+  position: absolute;
+  left: -25px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 50px;
+  height: 50px;
+  background: #021313;
+  /* Same as page background */
+  border-radius: 50%;
+  z-index: 10;
+}
+
+/* RIGHT side circular cutout */
+.ticket-container::after {
+  content: '';
+  position: absolute;
+  right: -25px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 50px;
+  height: 50px;
+  background: #021313;
+  /* Same as page background */
+  border-radius: 50%;
+  z-index: 10;
+}
+
+:root {
+  /* ClubViz Brand Colors - From COLOR_PALETTE_REFERENCE.md */
+  --clubviz-dark-bg: #031313;
+  --clubviz-dark-card: #0e1f1f;
+  --clubviz-dark-accent: #1a3030;
+  --clubviz-teal-gradient-start: #14b8a6;
+  --clubviz-teal-gradient-end: #0891b2;
+  --clubviz-cyan: #06b6d4;
+  --clubviz-teal: #14b8a6;
+  --clubviz-teal-dark: #0d9488;
+
+  /* Standardized Border Radius */
+  --radius: 1rem;
+  --radius-sm: 0.75rem;
+  --radius-lg: 1.25rem;
+  --radius-xl: 1.5rem;
+
+  /* Design System Colors */
+  --background: #031313;
+  --foreground: #ffffff;
+  --card: #0e1f1f;
+  --card-foreground: #ffffff;
+  --popover: #0e1f1f;
+  --popover-foreground: #ffffff;
+  --primary: #14b8a6;
+  --primary-foreground: #ffffff;
+  --secondary: #0e1f1f;
+  --secondary-foreground: #ffffff;
+  --muted: #1a3030;
+  --muted-foreground: rgba(255, 255, 255, 0.5);
+  --accent: #14b8a6;
+  --accent-foreground: #ffffff;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: #0e1f1f;
+  --ring: #14b8a6;
+  --sidebar: #0e1f1f;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #14b8a6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1a3030;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #1a3030;
+  --sidebar-ring: #14b8a6;
+}
+
+.dark {
+  --background: #031313;
+  --foreground: #ffffff;
+  --card: #0e1f1f;
+  --card-foreground: #ffffff;
+  --popover: #0e1f1f;
+  --popover-foreground: #ffffff;
+  --primary: #14b8a6;
+  --primary-foreground: #ffffff;
+  --secondary: #0e1f1f;
+  --secondary-foreground: #ffffff;
+  --muted: #1a3030;
+  --muted-foreground: #a3a3a3;
+  --accent: #14b8a6;
+  --accent-foreground: #ffffff;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #1a3030;
+  --input: #0e1f1f;
+  --ring: #14b8a6;
+  --sidebar: #0e1f1f;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #14b8a6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1a3030;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #1a3030;
+  --sidebar-ring: #14b8a6;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+    outline-color: rgba(var(--ring), 0.5);
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: hidden;
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: 'Manrope', sans-serif;
+    height: 100%;
+  }
+
+  /* Hide scrollbar globally while keeping scroll functionality */
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar,
+  *::-webkit-scrollbar {
+    display: none;
+  }
+
+  html, body, * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  /* Responsive container sizes */
+  .container {
+    width: 100%;
+    margin-right: auto;
+    margin-left: auto;
+    padding-right: 1rem;
+    padding-left: 1rem;
+  }
+
+  /* Safe area for devices with notches */
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0.5rem);
+  }
+
+  /* Force images to be responsive */
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+/* ClubViz Custom Utility Classes */
+@layer utilities {
+  .scrollbar-hide {
+    /* Hide scrollbar while preserving functionality */
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    /* Firefox */
+    -ms-overflow-style: none;
+    /* Internet Explorer 10+ */
+    overflow-y: auto;
+    /* Allow vertical scrolling */
+    overflow-x: auto;
+    /* Allow horizontal scrolling if needed */
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+    /* Safari and Chrome */
+  }
+
+  /* Custom scrollable container that prevents page overflow */
+  .scroll-container {
+    overflow-x: auto;
+    max-width: 100%;
+    margin: 0 -1px;
+    /* Prevent sub-pixel rendering issues */
+    padding: 0 1px;
+    scroll-snap-type: x mandatory;
+    /* Enable smooth scroll snapping */
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .bg-clubviz-dark {
+    background-color: var(--clubviz-dark-900);
+  }
+
+  .bg-clubviz-card {
+    background-color: var(--clubviz-dark-800);
+  }
+
+  .bg-clubviz-secondary {
+    background-color: var(--clubviz-dark-700);
+  }
+
+  .text-clubviz-teal {
+    color: var(--clubviz-teal);
+  }
+
+  .text-clubviz-cyan {
+    color: var(--clubviz-cyan);
+  }
+
+  .border-clubviz-teal {
+    border-color: var(--clubviz-teal);
+  }
+
+  .bg-gradient-clubviz {
+    background: linear-gradient(135deg, #14b8a6, #0891b2);
+  }
+
+  .bg-gradient-clubviz-dark {
+    background: linear-gradient(135deg, #1a1a1a, #2d2d30);
+  }
+
+  .shadow-clubviz {
+    box-shadow: 0 4px 20px rgba(20, 184, 166, 0.2);
+  }
+
+  .glow-clubviz {
+    box-shadow: 0 0 20px rgba(20, 184, 166, 0.3);
+  }
+
+  /* Glassmorphism effects for ClubViz - Updated with #0e1f1f */
+  .glassmorphism {
+    background: rgba(14, 31, 31, 0.7);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius);
+  }
+
+  .glassmorphism-strong {
+    background: rgba(14, 31, 31, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: var(--radius);
+  }
+
+  .glassmorphism-light {
+    background: rgba(14, 31, 31, 0.5);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius);
+  }
+
+  .surface-card {
+    background: rgba(14, 31, 31, 0.82);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 1.5rem;
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.4);
+  }
+
+  .surface-panel {
+    background: rgba(3, 19, 19, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 1.25rem;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  .cta-gradient {
+    background: linear-gradient(135deg, #1db584 0%, #0891b2 100%);
+    box-shadow: 0 12px 28px rgba(8, 145, 178, 0.35);
+    color: #ffffff;
+  }
+
+  .cta-gradient:hover {
+    filter: brightness(1.05);
+  }
+
+  .cta-secondary {
+    background: rgba(14, 31, 31, 0.8);
+    border: 1px solid rgba(20, 184, 166, 0.35);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    color: rgba(255, 255, 255, 0.92);
+  }
+
+  .pill-input {
+    background: rgba(3, 19, 19, 0.78);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 9999px;
+    height: 44px;
+    padding: 0.75rem 1.25rem;
+    color: #ffffff;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  .pill-input::placeholder {
+    color: rgba(255, 255, 255, 0.55);
+  }
+
+  .divider-line {
+    height: 1px;
+    background: linear-gradient(90deg, rgba(20, 184, 166, 0.85) 0%, rgba(20, 184, 166, 0.08) 100%);
+  }
+
+  .badge-tag {
+    background: rgba(14, 31, 31, 0.8);
+    border: 1px solid rgba(20, 184, 166, 0.35);
+    border-radius: 9999px;
+    padding: 0.4rem 0.85rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+
+  .badge-tag[data-variant='primary'] {
+    background: linear-gradient(135deg, #14b8a6 0%, #0891b2 100%);
+    border: none;
+    box-shadow: 0 8px 20px rgba(8, 145, 178, 0.35);
+  }
+
+  .badge-tag[data-variant='purple'] {
+    background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+    border: none;
+    box-shadow: 0 8px 20px rgba(147, 51, 234, 0.25);
+  }
+
+  .circle-glow {
+    position: relative;
+  }
+
+  .story-ring {
+    position: relative;
+    display: inline-flex;
+    height: 100%;
+    width: 100%;
+    border-radius: 9999px;
+    padding: 3px;
+    background: linear-gradient(135deg, #2dd4bf 0%, #0ea5e9 55%, #14b8a6 100%);
+    transition: transform 0.4s ease;
+  }
+
+  .story-ring::after {
+    content: "";
+    position: absolute;
+    inset: 1px;
+    border-radius: inherit;
+    opacity: 0.4;
+    background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.35), transparent 65%);
+    pointer-events: none;
+  }
+
+  .group:hover .story-ring {
+    transform: rotate(4deg);
+  }
+
+  .story-ring__inner {
+    position: relative;
+    display: inline-flex;
+    height: 100%;
+    width: 100%;
+    border-radius: 9999px;
+    padding: 3px;
+    background: linear-gradient(160deg, #041818 0%, #020f10 100%);
+    overflow: hidden;
+  }
+
+  .story-ring__image {
+    height: 100%;
+    width: 100%;
+    border-radius: 9999px;
+    object-fit: cover;
+    object-position: center;
+    transition: transform 0.5s ease;
+  }
+
+  .group:hover .story-ring__image {
+    transform: scale(1.07);
+  }
+
+  .progress-track {
+    width: 100%;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 9999px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(135deg, #14b8a6 0%, #06b6d4 100%);
+  }
+
+  /* Header gradient - ONLY for headers */
+  .header-gradient {
+    background: linear-gradient(135deg, #14b8a6, #0891b2);
+  }
+
+  .header-gradient-alt {
+    background: linear-gradient(to right, #14b8a6, #06b6d4);
+  }
+
+  .text-gradient-cyan {
+    background: linear-gradient(135deg, #14b8a6, #00ffff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-neon-404 {
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    background: linear-gradient(180deg, #1fffe9 0%, #0cd7d4 35%, #066c95 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    filter: drop-shadow(0 0 24px rgba(18, 255, 232, 0.45)) drop-shadow(0 22px 40px rgba(0, 0, 0, 0.65));
+    text-shadow: 0 0 32px rgba(18, 255, 232, 0.38);
+  }
+
+  /* DJ Button Soundwave Animation */
+  @keyframes soundwave {
+
+    0%,
+    100% {
+      transform: scaleY(0.5);
+    }
+
+    50% {
+      transform: scaleY(1.5);
+    }
+  }
+
+  .animate-soundwave {
+    animation: soundwave 0.6s ease-in-out infinite;
+  }
+
+  /* Glassmorphism Effects - From COLOR_PALETTE_REFERENCE.md */
+  .glass-light {
+    background: rgba(14, 31, 31, 0.5);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .glass-standard {
+    background: rgba(14, 31, 31, 0.7);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .glass-strong {
+    background: rgba(14, 31, 31, 0.85);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+  }
+
+  /* Primary Header Gradient */
+  .header-gradient {
+    background: linear-gradient(135deg, #14b8a6 0%, #0891b2 100%);
+  }
+
+  /* Alternative Header Gradient */
+  .header-gradient-alt {
+    background: linear-gradient(to right, #14b8a6 0%, #06b6d4 100%);
+  }
+}

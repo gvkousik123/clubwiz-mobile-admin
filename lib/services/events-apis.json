@@ -1,0 +1,450 @@
+{
+  "api": "Events API",
+  "version": "1.0.0",
+
+  "endpoints": {
+    "GET_/events/club/{clubId}": {
+      "description": "Get club events",
+      "params": {
+        "clubId": "string",
+        "page": 0,
+        "size": 20,
+        "sortBy": "startDateTime",
+        "sortOrder": "asc"
+      },
+      "responses": {
+        "200": {
+          "description": "Club events retrieved successfully",
+          "body": {
+            "content": [
+              {
+                "id": "string",
+                "title": "string",
+                "shortDescription": "string",
+                "imageUrl": "string",
+                "location": "string",
+                "startDateTime": "ISO_DATE",
+                "endDateTime": "ISO_DATE",
+                "formattedDate": "string",
+                "formattedTime": "string",
+                "timeUntilEvent": "string",
+                "duration": "string",
+                "attendeeCount": 0,
+                "maxAttendees": 0,
+                "isRegistered": true,
+                "canRegister": true,
+                "isFull": true,
+                "clubId": "string",
+                "clubName": "string",
+                "clubLogo": "string",
+                "organizerName": "string",
+                "status": "UPCOMING",
+                "isPublic": true,
+                "requiresApproval": true,
+                "capacityPercentage": 0,
+                "eventStatusText": "string",
+                "pastEvent": true,
+                "upcoming": true,
+                "ongoing": true,
+                "attendeeStatus": "string"
+              }
+            ],
+            "totalElements": 0,
+            "totalPages": 0,
+            "currentPage": 0,
+            "size": 0,
+            "hasNext": true,
+            "hasPrevious": true,
+            "first": true,
+            "last": true,
+            "paginationInfo": "string",
+            "resultsInfo": "string"
+          }
+        },
+        "404": {
+          "description": "Club not found",
+          "body": "Same schema as 200 response"
+        }
+      }
+    },
+
+    "GET_/events/list": {
+      "description": "Get paginated event list",
+      "params": {
+        "page": 0,
+        "size": 20,
+        "sortBy": "startDateTime",
+        "sortOrder": "asc",
+        "category": "string",
+        "search": "string",
+        "status": "string",
+        "startDate": "string",
+        "endDate": "string"
+      },
+      "responses": {
+        "200": {
+          "description": "Events retrieved successfully",
+          "body": {
+            "content": [
+              {
+                "id": "string",
+                "title": "string",
+                "shortDescription": "string",
+                "imageUrl": "string",
+                "location": "string",
+                "startDateTime": "ISO_DATE",
+                "endDateTime": "ISO_DATE",
+                "formattedDate": "string",
+                "formattedTime": "string",
+                "timeUntilEvent": "string",
+                "duration": "string",
+                "attendeeCount": 0,
+                "maxAttendees": 0,
+                "isRegistered": true,
+                "canRegister": true,
+                "isFull": true,
+                "clubId": "string",
+                "clubName": "string",
+                "clubLogo": "string",
+                "organizerName": "string",
+                "status": "UPCOMING",
+                "isPublic": true,
+                "requiresApproval": true,
+                "capacityPercentage": 0,
+                "eventStatusText": "string",
+                "pastEvent": true,
+                "upcoming": true,
+                "ongoing": true,
+                "attendeeStatus": "string"
+              }
+            ],
+            "totalElements": 0,
+            "totalPages": 0,
+            "currentPage": 0,
+            "size": 0,
+            "hasNext": true,
+            "hasPrevious": true,
+            "first": true,
+            "last": true,
+            "paginationInfo": "string",
+            "resultsInfo": "string"
+          }
+        },
+        "400": {
+          "description": "Invalid pagination or filter parameters",
+          "body": "Same schema as 200 response"
+        }
+      }
+    },
+
+    "GET_/events/my-organized-events": {
+      "description": "Get events organized by user",
+      "params": {
+        "page": 0,
+        "size": 20,
+        "sortBy": "startDateTime",
+        "sortOrder": "asc"
+      },
+      "responses": {
+        "200": {
+          "description": "User's organized events retrieved successfully",
+          "body": "Same schema as GET_/events/list response"
+        },
+        "401": {
+          "description": "Authentication required",
+          "body": "Same schema as GET_/events/list response"
+        },
+        "404": {
+          "description": "User not found",
+          "body": "Same schema as GET_/events/list response"
+        }
+      }
+    },
+
+    "GET_/events/my-registrations": {
+      "description": "Get user's registered events",
+      "params": {
+        "page": 0,
+        "size": 20,
+        "sortBy": "startDateTime",
+        "sortOrder": "asc"
+      },
+      "responses": {
+        "200": {
+          "description": "User's registered events retrieved successfully",
+          "body": "Same schema as GET_/events/list response"
+        },
+        "401": {
+          "description": "Authentication required",
+          "body": "Same schema as GET_/events/list response"
+        },
+        "404": {
+          "description": "User not found",
+          "body": "Same schema as GET_/events/list response"
+        }
+      }
+    },
+
+    "GET_/events/{id}/details": {
+      "description": "Get event details",
+      "params": {
+        "id": "string"
+      },
+      "responses": {
+        "200": {
+          "description": "Event details retrieved successfully",
+          "body": {
+            "id": "string",
+            "title": "string",
+            "description": "string",
+            "imageUrl": "string",
+            "images": ["string"],
+            "location": "string",
+            "startDateTime": "ISO_DATE",
+            "endDateTime": "ISO_DATE",
+            "formattedDate": "string",
+            "formattedTime": "string",
+            "timeUntilEvent": "string",
+            "duration": "string",
+            "attendeeCount": 0,
+            "maxAttendees": 0,
+            "isRegistered": true,
+            "canRegister": true,
+            "isFull": true,
+            "rsvpStatus": "NOT_REGISTERED",
+            "club": {
+              "id": "string",
+              "name": "string",
+              "logo": "string",
+              "category": "string"
+            },
+            "organizer": {
+              "id": "string",
+              "username": "string",
+              "firstName": "string",
+              "lastName": "string",
+              "avatar": "string",
+              "email": "string",
+              "displayName": "string",
+              "fullName": "string"
+            },
+            "recentAttendees": [
+              {
+                "id": "string",
+                "username": "string",
+                "firstName": "string",
+                "lastName": "string",
+                "avatar": "string",
+                "rsvpStatus": "NOT_REGISTERED",
+                "registeredAt": "ISO_DATE",
+                "displayName": "string",
+                "fullName": "string"
+              }
+            ],
+            "status": "UPCOMING",
+            "isPublic": true,
+            "requiresApproval": true,
+            "createdAt": "ISO_DATE",
+            "updatedAt": "ISO_DATE",
+            "capacityPercentage": 0,
+            "canPerformAction": true,
+            "attendeeStatus": "string",
+            "registerButtonText": "string"
+          }
+        },
+        "401": {
+          "description": "Authentication required for private events",
+          "body": "Same schema as 200 response"
+        },
+        "404": {
+          "description": "Event not found",
+          "body": "Same schema as 200 response"
+        }
+      }
+    },
+
+    "PUT_/events/{id}": {
+      "description": "Update event",
+      "params": { "id": "string" },
+      "requestBody": {
+        "title": "string",
+        "description": "string",
+        "startDateTime": "ISO_DATE",
+        "endDateTime": "ISO_DATE",
+        "location": "string",
+        "imageUrl": "string",
+        "maxAttendees": 0,
+        "isPublic": true,
+        "requiresApproval": true
+      },
+      "responses": {
+        "200": {
+          "description": "Event updated successfully",
+          "body": {
+            "code": 102,
+            "message": "Event updated successfully"
+          }
+        },
+        "400": {
+          "description": "User not found or insufficient permissions",
+          "body": {
+            "code": 400,
+            "message": "User not found or insufficient permissions"
+          }
+        },
+        "401": {
+          "description": "Authentication required",
+          "body": {
+            "code": 401,
+            "message": "Authentication required"
+          }
+        },
+        "404": {
+          "description": "Event not found",
+          "body": {
+            "code": 404,
+            "message": "Event not found"
+          }
+        }
+      }
+    },
+
+    "DELETE_/events/{id}": {
+      "description": "Delete event",
+      "params": { "id": "string" },
+      "responses": {
+        "200": {
+          "description": "Event deleted successfully",
+          "body": {
+            "code": 101,
+            "message": "Event deleted successfully"
+          }
+        },
+        "400": {
+          "description": "User not found or insufficient permissions",
+          "body": {
+            "code": 400,
+            "message": "User not found or insufficient permissions"
+          }
+        },
+        "401": {
+          "description": "Authentication required",
+          "body": {
+            "code": 401,
+            "message": "Authentication required"
+          }
+        },
+        "404": {
+          "description": "Event not found",
+          "body": {
+            "code": 404,
+            "message": "Event not found"
+          }
+        }
+      }
+    },
+
+    "POST_/events/create-json-with-images": {
+      "description": "Create event with images",
+      "requestBody": {
+        "title": "string",
+        "description": "string",
+        "startDateTime": "ISO_DATE",
+        "endDateTime": "ISO_DATE",
+        "location": "string",
+        "locationText": "string",
+        "locationMap": { "lat": 0, "lng": 0 },
+        "clubId": "string",
+        "maxAttendees": 0,
+        "isPublic": true,
+        "requiresApproval": true,
+        "eventArtistName": "string",
+        "aboutEventArtist": "string",
+        "instagramHandle": "string",
+        "spotifyHandle": "string",
+        "musicGenre": "string",
+        "eventOrganizer": "string",
+        "ticketTypes": [
+          {
+            "name": "string",
+            "price": 0,
+            "currency": "string",
+            "quantity": 1,
+            "isActive": true
+          }
+        ],
+        "hasLimitedTickets": true,
+        "totalTickets": 0,
+        "eventImage": {
+          "name": "string",
+          "contentType": "string",
+          "data": "string",
+          "url": "string",
+          "type": "string"
+        },
+        "eventReel": {
+          "name": "string",
+          "contentType": "string",
+          "data": "string",
+          "url": "string",
+          "type": "string"
+        },
+        "eventOrganizerLogo": {
+          "name": "string",
+          "contentType": "string",
+          "data": "string",
+          "url": "string",
+          "type": "string"
+        },
+        "galleryImages": [
+          {
+            "name": "string",
+            "contentType": "string",
+            "data": "string",
+            "url": "string",
+            "type": "string"
+          }
+        ],
+        "performerImages": [
+          {
+            "name": "string",
+            "contentType": "string",
+            "data": "string",
+            "url": "string",
+            "type": "string"
+          }
+        ]
+      },
+      "responses": {
+        "200": {
+          "description": "Event created successfully with images processed",
+          "body": {
+            "code": 101,
+            "message": "Event created successfully"
+          }
+        },
+        "400": {
+          "description": "User not found, club not found, insufficient permissions, or validation failed",
+          "body": {
+            "code": 400,
+            "message": "Validation or permission error"
+          }
+        },
+        "401": {
+          "description": "Authentication required",
+          "body": {
+            "code": 401,
+            "message": "Authentication required"
+          }
+        },
+        "500": {
+          "description": "Image processing or server error",
+          "body": {
+            "code": 500,
+            "message": "Image processing or server error"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,43 @@
+node_modules
+.next
+.git
+.gitignore
+README.md
+Dockerfile
+docker-compose.yml
+.env.local
+.env.production
+.env.development
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+build.log
+.vscode
+scripts
+design-screens
+# Keep essential image assets - commenting out to include in build
+# public/admin
+# public/booking
+# public/club
+# public/common
+# public/filter
+# public/gallery
+# public/location
+# public/pay
+# public/profile
+# public/profile-edit
+# public/story
+# public/venue
+# public/vibemeter
+CRITICAL_FIX_GUIDE.md
+FILE_REFERENCE_COMPLETE.md
+INDEX.md
+PUBLIC_APIS_DOCUMENTATION.md
+QUICK_FIX.txt
+firebase-service-account.json
+firebase-test.html
+fix-firebase.js
+verify-firebase-setup.js
+deploy-app-optimized.sh
+docker-compose.https.yml

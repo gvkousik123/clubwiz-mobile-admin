@@ -1,0 +1,195 @@
+{
+  "auth": {
+    "POST_/auth/signup": {
+      "description": "Register a new user account",
+      "requestBody": {
+        "fullName": "string",
+        "email": "string",
+        "password": "string",
+        "mobileNumber": "string"
+      },
+      "success": {
+        "code": 101,
+        "message": "User registered successfully"
+      },
+      "errors": {
+        "400": {
+          "code": 400,
+          "message": "Username or email already exists or validation failed"
+        }
+      }
+    },
+
+    "POST_/auth/signin": {
+      "description": "Authenticate user and return JWT tokens",
+      "requestBody": {
+        "usernameOrEmail": "string",
+        "password": "string"
+      },
+      "success": {
+        "code": 102,
+        "message": "Login successful, JWT tokens returned"
+      },
+      "errors": {
+        "400": {
+          "code": 400,
+          "message": "Invalid credentials"
+        },
+        "401": {
+          "code": 401,
+          "message": "Authentication failed"
+        }
+      }
+    },
+
+    "POST_/auth/refresh": {
+      "description": "Refresh access token using refresh token",
+      "requestBody": {
+        "refreshToken": "string"
+      },
+      "success": {
+        "code": 103,
+        "message": "Token refreshed successfully"
+      },
+      "errors": {
+        "400": {
+          "code": 400,
+          "message": "Invalid or expired refresh token"
+        },
+        "401": {
+          "code": 401,
+          "message": "Token reuse detected, all sessions revoked"
+        }
+      }
+    },
+
+    "POST_/auth/logout": {
+      "description": "Logout authenticated user and revoke refresh tokens",
+      "success": {
+        "code": 104,
+        "message": "User logged out successfully"
+      },
+      "errors": {
+        "500": {
+          "code": 500,
+          "message": "Error during logout token cleanup"
+        }
+      }
+    },
+
+    "DELETE_/auth/sessions": {
+      "description": "Logout user from all devices by revoking all sessions",
+      "success": {
+        "code": 105,
+        "message": "All sessions revoked successfully"
+      },
+      "errors": {
+        "401": {
+          "code": 401,
+          "message": "User not authenticated"
+        },
+        "500": {
+          "code": 500,
+          "message": "Unable to revoke sessions"
+        }
+      }
+    },
+
+    "GET_/auth/sessions": {
+      "description": "List all active sessions for authenticated user",
+      "success": {
+        "code": 106,
+        "message": "Sessions retrieved successfully"
+      },
+      "errors": {
+        "401": {
+          "code": 401,
+          "message": "User not authenticated"
+        },
+        "500": {
+          "code": 500,
+          "message": "Unable to list sessions"
+        }
+      }
+    },
+
+    "GET_/auth/test-auth": {
+      "description": "Check authentication status of current request",
+      "success": {
+        "code": 107,
+        "message": "Authentication status returned"
+      },
+      "errors": {
+        "401": {
+          "code": 401,
+          "message": "Not authenticated"
+        }
+      }
+    },
+
+    "GET_/auth/users/{username}/roles": {
+      "description": "Get all roles assigned to a user",
+      "params": {
+        "username": "string"
+      },
+      "success": {
+        "code": 108,
+        "message": "User roles retrieved successfully"
+      },
+      "errors": {
+        "400": {
+          "code": 400,
+          "message": "User not found"
+        },
+        "403": {
+          "code": 403,
+          "message": "Access denied - insufficient permissions"
+        }
+      }
+    },
+
+    "POST_/auth/roles/{username}/add/{role}": {
+      "description": "Add role to user (Admin/SuperAdmin only)",
+      "params": {
+        "username": "string",
+        "role": "string"
+      },
+      "success": {
+        "code": 109,
+        "message": "Role added successfully"
+      },
+      "errors": {
+        "400": {
+          "code": 400,
+          "message": "Invalid role or insufficient permissions"
+        },
+        "403": {
+          "code": 403,
+          "message": "Access denied - admin role required"
+        }
+      }
+    },
+
+    "POST_/auth/roles/{username}/remove/{role}": {
+      "description": "Remove role from user (Admin/SuperAdmin only)",
+      "params": {
+        "username": "string",
+        "role": "string"
+      },
+      "success": {
+        "code": 110,
+        "message": "Role removed successfully"
+      },
+      "errors": {
+        "400": {
+          "code": 400,
+          "message": "Invalid role or insufficient permissions"
+        },
+        "403": {
+          "code": 403,
+          "message": "Access denied - admin role required"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,656 @@
+/* ClubViz Design System CSS Variables - Updated with Manrope Font and Teal Theme */
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap');
+
+:root {
+    /* Typography */
+    --font-family-primary: 'Manrope', system-ui, -apple-system, sans-serif;
+    --font-family-fallback: system-ui, -apple-system, sans-serif;
+
+    /* Font Sizes - Exact from screens */
+    --font-size-xs: 0.75rem;
+    /* 12px */
+    --font-size-sm: 0.875rem;
+    /* 14px */
+    --font-size-base: 1rem;
+    /* 16px */
+    --font-size-lg: 1.125rem;
+    /* 18px */
+    --font-size-xl: 1.25rem;
+    /* 20px */
+    --font-size-2xl: 1.5rem;
+    /* 24px */
+    --font-size-3xl: 1.875rem;
+    /* 30px */
+    --font-size-4xl: 2.25rem;
+    /* 36px */
+    --font-size-5xl: 3rem;
+    /* 48px */
+
+    /* Font Weights - Exact from screens */
+    --font-weight-light: 300;
+    --font-weight-regular: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+    --font-weight-extrabold: 800;
+    --font-weight-black: 900;
+
+    /* Line Heights - Based on UI */
+    --line-height-none: 1;
+    --line-height-tight: 1.2;
+    --line-height-snug: 1.375;
+    --line-height-normal: 1.5;
+    --line-height-relaxed: 1.625;
+
+    /* Brand Colors - Teal/Cyan Theme (Updated to match designs) */
+    --color-primary-50: #f0fdfa;
+    --color-primary-100: #ccfbf1;
+    --color-primary-200: #99f6e4;
+    --color-primary-300: #5eead4;
+    --color-primary-400: #2dd4bf;
+    --color-primary-500: #14b8a6;
+    /* Primary teal */
+    --color-primary-600: #0d9488;
+    --color-primary-700: #0f766e;
+    --color-primary-800: #115e59;
+    --color-primary-900: #134e4a;
+    --color-primary-950: #042f2e;
+
+    /* Cyan Colors - Secondary brand */
+    --color-cyan-50: #ecfeff;
+    --color-cyan-100: #cffafe;
+    --color-cyan-200: #a5f3fc;
+    --color-cyan-300: #67e8f9;
+    --color-cyan-400: #22d3ee;
+    --color-cyan-500: #06b6d4;
+    --color-cyan-600: #0891b2;
+    --color-cyan-700: #0e7490;
+    --color-cyan-800: #155e75;
+    --color-cyan-900: #164e63;
+    --color-cyan-950: #083344;
+
+    /* Background Colors - Very Dark Theme from designs */
+    --color-bg-primary: #0a0a0a;
+    /* Main background - very dark */
+    --color-bg-secondary: #1a1a1a;
+    /* Card background */
+    --color-bg-tertiary: #2a2a2a;
+    /* Secondary card background */
+    --color-bg-card: #1a1a1a;
+    /* Cards and UI elements */
+    --color-bg-glass: rgba(26, 26, 26, 0.85);
+    /* Glass effect background */
+    --color-bg-overlay: rgba(10, 10, 10, 0.9);
+    /* Overlay background */
+
+    /* Text Colors - High contrast for dark theme */
+    --color-text-primary: #FFFFFF;
+    /* Primary text color */
+    --color-text-secondary: #E5E5E5;
+    /* Secondary text color */
+    --color-text-tertiary: #A3A3A3;
+    /* Tertiary text color */
+    --color-text-muted: #6B7280;
+    /* Muted text color */
+    --color-text-disabled: #4B5563;
+    /* Disabled text */
+
+    /* UI Element Colors */
+    --color-border: rgba(255, 255, 255, 0.08);
+    /* Border color */
+    --color-divider: rgba(255, 255, 255, 0.08);
+    /* Divider lines */
+    --color-skeleton: rgba(255, 255, 255, 0.1);
+    /* Skeleton loader */
+    --color-placeholder: #A3A3A3;
+    /* Placeholder text */
+
+    /* Accent Colors - Teal/Cyan Theme */
+    --color-accent-teal: #14B8A6;
+    /* Primary accent - teal 500 */
+    --color-accent-cyan: #06B6D4;
+    /* Secondary accent - cyan 500 */
+    --color-accent-light-teal: #2DD4BF;
+    /* Light teal accent - teal 400 */
+    --color-accent-green: #10B981;
+    /* Success color */
+    --color-accent-yellow: #F59E0B;
+    /* Warning color */
+    --color-accent-red: #EF4444;
+    /* Error color - Cancel button */
+    --color-accent-purple: #A855F7;
+    /* Secondary accent - purple 500 */
+
+    /* Rating colors - From UI */
+    --color-rating-good: #10B981;
+    /* Green rating badge */
+    --color-rating-average: #F59E0B;
+    /* Yellow rating badge */
+    --color-rating-poor: #EF4444;
+    /* Red rating badge */
+
+    /* Semantic Colors */
+    --color-success: #10B981;
+    --color-warning: #F59E0B;
+    --color-error: #EF4444;
+    --color-info: #3B82F6;
+
+    /* Gradients - Teal/Cyan Theme */
+    --gradient-hero: linear-gradient(135deg, #14B8A6 0%, #06B6D4 100%);
+    /* Main teal to cyan gradient */
+    --gradient-card: linear-gradient(180deg, rgba(10, 10, 10, 0) 0%, rgba(10, 10, 10, 0.9) 100%);
+    /* Card overlay */
+    --gradient-primary: linear-gradient(135deg, #14B8A6 0%, #06B6D4 100%);
+    /* Primary gradient for buttons */
+    --gradient-glass: linear-gradient(135deg, rgba(20, 184, 166, 0.1) 0%, rgba(6, 182, 212, 0.05) 100%);
+    /* Teal glass effect */
+    --gradient-ticket: linear-gradient(180deg, #1A1A1A 0%, #2A2A2A 100%);
+    /* Ticket gradient */
+
+    /* Spacing - From UI */
+    --space-0: 0;
+    --space-px: 1px;
+    --space-0-5: 0.125rem;
+    /* 2px */
+    --space-1: 0.25rem;
+    /* 4px */
+    --space-1-5: 0.375rem;
+    /* 6px */
+    --space-2: 0.5rem;
+    /* 8px */
+    --space-2-5: 0.625rem;
+    /* 10px */
+    --space-3: 0.75rem;
+    /* 12px */
+    --space-3-5: 0.875rem;
+    /* 14px */
+    --space-4: 1rem;
+    /* 16px */
+    --space-5: 1.25rem;
+    /* 20px */
+    --space-6: 1.5rem;
+    /* 24px */
+    --space-7: 1.75rem;
+    /* 28px */
+    --space-8: 2rem;
+    /* 32px */
+    --space-9: 2.25rem;
+    /* 36px */
+    --space-10: 2.5rem;
+    /* 40px */
+    --space-11: 2.75rem;
+    /* 44px */
+    --space-12: 3rem;
+    /* 48px */
+    --space-14: 3.5rem;
+    /* 56px */
+    --space-16: 4rem;
+    /* 64px */
+    --space-20: 5rem;
+    /* 80px */
+    --space-24: 6rem;
+    /* 96px */
+
+    /* Border Radius - Exact from UI */
+    --radius-none: 0;
+    --radius-sm: 0.125rem;
+    /* 2px */
+    --radius-base: 0.25rem;
+    /* 4px */
+    --radius-md: 0.375rem;
+    /* 6px */
+    --radius-lg: 0.5rem;
+    /* 8px */
+    --radius-xl: 0.75rem;
+    /* 12px */
+    --radius-2xl: 1rem;
+    /* 16px */
+    --radius-3xl: 1.5rem;
+    /* 24px - Main card radius */
+    --radius-4xl: 2rem;
+    /* 32px */
+    --radius-full: 9999px;
+    /* For pills and buttons */
+
+    /* Shadows - From UI */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-base: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    --shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+    --shadow-glow: 0 0 20px rgba(6, 182, 212, 0.3);
+    /* Teal glow effect */
+    --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+
+    /* Effects - From UI */
+    --blur-sm: blur(4px);
+    --blur-base: blur(8px);
+    --blur-md: blur(12px);
+    --blur-lg: blur(16px);
+    --blur-xl: blur(20px);
+    /* Used in glass morphism */
+    --blur-2xl: blur(24px);
+    --blur-3xl: blur(40px);
+
+    /* Backdrop filters */
+    --backdrop-blur: blur(16px) saturate(180%);
+    --backdrop-glass: blur(16px) saturate(180%) brightness(90%);
+
+    /* Layout - From UI */
+    --container-max-width: 428px;
+    /* Mobile width */
+    --header-height: 4rem;
+    /* 64px header */
+    --tabbar-height: 5rem;
+    /* 80px tab bar */
+    --content-padding: 1.5rem;
+    /* 24px padding */
+
+    /* Animations - From UI */
+    --duration-instant: 0ms;
+    --duration-fast: 150ms;
+    --duration-normal: 300ms;
+    --duration-slow: 500ms;
+    --duration-slower: 700ms;
+    --duration-slowest: 1000ms;
+
+    --easing-linear: linear;
+    --easing-ease: ease;
+    --easing-ease-in: cubic-bezier(0.4, 0, 1, 1);
+    --easing-ease-out: cubic-bezier(0, 0, 0.2, 1);
+    --easing-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+    --easing-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+    /* Z-Index */
+    --z-auto: auto;
+    --z-base: 0;
+    --z-docked: 10;
+    --z-dropdown: 1000;
+    --z-sticky: 1100;
+    --z-banner: 1200;
+    --z-overlay: 1300;
+    --z-modal: 1400;
+    --z-popover: 1500;
+    --z-skipLink: 1600;
+    --z-toast: 1700;
+    --z-tooltip: 1800;
+}
+
+/* Base Styles */
+* {
+    box-sizing: border-box;
+}
+
+html {
+    font-family: var(--font-family-primary);
+    font-size: var(--font-size-base);
+    line-height: var(--line-height-normal);
+    color: var(--color-text-primary);
+    background-color: var(--color-bg-primary);
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: var(--font-family-primary);
+    font-weight: var(--font-weight-regular);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: var(--color-bg-primary);
+    color: var(--color-text-primary);
+}
+
+/* Component Classes Based on UI */
+
+/* Buttons */
+.btn {
+    font-family: var(--font-family-primary);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-medium);
+    border-radius: var(--radius-full);
+    padding: var(--space-3) var(--space-6);
+    border: none;
+    cursor: pointer;
+    transition: all var(--duration-normal) var(--easing-ease-in-out);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+}
+
+.btn-primary {
+    background: var(--gradient-primary);
+    color: var(--color-text-primary);
+    box-shadow: 0 4px 14px 0 rgba(20, 184, 166, 0.4);
+}
+
+.btn-secondary {
+    background: var(--color-bg-glass);
+    color: var(--color-text-primary);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: var(--backdrop-blur);
+}
+
+.btn-ghost {
+    background: transparent;
+    color: var(--color-text-secondary);
+    border: 1px solid transparent;
+}
+
+.btn-danger {
+    background: var(--color-accent-red);
+    color: var(--color-text-primary);
+}
+
+.btn-full {
+    width: 100%;
+}
+
+/* Cards */
+.card {
+    background: var(--color-bg-card);
+    border-radius: var(--radius-3xl);
+    padding: var(--space-6);
+    border: 1px solid var(--color-border);
+    overflow: hidden;
+}
+
+.card-glass {
+    background: var(--color-bg-glass);
+    border-radius: var(--radius-3xl);
+    padding: var(--space-6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: var(--backdrop-blur);
+    box-shadow: var(--shadow-glass);
+}
+
+.card-venue {
+    position: relative;
+    border-radius: var(--radius-2xl);
+    overflow: hidden;
+    height: 180px;
+}
+
+.card-venue-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: var(--space-4);
+    background: var(--gradient-card);
+    color: var(--color-text-primary);
+}
+
+/* Rating Badge */
+.rating-badge {
+    background: var(--color-primary-500);
+    color: var(--color-text-primary);
+    font-weight: var(--font-weight-semibold);
+    border-radius: var(--radius-full);
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--font-size-sm);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Search Bar */
+.search-bar {
+    background: var(--color-bg-glass);
+    border-radius: var(--radius-full);
+    padding: var(--space-3) var(--space-5);
+    border: 1px solid var(--color-border);
+    backdrop-filter: var(--backdrop-blur);
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.search-input {
+    background: transparent;
+    border: none;
+    color: var(--color-text-primary);
+    font-size: var(--font-size-base);
+    font-family: var(--font-family-primary);
+    width: 100%;
+    outline: none;
+}
+
+.search-input::placeholder {
+    color: var(--color-text-muted);
+}
+
+/* Location Selector */
+.location {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-primary);
+}
+
+/* Navigation */
+.nav-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+    color: var(--color-text-muted);
+    padding: var(--space-2) 0;
+    transition: color var(--duration-normal) var(--easing-ease-in-out);
+}
+
+.nav-tab.active {
+    color: var(--color-text-primary);
+}
+
+.nav-tab-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--tabbar-height);
+    background: var(--color-bg-glass);
+    backdrop-filter: var(--backdrop-blur);
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: var(--space-2) var(--space-4);
+    z-index: var(--z-sticky);
+}
+
+/* Header */
+.header {
+    height: var(--header-height);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--content-padding);
+}
+
+/* Ticket */
+.ticket {
+    background: var(--gradient-ticket);
+    border-radius: var(--radius-2xl);
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+}
+
+.ticket-header {
+    background: linear-gradient(90deg, rgba(6, 182, 212, 0.3) 0%, rgba(99, 102, 241, 0.3) 100%);
+    padding: var(--space-6) var(--space-4);
+    text-align: center;
+}
+
+.ticket-content {
+    padding: var(--space-6);
+}
+
+.ticket-divider {
+    display: flex;
+    align-items: center;
+    margin: 0 -1px;
+    height: 1px;
+    background-image: repeating-linear-gradient(to right, transparent, transparent 4px, var(--color-border) 4px, var(--color-border) 8px);
+    position: relative;
+    margin: var(--space-4) 0;
+}
+
+.ticket-qr {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-3);
+    margin-top: var(--space-6);
+    padding: var(--space-6) 0;
+    border-top: 1px dashed var(--color-border);
+}
+
+/* Typography Classes */
+.text-xs {
+    font-size: var(--font-size-xs);
+}
+
+.text-sm {
+    font-size: var(--font-size-sm);
+}
+
+.text-base {
+    font-size: var(--font-size-base);
+}
+
+.text-lg {
+    font-size: var(--font-size-lg);
+}
+
+.text-xl {
+    font-size: var(--font-size-xl);
+}
+
+.text-2xl {
+    font-size: var(--font-size-2xl);
+}
+
+.text-3xl {
+    font-size: var(--font-size-3xl);
+}
+
+.text-4xl {
+    font-size: var(--font-size-4xl);
+}
+
+.text-5xl {
+    font-size: var(--font-size-5xl);
+}
+
+.font-light {
+    font-weight: var(--font-weight-light);
+}
+
+.font-regular {
+    font-weight: var(--font-weight-regular);
+}
+
+.font-medium {
+    font-weight: var(--font-weight-medium);
+}
+
+.font-semibold {
+    font-weight: var(--font-weight-semibold);
+}
+
+.font-bold {
+    font-weight: var(--font-weight-bold);
+}
+
+.font-extrabold {
+    font-weight: var(--font-weight-extrabold);
+}
+
+.text-primary {
+    color: var(--color-text-primary);
+}
+
+.text-secondary {
+    color: var(--color-text-secondary);
+}
+
+.text-tertiary {
+    color: var(--color-text-tertiary);
+}
+
+.text-disabled {
+    color: var(--color-text-disabled);
+}
+
+/* Utility Classes */
+.gradient-primary {
+    background: var(--gradient-primary-hero);
+}
+
+.gradient-secondary {
+    background: var(--gradient-secondary-hero);
+}
+
+.gradient-glass {
+    background: var(--gradient-glass-effect);
+}
+
+.glass-effect {
+    backdrop-filter: blur(20px);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Teal Theme Utility Classes */
+.bg-primary {
+    background-color: var(--color-primary-500);
+}
+
+.bg-primary-light {
+    background-color: var(--color-primary-400);
+}
+
+.bg-primary-dark {
+    background-color: var(--color-primary-600);
+}
+
+.text-primary {
+    color: var(--color-primary-500);
+}
+
+.text-primary-light {
+    color: var(--color-primary-400);
+}
+
+.border-primary {
+    border-color: var(--color-primary-500);
+}
+
+.bg-clubviz-gradient {
+    background: var(--gradient-hero);
+}
+
+.hover\:bg-primary-dark:hover {
+    background-color: var(--color-primary-600);
+}
+
+/* Responsive Design */
+@media (max-width: 428px) {
+    .container {
+        max-width: 100%;
+        padding: 0 var(--space-4);
+    }
+}
+
+@media (min-width: 429px) {
+    .container {
+        max-width: var(--container-max-width);
+        margin: 0 auto;
+    }
+}

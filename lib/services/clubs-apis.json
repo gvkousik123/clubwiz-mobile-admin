@@ -1,0 +1,284 @@
+{
+  "api": "Club Management API",
+  "version": "1.0.0",
+
+  "endpoints": {
+    "GET_/{id}": {
+      "description": "Get authenticated club details",
+      "params": {
+        "id": "string"
+      },
+      "responses": {
+        "200": {
+          "description": "Club details retrieved successfully with user context",
+          "body": {
+            "id": "string",
+            "name": "string",
+            "description": "string",
+            "logo": "string",
+            "images": [
+              { "type": "string", "url": "string" }
+            ],
+            "category": "string",
+            "locationText": {
+              "address1": "string",
+              "address2": "string",
+              "state": "string",
+              "city": "string",
+              "pincode": "string"
+            },
+            "locationMap": { "lat": 0, "lng": 0 },
+            "contactEmail": "string",
+            "contactPhone": "string",
+            "foodCuisines": ["string"],
+            "facilities": ["string"],
+            "music": ["string"],
+            "barOptions": ["string"],
+            "entryPricing": {
+              "coupleEntryPrice": 0,
+              "groupEntryPrice": 0,
+              "maleStagEntryPrice": 0,
+              "femaleStagEntryPrice": 0,
+              "coverCharge": 0,
+              "redeemDetails": "string",
+              "hasTimeRestriction": true,
+              "timeRestriction": "string",
+              "inclusions": ["string"],
+              "exclusions": ["string"]
+            },
+            "memberCount": 0,
+            "maxMembers": 0,
+            "isJoined": true,
+            "canJoin": true,
+            "isFull": true,
+            "isActive": true,
+            "owner": {
+              "id": "string",
+              "username": "string",
+              "firstName": "string",
+              "lastName": "string",
+              "avatar": "string",
+              "email": "string",
+              "fullName": "string"
+            },
+            "recentMembers": [
+              {
+                "id": "string",
+                "username": "string",
+                "avatar": "string",
+                "role": "string",
+                "joinedAt": "ISO_DATE",
+                "displayName": "string",
+                "fullName": "string"
+              }
+            ],
+            "admins": [
+              {
+                "id": "string",
+                "username": "string",
+                "avatar": "string",
+                "role": "string",
+                "joinedAt": "ISO_DATE",
+                "displayName": "string",
+                "fullName": "string"
+              }
+            ],
+            "memberStatus": "string",
+            "capacityPercentage": 0,
+            "joinButtonText": "string",
+            "canPerformAction": true,
+            "createdAt": "ISO_DATE",
+            "updatedAt": "ISO_DATE"
+          }
+        },
+        "401": { "description": "Authentication required" },
+        "404": { "description": "Club not found" }
+      }
+    },
+
+    "PUT_/{id}": {
+      "description": "Update club details",
+      "params": { "id": "string" },
+      "requestBody": {
+        "name": "string",
+        "description": "string",
+        "logo": "string",
+        "category": "string",
+        "maxMembers": 0,
+        "contactEmail": "string",
+        "contactPhone": "string",
+        "images": [{ "type": "string", "url": "string" }],
+        "locationText": {
+          "address1": "string",
+          "address2": "string",
+          "state": "string",
+          "city": "string",
+          "pincode": "string"
+        },
+        "locationMap": { "lat": 0, "lng": 0 },
+        "foodCuisines": ["string"],
+        "facilities": ["string"],
+        "music": ["string"],
+        "barOptions": ["string"]
+      },
+      "responses": {
+        "200": {
+          "description": "Club updated successfully",
+          "body": {
+            "code": 102,
+            "message": "Club updated successfully"
+          }
+        },
+        "400": { "description": "Permission denied or validation failed" },
+        "401": { "description": "Authentication required" },
+        "404": { "description": "Club not found" }
+      }
+    },
+
+    "DELETE_/{id}": {
+      "description": "Delete club (Owner only)",
+      "params": { "id": "string" },
+      "responses": {
+        "200": {
+          "description": "Club deleted successfully",
+          "body": {
+            "code": 101,
+            "message": "Club deleted successfully"
+          }
+        },
+        "400": { "description": "Permission denied - only owner can delete" },
+        "401": { "description": "Authentication required" },
+        "404": { "description": "Club not found" }
+      }
+    },
+
+    "POST_/create-json-with-images": {
+      "description": "Create club with images",
+      "requestBody": {
+        "name": "string",
+        "description": "string",
+        "logo": {
+          "name": "string",
+          "contentType": "string",
+          "data": "base64",
+          "url": "string"
+        },
+        "category": "string",
+        "maxMembers": 0,
+        "contactEmail": "string",
+        "contactPhone": "string",
+        "foodImageData": [
+          { "name": "string", "contentType": "string", "data": "base64", "url": "string" }
+        ],
+        "ambianceImageData": [
+          { "name": "string", "contentType": "string", "data": "base64", "url": "string" }
+        ],
+        "menuImageData": [
+          { "name": "string", "contentType": "string", "data": "base64", "url": "string" }
+        ]
+      },
+      "responses": {
+        "200": {
+          "description": "Club created successfully with images processed",
+          "body": {
+            "code": 101,
+            "message": "Club created successfully"
+          }
+        },
+        "400": { "description": "Club name exists or validation failed" },
+        "401": { "description": "Authentication required" },
+        "500": { "description": "Image processing or server error" }
+      }
+    },
+
+    "GET_/public/{id}": {
+      "description": "Get public club details",
+      "params": { "id": "string" },
+      "responses": {
+        "200": {
+          "description": "Club details retrieved successfully",
+          "body": "Same schema as GET_/{id} without action permissions"
+        },
+        "404": { "description": "Club not found or inactive" }
+      }
+    },
+
+    "GET_/public/locations": {
+      "responses": {
+        "200": {
+          "description": "Locations retrieved successfully",
+          "body": ["string"]
+        }
+      }
+    },
+
+    "GET_/public/categories": {
+      "responses": {
+        "200": {
+          "description": "Categories retrieved successfully",
+          "body": ["string"]
+        }
+      }
+    },
+
+    "GET_/public/list": {
+      "responses": {
+        "200": {
+          "description": "Clubs retrieved successfully",
+          "body": {
+            "content": [
+              {
+                "id": "string",
+                "name": "string",
+                "description": "string",
+                "logo": "string",
+                "category": "string",
+                "location": "string",
+                "memberCount": 0,
+                "maxMembers": 0,
+                "isJoined": true,
+                "isFull": true,
+                "isActive": true,
+                "ownerName": "string",
+                "createdAt": "ISO_DATE",
+                "shortDescription": "string",
+                "memberStatus": "string",
+                "capacityPercentage": 0
+              }
+            ],
+            "totalElements": 0,
+            "totalPages": 0,
+            "currentPage": 0
+          }
+        },
+        "400": { "description": "Invalid pagination or filter parameters" }
+      }
+    },
+
+    "GET_/admin/all": {
+      "responses": {
+        "200": {
+          "description": "All clubs retrieved successfully",
+          "body": "FULL_ADMIN_RESPONSE_OBJECT_AS_IN_SNAPSHOT"
+        },
+        "403": { "description": "Admin access required" }
+      }
+    },
+
+    "DELETE_/admin/{id}": {
+      "description": "Force delete club (Super Admin)",
+      "params": { "id": "string" },
+      "responses": {
+        "200": {
+          "description": "Club force deleted successfully",
+          "body": {
+            "code": 101,
+            "message": "Club force deleted successfully"
+          }
+        },
+        "403": { "description": "Super admin access required" },
+        "404": { "description": "Club not found" }
+      }
+    }
+  }
+}

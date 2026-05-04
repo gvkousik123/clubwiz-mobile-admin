@@ -1,0 +1,72 @@
+{
+  "title": "string",
+  "description": "string",
+  "startDateTime": "2026-01-17T18:05:04.266Z",
+  "endDateTime": "2026-01-17T18:05:04.266Z",
+  "location": "string",
+  "locationText": "string",
+  "locationMap": {
+    "lat": 0,
+    "lng": 0
+  },
+  "clubId": "string",
+  "maxAttendees": 0,
+  "isPublic": true,
+  "requiresApproval": true,
+  "eventArtistName": "string",
+  "aboutEventArtist": "string",
+  "instagramHandle": "string",
+  "spotifyHandle": "string",
+  "musicGenre": "string",
+  "eventOrganizer": "string",
+  "ticketTypes": [
+    {
+      "name": "string",
+      "price": 0,
+      "currency": "string",
+      "quantity": 1,
+      "isActive": true
+    }
+  ],
+  "hasLimitedTickets": true,
+  "totalTickets": 0,
+  "eventImage": {
+    "name": "string",
+    "contentType": "string",
+    "data": "string",
+    "url": "string",
+    "type": "string"
+  },
+  "eventReel": {
+    "name": "string",
+    "contentType": "string",
+    "data": "string",
+    "url": "string",
+    "type": "string"
+  },
+  "eventOrganizerLogo": {
+    "name": "string",
+    "contentType": "string",
+    "data": "string",
+    "url": "string",
+    "type": "string"
+  },
+  "galleryImages": [
+    {
+      "name": "string",
+      "contentType": "string",
+      "data": "string",
+      "url": "string",
+      "type": "string"
+    }
+  ],
+  "performerImages": [
+    {
+      "name": "string",
+      "contentType": "string",
+      "data": "string",
+      "url": "string",
+      "type": "string"
+    }
+  ]
+}

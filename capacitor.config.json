@@ -1,0 +1,19 @@
+{
+  "appId": "in.clubwiz.admin",
+  "appName": "ClubWiz Admin",
+  "webDir": "out",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 3000,
+      "backgroundColor": "#021313",
+      "spinnerColor": "#ffffff"
+    }
+  }
+}

@@ -1,0 +1,25 @@
+# Development Dockerfile for ClubWiz Frontend
+FROM node:18-alpine
+WORKDIR /app
+
+# Copy package files
+COPY package.json ./
+
+# Install dependencies with npm (smaller footprint than pnpm)
+RUN npm install --no-cache --prefer-offline
+
+# Copy source code
+COPY . .
+
+# Build the application first (needed for Next.js standalone)
+RUN NODE_OPTIONS="--max-old-space-size=256" npm run build
+
+# Set environment for development
+ENV NODE_ENV=development
+ENV PORT=3000
+
+# Expose port
+EXPOSE 3000
+
+# Start application (Next.js start works for both dev and prod)
+CMD ["npm", "start"]
