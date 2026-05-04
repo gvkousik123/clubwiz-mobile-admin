@@ -190,7 +190,7 @@ export default function MobileVerificationScreen() {
                 {/* Header with Back and Skip */}
                 <div className="flex items-center justify-between p-[1rem] pt-[1.5rem] flex-shrink-0">
                     <Link
-                        href="/auth/intro"
+                        href="/bz/auth/intro"
                         className="w-[2.5rem] h-[2.5rem] flex items-center justify-center rounded-full border border-teal-400/30 text-teal-300 hover:bg-teal-500/10 transition-colors"
                     >
                         <ArrowLeft className="w-[1.25rem] h-[1.25rem]" />
@@ -332,7 +332,7 @@ export default function MobileVerificationScreen() {
                                 Already have an account?
                             </p>
                             <Link
-                                href="/auth/login"
+                                href="/bz/auth/login"
                                 className="text-[#0D7377] font-semibold text-[0.9375rem] hover:underline"
                             >
                                 Login with Password
@@ -345,7 +345,7 @@ export default function MobileVerificationScreen() {
                                 Don't have an account?
                             </p>
                             <Link
-                                href="/auth/signup"
+                                href="/bz/auth/signup"
                                 className="text-[#0D7377] font-semibold text-[0.9375rem] hover:underline"
                             >
                                 Sign Up
@@ -355,7 +355,7 @@ export default function MobileVerificationScreen() {
                         {/* Forgot Password Link */}
                         <div className="text-center py-2">
                             <AuthLink
-                                href="/auth/forgot-password"
+                                href="/bz/auth/forgot-password"
                                 className="text-[#0095FF] font-medium text-[14px] underline"
                             >
                                 Forgot Password?

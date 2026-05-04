@@ -47,7 +47,7 @@ export default function IntroScreen() {
     };
 
     const handleGuestLogin = () => {
-        router.push("/bz/home");
+        router.push("/bz/business");
     };
 
     const handleMobileLogin = () => {

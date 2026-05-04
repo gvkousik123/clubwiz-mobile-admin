@@ -230,14 +230,14 @@ export default function OTPVerificationScreen() {
                 {/* Header with Back and Skip */}
                 <div className="flex items-center justify-between p-[1rem] pt-[1.5rem] flex-shrink-0">
                     <Link
-                        href="/auth/mobile"
+                        href="/bz/auth/mobile"
                         className="w-[2.5rem] h-[2.5rem] flex items-center justify-center rounded-full border border-teal-400/30 text-teal-300 hover:bg-teal-500/10 transition-colors"
                     >
                         <ArrowLeft className="w-[1.25rem] h-[1.25rem]" />
                     </Link>
 
                     <Link
-                        href="/auth/details"
+                        href="/bz/auth/details"
                         className="px-[1rem] py-[0.375rem] rounded-full border border-teal-400/30 text-[0.875rem] text-teal-300 hover:bg-teal-500/10 transition"
                     >
                         Skip

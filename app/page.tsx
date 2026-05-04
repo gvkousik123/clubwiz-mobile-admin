@@ -34,7 +34,7 @@ export default function RootPage() {
     <div className="bg-dark-900 min-h-screen flex items-center justify-center">
       <div className="text-center">
         <div className="w-16 h-16 bg-gradient-primary rounded-full mx-auto mb-4 animate-pulse"></div>
-        <p className="text-white">Loading ClubViz Admin...</p>
+        <p className="text-white">Loading ClubWiz Admin...</p>
       </div>
     </div>
   );

@@ -648,7 +648,7 @@ export default function AdminPage() {
       <div className="sticky top-11 z-9 bg-[#021313]/80 backdrop-blur border-b border-[#14FFEC]/10 px-4 py-2">
         <div className="max-w-lg mx-auto flex items-center gap-2 overflow-x-auto">
           <Link
-            href="/admin/contact-form-api"
+            href="/bz/admin/contact-form-api"
             className="flex items-center gap-2 px-3 py-1.5 bg-[#14FFEC]/10 hover:bg-[#14FFEC]/20 rounded-lg text-[#14FFEC] text-xs font-medium transition-colors whitespace-nowrap"
           >
             <MessageSquare className="w-4 h-4" />
