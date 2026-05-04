@@ -591,7 +591,8 @@ function EditClubContent() {
                             <img
                                 src={logo}
                                 alt="Club Logo"
-                                className="w-full h-full object-cover rounded-lg"
+                                loading="lazy"
+                                className="w-full h-full object-cover rounded-lg bg-[#0D1F1F]"
                             />
                             <button
                                 onClick={handleRemoveLogo}
@@ -628,7 +629,8 @@ function EditClubContent() {
                             <img
                                 src={mainImage}
                                 alt="Main Image"
-                                className="w-full h-full object-cover rounded-lg"
+                                loading="lazy"
+                                className="w-full h-full object-cover rounded-lg bg-[#0D1F1F]"
                             />
                             <button
                                 onClick={handleRemoveMainImage}
@@ -666,11 +668,12 @@ function EditClubContent() {
                     {clubImages.length > 0 ? (
                         <div className="grid grid-cols-3 gap-3">
                             {clubImages.map((img, idx) => (
-                                <div key={idx} className="relative">
+                                <div key={img} className="relative">
                                     <img
                                         src={img}
                                         alt={`Club ${idx + 1}`}
-                                        className="w-full h-24 object-cover rounded-lg"
+                                        loading="lazy"
+                                        className="w-full h-24 object-cover rounded-lg bg-[#0D1F1F]"
                                     />
                                     <button
                                         onClick={() => handleRemoveImage(idx)}
