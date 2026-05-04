@@ -8,7 +8,7 @@ import { EventService } from '@/lib/services/event.service';
 import { ClubService } from '@/lib/services/club.service';
 import { useToast } from '@/hooks/use-toast';
 import DatePicker from '@/components/common/date-picker';
-import { formatDateTimeForAPI } from '@/lib/date-utils';
+import { formatDateTimeForAPI, formatDateToDDMMYYYY } from '@/lib/date-utils';
 import { MusicGenreAutocomplete, MusicGenre } from '@/components/ui/music-genre-autocomplete';
 import { fileToBase64 } from '@/lib/image-utils';
 
@@ -102,7 +102,7 @@ function EditEventPageContent() {
                     let endTime = '';
                     if (event.startDateTime) {
                         const dateObj = new Date(event.startDateTime);
-                        eventDate = dateObj.toISOString().split('T')[0]; // YYYY-MM-DD
+                        eventDate = formatDateToDDMMYYYY(dateObj); // DD/MM/YYYY for DatePicker
                         eventTime = dateObj.toTimeString().slice(0, 5); // HH:MM
                     }
                     if (event.endDateTime) {

@@ -26,7 +26,8 @@ import {
     Image as ImageIcon,
     Video,
     Plus,
-    Minus
+    Minus,
+    Loader2
 } from 'lucide-react';
 import PageHeader from '@/components/common/page-header';
 import BottomContinueButton from '@/components/common/bottom-continue-button';

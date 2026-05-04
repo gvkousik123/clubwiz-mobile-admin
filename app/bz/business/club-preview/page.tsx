@@ -209,13 +209,14 @@ function ClubPreviewContent() {
                 {/* Back button */}
                 <button
                     onClick={handleGoBack}
-                    className="absolute left-4 top-4 w-[35px] h-[35px] bg-white/20 rounded-[18px] flex items-center justify-center hover:bg-white/30 transition z-10"
+                    className="absolute left-4 w-[35px] h-[35px] bg-white/20 rounded-[18px] flex items-center justify-center hover:bg-white/30 transition z-10"
+                    style={{ top: 'calc(16px + env(safe-area-inset-top, 0px))' }}
                 >
                     <ArrowLeft className="h-5 w-5 text-white" />
                 </button>
 
                 {/* Action Buttons - Share, Edit, Delete - FIXED: At very top right with back button */}
-                <div className="absolute right-4 top-4 flex items-center gap-2 z-10">
+                <div className="absolute right-4 flex items-center gap-2 z-10" style={{ top: 'calc(16px + env(safe-area-inset-top, 0px))' }}>
                     {/* Share Button */}
                     <button
                         onClick={handleShare}
