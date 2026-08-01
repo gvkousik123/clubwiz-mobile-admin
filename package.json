@@ -5,7 +5,8 @@
   "packageManager": "pnpm@10.12.1",
   "scripts": {
     "build": "next build",
-    "build:mobile": "next build && npx cap sync android",
+    "export": "next export",
+    "build:mobile": "next build && next export && npx cap sync android",
     "dev": "next dev",
     "lint": "next lint",
     "start": "next start",
