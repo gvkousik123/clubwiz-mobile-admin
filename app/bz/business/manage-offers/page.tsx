@@ -107,6 +107,21 @@ export default function ManageOffersPage() {
         });
     };
 
+    const isOfferCurrentlyActive = (offer: ClubOffer): boolean => {
+        if (!offer.isActive) return false;
+        if (!offer.startDate || !offer.endDate) return true;
+
+        const now = new Date();
+        const startDate = new Date(offer.startDate);
+        const endDate = new Date(offer.endDate);
+
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+            return offer.isActive;
+        }
+
+        return now >= startDate && now <= endDate;
+    };
+
     const handleAddOffer = async () => {
         if (!formData.title.trim() || !formData.description.trim()) {
             toast({
@@ -255,7 +270,7 @@ export default function ManageOffersPage() {
             usageLimit: offer.usageLimit?.toString() || '',
             startDate: offer.startDate,
             endDate: offer.endDate,
-            isActive: offer.isActive
+            isActive: isOfferCurrentlyActive(offer)
         });
         setShowEditDialog(true);
     };
@@ -315,7 +330,7 @@ export default function ManageOffersPage() {
                                     <div className="flex-1">
                                         <div className="flex items-center gap-2 mb-1">
                                             <h3 className="text-white font-semibold text-lg">{offer.title}</h3>
-                                            {offer.isActive ? (
+                                            {isOfferCurrentlyActive(offer) ? (
                                                 <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded-full">Active</span>
                                             ) : (
                                                 <span className="px-2 py-1 bg-gray-500/20 text-gray-400 text-xs rounded-full">Inactive</span>

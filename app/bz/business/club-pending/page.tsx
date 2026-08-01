@@ -14,13 +14,13 @@ export default function ClubPendingPage() {
 
         // If no club added, redirect to new-club
         if (!clubStatus.hasClub) {
-            router.replace('/bz/business/new-club');
+            router.replace('/business/new-club');
             return;
         }
 
         // If club is active, redirect to business dashboard
         if (clubStatus.isActive) {
-            router.replace('/bz/business');
+            router.replace('/business');
             return;
         }
     }, [router]);
@@ -49,7 +49,7 @@ export default function ClubPendingPage() {
 
                     {/* Description */}
                     <p className="text-lg text-white/80 text-center mb-8 leading-relaxed">
-                        Your club has been submitted and is currently under approval by the ClubViz team.
+                        Your club has been submitted and is currently under approval by the Clubwiz team.
                         We&apos;ll notify you once your club is approved and ready to go live!
                     </p>
 
@@ -71,7 +71,7 @@ export default function ClubPendingPage() {
                             </div>
                             <div>
                                 <h3 className="text-white font-semibold mb-1">Under Review</h3>
-                                <p className="text-white/70 text-sm">ClubViz team is reviewing your club details</p>
+                                <p className="text-white/70 text-sm">Clubwiz team is reviewing your club details</p>
                             </div>
                         </div>
 

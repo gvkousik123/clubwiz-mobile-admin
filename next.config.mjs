@@ -1,6 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -10,9 +9,6 @@ const nextConfig = {
   images: {
     unoptimized: true,
     domains: ['storage.googleapis.com'],
-  },
-  env: {
-    NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || 'https://clubwiz.in',
   },
   // Add redirects from old routes to /bz/ routes for backward compatibility
   async redirects() {

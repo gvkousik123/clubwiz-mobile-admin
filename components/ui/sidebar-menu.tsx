@@ -4,7 +4,7 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { X, Phone, MessageCircle, Instagram } from 'lucide-react';
 import Link from 'next/link';
-import { ClubVizLogo } from '@/components/auth/logo';
+import { ClubwizLogo } from '@/components/auth/logo';
 
 interface SidebarMenuProps {
     isOpen: boolean;
@@ -155,7 +155,7 @@ export default function SidebarMenu({ isOpen, onClose }: SidebarMenuProps) {
                     {/* CLUBWIZ Logo */}
                     <div className="pt-8 pb-8">
                         <div className="flex justify-center">
-                            <ClubVizLogo size="sm" variant="full" />
+                            <ClubwizLogo size="sm" variant="full" />
                         </div>
                     </div>
                 </div>

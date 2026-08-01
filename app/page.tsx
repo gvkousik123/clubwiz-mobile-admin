@@ -20,7 +20,7 @@ export default function RootPage() {
       if (ProfileService.isSuperAdmin()) {
         router.push('/bz/superadmin');
       } else if (ProfileService.isAdmin()) {
-        router.push('/bz/business');
+        router.push('/bz/admin');
       } else {
         // No regular users allowed - redirect to login
         router.push('/bz/auth/intro');
@@ -34,7 +34,7 @@ export default function RootPage() {
     <div className="bg-dark-900 min-h-screen flex items-center justify-center">
       <div className="text-center">
         <div className="w-16 h-16 bg-gradient-primary rounded-full mx-auto mb-4 animate-pulse"></div>
-        <p className="text-white">Loading ClubWiz Admin...</p>
+        <p className="text-white">Loading Clubwiz Admin...</p>
       </div>
     </div>
   );

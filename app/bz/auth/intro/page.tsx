@@ -1,6 +1,6 @@
 "use client";
 
-import { ClubVizLogo } from "@/components/auth/logo";
+import { ClubwizLogo } from "@/components/auth/logo";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { BatteryFull, ChevronUp, Signal, Wifi } from "lucide-react";
@@ -44,10 +44,6 @@ export default function IntroScreen() {
 
     const handleMouseUp = () => {
         setIsDragging(false);
-    };
-
-    const handleGuestLogin = () => {
-        router.push("/bz/business");
     };
 
     const handleMobileLogin = () => {
@@ -133,7 +129,7 @@ export default function IntroScreen() {
 
             <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-[1.5rem] pb-[7rem] pt-[2.5rem]">
                 <div className="mb-[4rem] drop-shadow-[0_1.125rem_2.8125rem_rgba(0,0,0,0.55)]">
-                    <ClubVizLogo size="lg" variant="full" />
+                    <ClubwizLogo size="lg" variant="full" />
                 </div>
 
                 <div className="relative text-center mt-[3rem]">

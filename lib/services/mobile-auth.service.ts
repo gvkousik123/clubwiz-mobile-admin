@@ -1,4 +1,5 @@
-import { api, handleApiResponse, handleApiError } from '../api-client';
+import { handleApiResponse, handleApiError } from '../api-client';
+import { publicApi } from '../api-client-public';
 import { ApiResponse } from '../api-types';
 
 /**
@@ -13,7 +14,7 @@ export class MobileAuthService {
      */
     static async sendOtp(email: string, mobileNumber: string): Promise<any> {
         try {
-            const response = await api.post(
+            const response = await publicApi.post(
                 `/notification/api/otp/send?email=${encodeURIComponent(email)}&mobile=${encodeURIComponent(mobileNumber)}`
             );
             return handleApiResponse(response);
@@ -32,7 +33,7 @@ export class MobileAuthService {
             const otpInt = parseInt(otp, 10);
 
             // Send as query parameters, not in body
-            const response = await api.post(
+            const response = await publicApi.post(
                 `/notification/api/otp/validate?email=${encodeURIComponent(email)}&otp=${otpInt}`
             );
             return handleApiResponse(response);

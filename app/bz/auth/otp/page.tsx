@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useState, useEffect, useRef } from "react";
-import { ClubVizLogo } from "@/components/auth/logo";
+import { ClubwizLogo } from "@/components/auth/logo";
 import { AuthLink } from "@/components/auth/auth-link";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, X } from "lucide-react";
@@ -10,6 +10,7 @@ import { MobileAuthService } from '@/lib/services/mobile-auth.service';
 import { JWTService } from '@/lib/services/jwt.service';
 import { useToast } from "@/hooks/use-toast";
 import { STORAGE_KEYS } from "@/lib/constants/storage";
+import { AuthBackground } from "@/components/auth/auth-background";
 
 export default function OTPVerificationScreen() {
     const router = useRouter();
@@ -46,28 +47,72 @@ export default function OTPVerificationScreen() {
             });
         }, 1000);
 
+        // Auto focus first OTP input on mount
+        setTimeout(() => {
+            inputRefs.current[0]?.focus();
+        }, 100);
+
         return () => clearInterval(interval);
     }, [router]);
 
     const handleOtpChange = (index: number, value: string) => {
-        if (value.length <= 1 && /^\d*$/.test(value)) {
+        const cleanValue = value.replace(/[^0-9]/g, '');
+        if (!cleanValue) {
             const newOtp = [...otp];
-            newOtp[index] = value;
+            newOtp[index] = '';
             setOtp(newOtp);
+            return;
+        }
 
-            // Clear error when user types
+        if (cleanValue.length > 1) {
+            const digits = cleanValue.split('').slice(0, 6);
+            const newOtp = [...otp];
+            const startIdx = cleanValue.length >= 6 ? 0 : index;
+            for (let i = 0; i < digits.length; i++) {
+                if (startIdx + i < otp.length) {
+                    newOtp[startIdx + i] = digits[i];
+                }
+            }
+            setOtp(newOtp);
             if (error) setError(null);
 
-            // Auto-focus next input (only if not on last input)
-            if (value && index < otp.length - 1) {
-                inputRefs.current[index + 1]?.focus();
+            const nextFocusIdx = Math.min(startIdx + digits.length, otp.length - 1);
+            inputRefs.current[nextFocusIdx]?.focus();
+
+            const fullOtp = newOtp.join('');
+            if (fullOtp.length === 6) {
+                handleVerifyOTP(fullOtp);
             }
+            return;
+        }
+
+        const newOtp = [...otp];
+        newOtp[index] = cleanValue;
+        setOtp(newOtp);
+        if (error) setError(null);
+
+        if (index < otp.length - 1) {
+            inputRefs.current[index + 1]?.focus();
+        }
+
+        const fullOtp = newOtp.join('');
+        if (fullOtp.length === 6) {
+            handleVerifyOTP(fullOtp);
         }
     };
 
-    const handleBackspace = (index: number, e: React.KeyboardEvent) => {
-        if (e.key === 'Backspace' && !otp[index] && index > 0) {
-            inputRefs.current[index - 1]?.focus();
+    const handleBackspace = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Backspace') {
+            if (!otp[index] && index > 0) {
+                const newOtp = [...otp];
+                newOtp[index - 1] = '';
+                setOtp(newOtp);
+                inputRefs.current[index - 1]?.focus();
+            } else {
+                const newOtp = [...otp];
+                newOtp[index] = '';
+                setOtp(newOtp);
+            }
         }
     };
 
@@ -108,44 +153,69 @@ export default function OTPVerificationScreen() {
             if (response.jwtToken && response.jwtToken !== 'null' && response.jwtToken !== '') {
                 console.log("✅ Token received from OTP validation");
 
-                // Store this token as a temporary "pre-auth" token for the next step (Signin/Signup)
-                // The backend requires this token in the Authorization header for signin/signup
+                // Store this token
                 localStorage.setItem(STORAGE_KEYS.accessToken, response.jwtToken);
+
+                // Decode token to check for roles and isRegistered status
+                const decodedToken = JWTService.decodeToken(response.jwtToken);
+                console.log("👤 Decoded Token:", decodedToken);
+
+                // Check roles and registration status from token or response
+                // Backend typically includes user info in the token payload
+                const roles = decodedToken?.roles || response.user?.roles || [];
+                const isRegistered = response.isRegistered || response.user?.isRegistered || (roles && roles.length > 0);
+
+                console.log("🔍 User Status - isRegistered:", isRegistered, "roles:", roles);
 
                 // Also update other validation flags
                 localStorage.setItem('otpValidated', 'true');
                 localStorage.setItem('validatedEmail', email);
                 localStorage.setItem('validatedPhone', phoneNumber);
 
-                // Show success toast
+                // If user is already registered and has roles, redirect to dashboard
+                if (isRegistered || (roles && roles.length > 0)) {
+                    console.log("✅ Existing registered user found. Redirecting to dashboard...");
+                    
+                    let redirectPath = '/bz/business';
+                    if (roles.includes('ROLE_SUPERADMIN')) {
+                        redirectPath = '/bz/superadmin';
+                    } else if (roles.includes('ROLE_BUSINESS_ADMIN')) {
+                        redirectPath = '/bz/business';
+                    } else if (roles.includes('ROLE_ADMIN')) {
+                        redirectPath = '/bz/admin';
+                    }
+
+                    toast({
+                        title: "Welcome Back!",
+                        description: "Login successful. Redirecting to dashboard...",
+                        className: "bg-green-50 border-green-200 text-green-900",
+                    });
+
+                    setTimeout(() => {
+                        console.log(`🔄 Redirecting to ${redirectPath}...`);
+                        router.replace(redirectPath);
+                    }, 1000);
+                    return;
+                }
+
+                // If not registered or no roles, continue to signup/register
                 toast({
                     title: "OTP Verified Successfully",
                     description: "Redirecting to complete registration...",
                     className: "bg-green-50 border-green-200 text-green-900",
                 });
 
-                // IMPORTANT: Navigate to Signup by default as requested
-                // User can switch to Signin from there if needed
                 setTimeout(() => {
-                    console.log("🔄 Redirecting to /auth/signup...");
-                    router.replace('/bz/auth/signup');
-                }, 1000); // Small delay to let user see toast
+                    console.log("🔄 Redirecting to /bz/auth/register...");
+                    router.replace('/bz/auth/register');
+                }, 1000);
                 return;
             }
             else {
                 // Should not happen if API is correct, but safe fallback
-                console.log("ℹ️ No Token - Redirecting to signup");
-                router.replace('/bz/auth/signup');
+                console.log("ℹ️ No Token - Redirecting to register");
+                router.replace('/bz/auth/register');
             }
-
-            // New user - redirect to signup page to complete registration
-            toast({
-                title: "OTP Verified!",
-                description: "Please complete your registration",
-            });
-
-            console.log("🔄 New user - Redirecting to register page...");
-            router.replace('/bz/auth/register');
 
         } catch (error: any) {
             console.error("❌ OTP verification failed:", error);
@@ -214,190 +284,127 @@ export default function OTPVerificationScreen() {
         }
     };
 
-    const canSubmit = otp.every(digit => digit !== '') && !isLoading;
+    const canSubmit = otp.every(d => d !== '') && !isLoading;
 
     return (
-        <div className="min-h-screen bg-[#031313] relative">
-            {/* Background blur effects - subtle accents */}
-            <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute top-[12vh] left-1/2 -translate-x-1/2 w-[20rem] h-[20rem] bg-teal-500/10 rounded-full blur-3xl"></div>
-                <div className="absolute bottom-[12vh] left-1/3 w-[15rem] h-[15rem] bg-cyan-500/10 rounded-full blur-3xl"></div>
-                <div className="absolute top-1/3 right-1/4 w-[10rem] h-[10rem] bg-teal-500/10 rounded-full blur-2xl"></div>
-            </div>
+        <div className="min-h-screen bg-[#031313] relative flex flex-col font-sans items-center md:py-8">
+            <div className="relative w-full max-w-md min-h-screen md:min-h-0 md:h-[850px] flex flex-col bg-[#031313] overflow-hidden md:rounded-[2.5rem] md:border border-white/10 shadow-2xl">
+                <AuthBackground />
 
-            {/* Content */}
-            <div className="relative z-10 min-h-screen flex flex-col">
-                {/* Header with Back and Skip */}
-                <div className="flex items-center justify-between p-[1rem] pt-[1.5rem] flex-shrink-0">
-                    <Link
-                        href="/bz/auth/mobile"
-                        className="w-[2.5rem] h-[2.5rem] flex items-center justify-center rounded-full border border-teal-400/30 text-teal-300 hover:bg-teal-500/10 transition-colors"
-                    >
-                        <ArrowLeft className="w-[1.25rem] h-[1.25rem]" />
-                    </Link>
-
-                    <Link
-                        href="/bz/auth/details"
-                        className="px-[1rem] py-[0.375rem] rounded-full border border-teal-400/30 text-[0.875rem] text-teal-300 hover:bg-teal-500/10 transition"
-                    >
-                        Skip
-                    </Link>
-                </div>
-
-                {/* White Card Container - Sticks to bottom and takes remaining space */}
-                <div className="flex-1 flex flex-col">
-                    {/* Logo Area - Now positioned just above the form with increased spacing */}
-                    <div className="flex-1 flex flex-col items-center justify-end px-6 pb-8">
-                        <ClubVizLogo size="lg" variant="full" />
+                <div className="relative z-10 flex flex-col flex-1">
+                    {/* Header Navigation */}
+                    <div className="flex items-center justify-between px-6 pt-8 pb-4 flex-shrink-0 animate-in fade-in slide-in-from-top-4 duration-700">
+                        <Link href="/bz/auth/mobile" className="w-11 h-11 flex items-center justify-center rounded-full border border-white/10 text-white bg-black/20 backdrop-blur-md hover:bg-white/10 hover:border-white/30 transition-all">
+                            <ArrowLeft className="w-5 h-5" />
+                        </Link>
+                        <Link href="/bz/auth/details" className="px-5 py-2.5 rounded-full border border-white/10 text-sm font-semibold text-white bg-black/20 backdrop-blur-md hover:bg-white/10 hover:border-white/30 transition-all">
+                            Skip
+                        </Link>
                     </div>
 
-                    <div className="bg-white rounded-t-3xl w-full px-[1.5rem] pt-[2rem] pb-[2rem] overflow-y-auto flex flex-col">
-                        {/* Header */}
-                        <div className="mb-[2rem]">
-                            <h1 className="text-[1.5rem] font-semibold text-[#2C1945] mb-[1.25rem] text-center">Verification Code</h1>
-                            <div className="text-center mb-[0.5rem]">
-                                <span className="text-[#2C1945] font-bold">Enter verification code. </span>
-                                <button
-                                    onClick={handleResendOTP}
-                                    disabled={!canResend}
-                                    className="text-[#417CFD] font-bold"
-                                >
-                                    Resend Code
-                                </button>
-                            </div>
-                            {phoneNumber && (
-                                <div className="text-center">
-                                    <p className="text-[0.875rem] text-[#6A6A6A]">Code sent to</p>
-                                    <p className="text-[#0D7377] font-semibold">{phoneNumber?.slice(0, 3)} {phoneNumber?.slice(3)}</p>
-                                </div>
-                            )}
+                    {/* Logo Zone */}
+                    <div className="flex-1 flex flex-col items-center justify-center px-6 py-6 animate-in fade-in zoom-in-95 duration-700 delay-150">
+                        <div className="relative mb-4 drop-shadow-[0_0_25px_rgba(20,255,236,0.4)]">
+                            <ClubwizLogo size="lg" variant="full" />
+                        </div>
+                    </div>
+
+                    {/* Glass card */}
+                    <div className="bg-[#031313]/70 backdrop-blur-2xl border-t border-x md:border-b border-[#14FFEC]/10 rounded-t-[2.5rem] md:rounded-[2.5rem] w-full px-7 pt-10 pb-10 flex flex-col shadow-[0_-20px_50px_rgba(0,0,0,0.8)] md:shadow-[0_20px_50px_rgba(0,0,0,0.8)] relative animate-in fade-in slide-in-from-bottom-12 duration-700 delay-300 md:mb-8">
+                        
+                        {/* Inner glowing accent */}
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-1 bg-gradient-to-r from-transparent via-[#14FFEC]/50 to-transparent"></div>
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-[#14FFEC]/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                        <h1 
+                            className="text-center font-['Anton_SC',system-ui] text-[2rem] leading-none tracking-wide mb-1"
+                            style={{
+                                background: "linear-gradient(180deg, #7FF9FF 0%, #FFF 102.94%)",
+                                WebkitBackgroundClip: "text",
+                                backgroundClip: "text",
+                                WebkitTextFillColor: "transparent",
+                                WebkitTextStrokeWidth: "0.5px",
+                                WebkitTextStrokeColor: "#029694",
+                                textShadow: "0 0 10px rgba(127, 249, 255, 0.3)"
+                            }}
+                        >
+                            VERIFICATION CODE
+                        </h1>
+                        
+                        <div className="text-center mt-2 mb-2">
+                            <span className="text-white/50 text-[12px] font-medium uppercase tracking-widest">Enter code. </span>
+                            <button onClick={handleResendOTP} disabled={!canResend}
+                                className="text-[#14FFEC] text-[12px] font-bold uppercase tracking-widest hover:underline transition-colors disabled:opacity-40 disabled:no-underline ml-1">
+                                Resend
+                            </button>
                         </div>
 
-                        {/* OTP Input Display */}
-                        <div className="flex justify-center gap-[0.75rem] mb-[1.5rem]">
-                            {otp.map((digit, index) => (
-                                <div
-                                    key={index}
-                                    className={`w-[3rem] h-[3rem] flex items-center justify-center rounded-[0.75rem] 
-                                        ${digit ? 'bg-[#EFEFEF] border border-[#0C898B]' : 'bg-[#F7F7F7] border border-[#E0E0E0]'}`}
-                                >
-                                    <span className="text-xl font-bold text-[#2C1945]">
-                                        {digit || ''}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Countdown Timer */}
-                        <div className="text-center mb-4">
-                            {!canResend && (
-                                <p className="text-[#6A6A6A] font-bold text-[15px]">
-                                    Resend code in : {timer} sec
-                                </p>
-                            )}
-                        </div>
-
-                        {/* Error Message */}
-                        {error && (
-                            <div className="text-red-500 text-sm text-center mb-4 font-medium animate-pulse p-2 bg-red-50 rounded-lg">
-                                {error}
+                        {/* Sent-to badge */}
+                        {(phoneNumber || email) && (
+                            <div className="text-center mt-4 mb-6 p-4 bg-white/5 border border-white/10 rounded-2xl">
+                                <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest mb-1.5">Code sent to</p>
+                                {email && <p className="text-white font-medium text-[13px] break-all">{email}</p>}
+                                {email && phoneNumber && <p className="text-[#14FFEC]/50 text-[10px] uppercase font-bold my-1">and</p>}
+                                {phoneNumber && <p className="text-white font-medium text-[15px] tracking-wide">+91 {phoneNumber?.slice(0, 5)} {phoneNumber?.slice(5)}</p>}
                             </div>
                         )}
 
-                        {/* Number Keypad */}
-                        <div className="mx-auto w-[280px] space-y-4 mb-6">
-                            {/* Keypad Grid */}
-                            <div className="grid grid-cols-3 gap-4">
-                                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-                                    <button
-                                        key={num}
-                                        onClick={() => {
-                                            const emptyIndex = otp.findIndex(digit => digit === '');
-                                            if (emptyIndex !== -1) {
-                                                handleOtpChange(emptyIndex, num.toString());
-                                            }
-                                        }}
-                                        className="w-[70px] h-[70px] rounded-full border border-[#0C898B] 
-                                             bg-white text-[#42353B] text-3xl font-semibold
-                                             hover:bg-gray-50 active:bg-gray-100 
-                                             flex items-center justify-center"
-                                    >
-                                        {num}
-                                    </button>
-                                ))}
-
-                                {/* Bottom Row */}
-                                <button
-                                    onClick={() => {
-                                        const lastFilledIndex = [...otp].reverse().findIndex(digit => digit !== '');
-                                        if (lastFilledIndex !== -1) {
-                                            const index = otp.length - 1 - lastFilledIndex;
-                                            handleOtpChange(index, '');
-                                            inputRefs.current[index]?.focus();
-                                        }
-                                    }}
-                                    className="w-[70px] h-[70px] rounded-full bg-[#EFEFEF] 
-                                        text-gray-900 flex items-center justify-center"
-                                >
-                                    <X className="w-4 h-4" />
-                                </button>
-
-                                <button
-                                    onClick={() => {
-                                        const emptyIndex = otp.findIndex(digit => digit === '');
-                                        if (emptyIndex !== -1) {
-                                            handleOtpChange(emptyIndex, '0');
-                                        }
-                                    }}
-                                    className="w-[70px] h-[70px] rounded-full border border-[#0C898B] 
-                                        bg-white text-[#42353B] text-3xl font-semibold
-                                        hover:bg-gray-50 active:bg-gray-100
-                                        flex items-center justify-center"
-                                >
-                                    0
-                                </button>
-
-                                <button
-                                    onClick={() => handleVerifyOTP()}
-                                    disabled={!canSubmit}
-                                    className={`w-[70px] h-[70px] rounded-full flex items-center justify-center transition-all duration-300 ${canSubmit
-                                        ? "bg-[#0D7377] text-white shadow-lg active:scale-95 cursor-pointer opacity-100"
-                                        : "bg-gray-200 text-gray-400 cursor-not-allowed opacity-0 pointer-events-none"
-                                        }`}
-                                >
-                                    <ArrowRight className="w-6 h-6" />
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Display OTP input fields (hidden) */}
-                        <div className="hidden">
+                        {/* OTP boxes */}
+                        <div className="flex justify-center gap-2 mb-6">
                             {otp.map((digit, index) => (
                                 <input
                                     key={index}
                                     ref={(el) => { inputRefs.current[index] = el; }}
-                                    type="text"
+                                    type="tel"
                                     inputMode="numeric"
+                                    pattern="[0-9]*"
                                     maxLength={1}
                                     value={digit}
                                     onChange={(e) => handleOtpChange(index, e.target.value)}
                                     onKeyDown={(e) => handleBackspace(index, e)}
+                                    onFocus={(e) => e.target.select()}
+                                    className={`w-11 h-[3.5rem] text-center rounded-xl border-2 transition-all duration-300 outline-none text-[22px] font-bold ${
+                                        digit 
+                                            ? 'bg-white/10 border-[#14FFEC]/50 text-[#14FFEC] shadow-[0_0_15px_rgba(20,255,236,0.2)] transform scale-105' 
+                                            : 'bg-white/5 border-white/10 text-white focus:border-[#14FFEC]/50 focus:bg-white/10'
+                                    }`}
                                 />
                             ))}
                         </div>
 
-                        {/* Terms and Conditions */}
-                        <div className="mt-auto pt-4">
-                            <div className="text-center">
-                                <p className="text-black font-semibold text-[14px]">
-                                    By login you are agreeing to
+                        {/* Timer */}
+                        <div className="text-center mb-6">
+                            {!canResend && (
+                                <p className="text-white/40 text-xs font-bold uppercase tracking-widest">
+                                    Resend in <span className="text-[#14FFEC] font-mono text-sm ml-1">{timer}</span>s
                                 </p>
-                                <p className="text-[14px] font-semibold mt-1">
-                                    <AuthLink href="/terms" className="text-[#0095FF] font-semibold underline">Terms & Condition</AuthLink>
-                                    <span className="text-black"> and </span>
-                                    <AuthLink href="/privacy" className="text-[#0095FF] font-semibold underline">Privacy Policy</AuthLink>
-                                </p>
+                            )}
+                        </div>
+
+                        {/* Error */}
+                        {error && (
+                            <div className="text-red-400 text-sm text-center mb-5 font-medium p-3 bg-red-500/10 border border-red-500/20 rounded-xl animate-pulse">
+                                {error}
                             </div>
+                        )}
+
+                        {/* CTA */}
+                        <button 
+                            onClick={() => handleVerifyOTP()} 
+                            disabled={!canSubmit} 
+                            className="w-full mb-8 bg-gradient-to-r from-[#14FFEC] to-[#00867D] text-[#031313] font-black text-[15px] uppercase tracking-[0.2em] rounded-2xl py-4 shadow-[0_0_20px_rgba(20,255,236,0.2)] hover:shadow-[0_0_30px_rgba(20,255,236,0.4)] transition-all transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:grayscale disabled:hover:translate-y-0 disabled:cursor-not-allowed"
+                        >
+                            {isLoading ? 'Verifying...' : 'Verify OTP'}
+                        </button>
+
+                        {/* Legal */}
+                        <div className="mt-auto pt-2 text-center">
+                            <p className="text-white/30 text-[10px] font-medium tracking-wide">
+                                By continuing you agree to our{' '}
+                                <AuthLink href="/bz/terms" className="text-white/50 hover:text-white underline">Terms</AuthLink>
+                                {' & '}
+                                <AuthLink href="/bz/privacy" className="text-white/50 hover:text-white underline">Privacy Policy</AuthLink>
+                            </p>
                         </div>
                     </div>
                 </div>

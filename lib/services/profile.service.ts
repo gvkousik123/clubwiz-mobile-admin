@@ -291,7 +291,29 @@ export class ProfileService {
    */
   static clearStoredData(): void {
     if (typeof window === 'undefined') return;
+    
+    // Clear auth data
     localStorage.removeItem(STORAGE_KEYS.accessToken);
+    localStorage.removeItem(STORAGE_KEYS.refreshToken);
     localStorage.removeItem(STORAGE_KEYS.user);
+    localStorage.removeItem(STORAGE_KEYS.userDetails);
+    localStorage.removeItem(STORAGE_KEYS.pendingPhone);
+    
+    // Clear club data
+    localStorage.removeItem(STORAGE_KEYS.ownedClubId);
+    localStorage.removeItem(STORAGE_KEYS.clubFormData);
+    localStorage.removeItem(STORAGE_KEYS.clubLogoPreview);
+    localStorage.removeItem(STORAGE_KEYS.clubFoodDrinksPreview);
+    localStorage.removeItem(STORAGE_KEYS.clubAmbiencePreview);
+    localStorage.removeItem(STORAGE_KEYS.clubMenuPreview);
+    localStorage.removeItem(STORAGE_KEYS.clubSelectedLocation);
+    localStorage.removeItem(STORAGE_KEYS.clubSelectedMusicGenres);
+    
+    // Clear any other clubviz-* keys
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('clubviz-')) {
+        localStorage.removeItem(key);
+      }
+    });
   }
 }

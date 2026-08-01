@@ -1,0 +1,9 @@
+require_relative '../../node_modules/@capacitor/ios/scripts/podfile_pre'
+require_relative '../../node_modules/@capacitor/ios/scripts/podfile_capacitor'
+require_relative '../../node_modules/@capacitor/ios/scripts/podfile_post'
+
+platform :ios, '14.0'
+
+post_install do |installer|
+  assertDeploymentTarget(installer)
+end

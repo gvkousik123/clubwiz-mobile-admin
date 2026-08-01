@@ -1,3 +1,5 @@
+import { STORAGE_KEYS } from '../constants/storage';
+
 /**
  * Get the current club ID from multiple sources
  * Priority: URL params > localStorage > undefined
@@ -6,8 +8,12 @@ export function getClubIdFromStorage(): string | null {
     if (typeof window === 'undefined') return null;
 
     try {
-        // Try to get from session/app state first
-        const userStr = localStorage.getItem('clubviz-user');
+        // Try the dedicated ownedClubId key first
+        const ownedClubId = localStorage.getItem(STORAGE_KEYS.ownedClubId);
+        if (ownedClubId) return ownedClubId;
+
+        // Try to get from user data as fallback
+        const userStr = localStorage.getItem(STORAGE_KEYS.user);
         if (userStr) {
             const user = JSON.parse(userStr);
             // Check multiple possible keys for clubId

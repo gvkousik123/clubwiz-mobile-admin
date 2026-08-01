@@ -142,7 +142,7 @@ function UploadStoryContent() {
             setCaption('');
             // Navigate to my stories page - replace so back button goes to /admin
             setTimeout(() => {
-                router.replace('/bz/business/my-stories');
+                router.replace('/business/my-stories');
             }, 500);
         } catch (error: any) {
             console.error('Error uploading story:', error);

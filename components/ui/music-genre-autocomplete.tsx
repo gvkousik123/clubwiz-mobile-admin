@@ -56,7 +56,7 @@ export function MusicGenreAutocomplete({
     // Filter genres based on search term
     const filteredGenres = allGenres.filter(genre =>
         genre.label.toLowerCase().includes(searchTerm.toLowerCase()) &&
-        !selectedGenres.some(selected => selected.id === genre.id)
+        !selectedGenres.some(selected => selected.label.toLowerCase() === genre.label.toLowerCase())
     );
 
     // Handle outside clicks

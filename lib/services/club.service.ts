@@ -65,6 +65,13 @@ export interface EntryPricing {
   exclusions?: string[];
 }
 
+export interface LiveMusic {
+  isEnabled: boolean;
+  genres: string[];
+  endTiming: string | null;
+  soundLevel: string | null;
+}
+
 export interface ClubOwner {
   id: string;
   username?: string;
@@ -274,10 +281,47 @@ export interface ClubUpdateRequest {
 }
 
 /**
+ * Helper function to strip base64 data from club payload before multipart upload
+ */
+function stripBase64FromClubPayload(payload: Record<string, unknown>): Record<string, unknown> {
+  const copy = { ...payload };
+  
+  // Remove base64 from logo
+  if (copy.logo && typeof copy.logo === 'object') {
+    const logo = copy.logo as { data?: string; url?: string };
+    if (logo.data) delete logo.data;
+    if (logo.url?.startsWith('data:')) delete logo.url;
+  }
+  
+  // Remove base64 from mainImage
+  if (copy.mainImage && typeof copy.mainImage === 'object') {
+    const mainImage = copy.mainImage as { data?: string; url?: string };
+    if (mainImage.data) delete mainImage.data;
+    if (mainImage.url?.startsWith('data:')) delete mainImage.url;
+  }
+  
+  // Remove base64 from image arrays
+  for (const listKey of ['images', 'galleryImages', 'foodImages', 'ambianceImages', 'menuImages']) {
+    const list = copy[listKey] as Array<{ data?: string; url?: string }> | undefined;
+    if (list) {
+      copy[listKey] = list.filter((i) => !i.data && !i.url?.startsWith('data:'));
+    }
+  }
+  
+  return copy;
+}
+
+/**
  * Club Service
  * Handles all club-related API operations
  */
 export class ClubService {
+  // ============================================================================
+  // CONSTANTS
+  // ============================================================================
+  
+  static readonly CLUB_MEDIA_UPLOAD_TIMEOUT_MS = 600_000; // 10 minutes
+
   // ============================================================================
   // CLUB CRUD OPERATIONS
   // ============================================================================
@@ -304,7 +348,9 @@ export class ClubService {
     try {
       console.log('🎯 ClubService.createClub() called with:', clubData);
       console.log('📡 API Endpoint: POST /clubs/create-json-with-images');
-      const response = await api.post<ApiResponse<ClubCreateResponse>>('/clubs/create-json-with-images', clubData);
+      const response = await api.post<ApiResponse<ClubCreateResponse>>('/clubs/create-json-with-images', clubData, {
+        timeout: ClubService.CLUB_MEDIA_UPLOAD_TIMEOUT_MS
+      });
       console.log('🎯 ClubService.createClub() response:', response);
       return handleApiResponse(response);
     } catch (error) {
@@ -314,19 +360,127 @@ export class ClubService {
   }
 
   /**
-   * Update club
-   * PUT /clubs/{id}
+   * Create new club using multipart/form-data for image uploads
+   * POST /clubs/create-json-with-images
+   */
+  static async createClubMultipart(
+    clubData: ClubCreateRequest,
+    files: {
+      logo?: File | null;
+      mainImage?: File | null;
+      galleryImages?: File[];
+      foodImages?: File[];
+      ambianceImages?: File[];
+      menuImages?: File[];
+    }
+  ): Promise<ApiResponse<ClubCreateResponse>> {
+    try {
+      const formData = new FormData();
+      
+      // Strip base64 from club data before adding to FormData
+      const strippedData = stripBase64FromClubPayload(clubData as unknown as Record<string, unknown>);
+      formData.append(
+        'data',
+        new Blob([JSON.stringify(strippedData)], { type: 'application/json' })
+      );
+      
+      if (files.logo) formData.append('logo', files.logo);
+      if (files.mainImage) formData.append('mainImage', files.mainImage);
+      files.galleryImages?.forEach((f) => formData.append('galleryImages', f));
+      files.foodImages?.forEach((f) => formData.append('foodImages', f));
+      files.ambianceImages?.forEach((f) => formData.append('ambianceImages', f));
+      files.menuImages?.forEach((f) => formData.append('menuImages', f));
+
+      const response = await api.post<ApiResponse<ClubCreateResponse>>(
+        '/clubs/create-json-with-images',
+        formData,
+        {
+          timeout: ClubService.CLUB_MEDIA_UPLOAD_TIMEOUT_MS,
+          headers: { 'Content-Type': 'multipart/form-data' },
+        }
+      );
+      return handleApiResponse(response);
+    } catch (error) {
+      console.error('❌ Error creating club with multipart:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update club with images
+   * POST /clubs/{id}/update-json-with-images
    */
   static async updateClub(id: string, clubData: ClubUpdateRequest): Promise<ApiResponse<Club>> {
     try {
-      console.log(`📡 API Call: PUT /clubs/${id}`);
+      console.log(`📡 API Call: POST /clubs/${id}/update-json-with-images`);
       console.log(`📋 Update data:`, clubData);
-      const response = await api.put<ApiResponse<Club>>(`/clubs/${id}`, clubData);
+      // Try the new endpoint first for updates with images
+      const response = await api.post<ApiResponse<Club>>(`/clubs/${id}/update-json-with-images`, clubData, {
+        timeout: ClubService.CLUB_MEDIA_UPLOAD_TIMEOUT_MS
+      });
       console.log(`✅ Club updated:`, response);
       return handleApiResponse(response);
     } catch (error) {
-      console.error(`❌ Error updating club ${id}:`, error);
-      throw new Error(handleApiError(error));
+      // Fallback to PUT endpoint if the new endpoint doesn't exist
+      try {
+        console.log(`📡 Fallback: PUT /clubs/${id}`);
+        const response = await api.put<ApiResponse<Club>>(`/clubs/${id}`, clubData, {
+          timeout: ClubService.CLUB_MEDIA_UPLOAD_TIMEOUT_MS
+        });
+        console.log(`✅ Club updated:`, response);
+        return handleApiResponse(response);
+      } catch (fallbackError) {
+        console.error(`❌ Error updating club ${id}:`, error);
+        throw new Error(handleApiError(fallbackError));
+      }
+    }
+  }
+
+  /**
+   * Update club using multipart/form-data for image uploads
+   * PUT /clubs/{id}
+   */
+  static async updateClubMultipart(
+    id: string,
+    clubData: ClubUpdateRequest,
+    files: {
+      logo?: File | null;
+      mainImage?: File | null;
+      galleryImages?: File[];
+      foodImages?: File[];
+      ambianceImages?: File[];
+      menuImages?: File[];
+    }
+  ): Promise<ApiResponse<Club>> {
+    try {
+      const formData = new FormData();
+      
+      // Strip base64 from club data before adding to FormData
+      const strippedData = stripBase64FromClubPayload(clubData as unknown as Record<string, unknown>);
+      formData.append(
+        'data',
+        new Blob([JSON.stringify(strippedData)], { type: 'application/json' })
+      );
+      
+      if (files.logo) formData.append('logo', files.logo);
+      if (files.mainImage) formData.append('mainImage', files.mainImage);
+      files.galleryImages?.forEach((f) => formData.append('galleryImages', f));
+      files.foodImages?.forEach((f) => formData.append('foodImages', f));
+      files.ambianceImages?.forEach((f) => formData.append('ambianceImages', f));
+      files.menuImages?.forEach((f) => formData.append('menuImages', f));
+
+      const response = await api.put<ApiResponse<Club>>(
+        `/clubs/${id}`,
+        formData,
+        {
+          timeout: ClubService.CLUB_MEDIA_UPLOAD_TIMEOUT_MS,
+          headers: { 'Content-Type': 'multipart/form-data' },
+        }
+      );
+      return handleApiResponse(response);
+    } catch (error) {
+      console.error('❌ Error updating club with multipart:', error);
+      throw error;
     }
   }
 
@@ -720,6 +874,35 @@ export class ClubService {
       );
       return (response as any).data ?? response;
     } catch (error) {
+      throw new Error(handleApiError(error));
+    }
+  }
+
+  /**
+   * Get live music configuration for a club
+   * GET /clubs/{id}/live-music
+   */
+  static async getLiveMusic(id: string): Promise<LiveMusic> {
+    try {
+      const response = await api.get<LiveMusic>(`/clubs/${id}/live-music`);
+      return response.data;
+    } catch (error) {
+      console.error(`❌ Error getting live music for club ${id}:`, error);
+      throw new Error(handleApiError(error));
+    }
+  }
+
+  /**
+   * Update live music configuration for a club
+   * PUT /clubs/{id}/live-music
+   */
+  static async updateLiveMusic(id: string, data: LiveMusic): Promise<LiveMusic> {
+    try {
+      console.log(`📡 API Call: PUT /clubs/${id}/live-music`, data);
+      const response = await api.put<LiveMusic>(`/clubs/${id}/live-music`, data);
+      return response.data;
+    } catch (error) {
+      console.error(`❌ Error updating live music for club ${id}:`, error);
       throw new Error(handleApiError(error));
     }
   }

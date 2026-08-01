@@ -171,14 +171,15 @@
 
   /* Hide scrollbar globally while keeping scroll functionality */
   html::-webkit-scrollbar,
-  body::-webkit-scrollbar,
-  *::-webkit-scrollbar {
+  body::-webkit-scrollbar {
     display: none;
   }
 
-  html, body, * {
+  html {
     scrollbar-width: none;
+    /* Firefox */
     -ms-overflow-style: none;
+    /* IE and Edge */
   }
 
   /* Responsive container sizes */

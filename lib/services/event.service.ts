@@ -196,6 +196,11 @@ export interface EventCreateRequest {
   ticketTypes?: TicketType[];
   hasLimitedTickets?: boolean;
   totalTickets?: number;
+  earlyBirdEnabled?: boolean;
+  earlyBirdEndTime?: string;
+  earlyBirdMaleStagEntry?: { price: number; fee: number; description: string };
+  earlyBirdFemaleStagEntry?: { price: number; fee: number; description: string };
+  earlyBirdCoupleEntry?: { price: number; fee: number; description: string };
   eventImage?: EventImageData;
   eventReel?: EventImageData;
   eventOrganizerLogo?: EventImageData;
@@ -205,6 +210,7 @@ export interface EventCreateRequest {
 
 export interface EventUpdateRequest {
   title?: string;
+  name?: string;
   description?: string;
   startDateTime?: string;
   endDateTime?: string;
@@ -219,6 +225,20 @@ export interface EventUpdateRequest {
     lat: number;
     lng: number;
   };
+  eventArtistName?: string;
+  aboutEventArtist?: string;
+  instagramHandle?: string;
+  spotifyHandle?: string;
+  musicGenre?: string;
+  eventOrganizer?: string;
+  ticketTypes?: TicketType[];
+  hasLimitedTickets?: boolean;
+  totalTickets?: number;
+  eventImage?: EventImageData;
+  eventReel?: EventImageData;
+  eventOrganizerLogo?: EventImageData;
+  galleryImages?: EventImageData[];
+  performerImages?: EventImageData[];
 }
 
 export interface EventDetailsResponse {
@@ -274,7 +294,36 @@ export interface EventDetailsResponse {
   timeUntilEvent?: string;
 }
 
+/**
+ * Helper function to strip base64 data from event payload before multipart upload
+ */
+function stripBase64FromEventPayload(payload: Record<string, unknown>): Record<string, unknown> {
+  const copy = { ...payload };
+  
+  // Remove base64 from eventImage, eventReel, eventOrganizerLogo
+  for (const key of ['eventImage', 'eventReel', 'eventOrganizerLogo']) {
+    const img = copy[key] as { data?: string; url?: string } | undefined;
+    if (img?.data) delete (copy[key] as { data?: string }).data;
+    if (img?.url?.startsWith('data:')) copy[key] = undefined;
+  }
+  
+  // Remove base64 from image arrays
+  for (const listKey of ['galleryImages', 'performerImages']) {
+    const list = copy[listKey] as Array<{ data?: string; url?: string }> | undefined;
+    if (list) {
+      copy[listKey] = list.filter((i) => !i.data && !i.url?.startsWith('data:'));
+    }
+  }
+  
+  return copy;
+}
+
 export class EventService {
+  // ============================================================================
+  // CONSTANTS
+  // ============================================================================
+  
+  static readonly EVENT_MEDIA_UPLOAD_TIMEOUT_MS = 600_000; // 10 minutes
   /**
    * Get all events with optional filtering (API: GET /events/list)
    */
@@ -377,7 +426,9 @@ export class EventService {
       console.log('📡 API Call: POST /events/create-json-with-images');
       console.log('📋 Event data:', eventData);
       console.log('📸 Images count:', eventData.images?.length || 0);
-      const response = await api.post<ApiResponse<Event>>('/event-management/events/create-json-with-images', eventData);
+      const response = await api.post<ApiResponse<Event>>('/event-management/events/create-json-with-images', eventData, {
+        timeout: EventService.EVENT_MEDIA_UPLOAD_TIMEOUT_MS
+      });
       console.log('✅ Event created with images:', response);
       return handleApiResponse(response);
     } catch (error) {
@@ -387,13 +438,62 @@ export class EventService {
   }
 
   /**
-   * Update an event (API: PUT /events/{id})
+   * Create event using multipart/form-data for image uploads
+   * POST /event-management/events/create-json-with-images
    */
-  static async updateEvent(eventId: string, eventData: EventUpdateRequest): Promise<any> {
+  static async createEventMultipart(
+    eventData: EventCreateRequest & { images?: string[] },
+    files: {
+      eventImage?: File | null;
+      eventReel?: File | null;
+      eventOrganizerLogo?: File | null;
+      galleryImages?: File[];
+      performerImages?: File[];
+    }
+  ): Promise<ApiResponse<Event>> {
+    try {
+      const formData = new FormData();
+      
+      // Strip base64 from event data before adding to FormData
+      const strippedData = stripBase64FromEventPayload(eventData as unknown as Record<string, unknown>);
+      formData.append(
+        'data',
+        new Blob([JSON.stringify(strippedData)], { type: 'application/json' })
+      );
+      
+      if (files.eventImage) formData.append('eventImage', files.eventImage);
+      if (files.eventReel) formData.append('eventReel', files.eventReel);
+      if (files.eventOrganizerLogo) formData.append('eventOrganizerLogo', files.eventOrganizerLogo);
+      files.galleryImages?.forEach((f) => formData.append('galleryImages', f));
+      files.performerImages?.forEach((f) => formData.append('performerImages', f));
+
+      const response = await api.post<ApiResponse<Event>>(
+        '/event-management/events/create-json-with-images',
+        formData,
+        {
+          timeout: EventService.EVENT_MEDIA_UPLOAD_TIMEOUT_MS,
+        }
+      );
+      return handleApiResponse(response);
+    } catch (error) {
+      console.error('❌ Error creating event with multipart:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update an event (JSON-only edit or no new files)
+   * @param adminFormat - Set to true to get EventCreateResponse with generalPricing/guestListPricing
+   */
+  static async updateEvent(eventId: string, eventData: EventUpdateRequest, adminFormat: boolean = false): Promise<any> {
     try {
       console.log(`📡 API Call: PUT /events/${eventId}`);
       console.log('📋 Update data:', eventData);
-      const response = await api.put(`/event-management/events/${eventId}`, eventData);
+      const headers = adminFormat ? { 'X-Response-Format': 'admin' } : {};
+      const response = await api.put(`/event-management/events/${eventId}`, eventData, {
+        timeout: EventService.EVENT_MEDIA_UPLOAD_TIMEOUT_MS,
+        headers
+      });
       console.log('✅ Event updated:', response);
 
       // Handle various response formats
@@ -415,6 +515,64 @@ export class EventService {
     } catch (error) {
       console.error(`❌ Error updating event ${eventId}:`, error);
       throw new Error(handleApiError(error));
+    }
+  }
+
+  /**
+   * Update event using multipart/form-data for image uploads
+   * PUT /event-management/events/{id}
+   */
+  static async updateEventMultipart(
+    eventId: string,
+    eventData: EventUpdateRequest,
+    files: {
+      eventImage?: File | null;
+      eventReel?: File | null;
+      eventOrganizerLogo?: File | null;
+      galleryImages?: File[];
+      performerImages?: File[];
+    },
+    adminFormat: boolean = false,
+  ): Promise<any> {
+    try {
+      const formData = new FormData();
+      
+      // Strip base64 from event data before adding to FormData
+      const strippedData = stripBase64FromEventPayload(eventData as unknown as Record<string, unknown>);
+      formData.append(
+        'data',
+        new Blob([JSON.stringify(strippedData)], { type: 'application/json' })
+      );
+      
+      if (files.eventImage) formData.append('eventImage', files.eventImage);
+      if (files.eventReel) formData.append('eventReel', files.eventReel);
+      if (files.eventOrganizerLogo) formData.append('eventOrganizerLogo', files.eventOrganizerLogo);
+      files.galleryImages?.forEach((f) => formData.append('galleryImages', f));
+      files.performerImages?.forEach((f) => formData.append('performerImages', f));
+
+      const response = await api.put(
+        `/event-management/events/${eventId}`,
+        formData,
+        {
+          timeout: EventService.EVENT_MEDIA_UPLOAD_TIMEOUT_MS,
+          headers: adminFormat ? { 'X-Response-Format': 'admin' } : {},
+        }
+      );
+      
+      // Handle various response formats
+      if (response.data) {
+        if (typeof response.data === 'object' && 'success' in response.data) {
+          return response.data;
+        }
+        if (response.data.id) {
+          return { success: true, data: response.data };
+        }
+        return { success: true, data: response.data };
+      }
+      return { success: true, data: response };
+    } catch (error) {
+      console.error('❌ Error updating event with multipart:', error);
+      throw error;
     }
   }
 
@@ -521,6 +679,22 @@ export class EventService {
       return handleApiResponse(response);
     } catch (error) {
       console.error(`❌ Error getting event details for ${eventId}:`, error);
+      throw new Error(handleApiError(error));
+    }
+  }
+
+  /**
+   * Get event details for admin edit form (API: GET /event-management/events/{eventId}/admin)
+   * Returns EventCreateResponse with generalPricing and guestListPricing
+   */
+  static async getEventDetailsAdmin(eventId: string): Promise<any> {
+    try {
+      console.log(`📡 API Call: GET /event-management/events/${eventId}/admin`);
+      const response = await api.get<any>(`/event-management/events/${eventId}/admin`);
+      console.log(`✅ Event admin details retrieved:`, response);
+      return handleApiResponse(response);
+    } catch (error) {
+      console.error(`❌ Error getting event admin details for ${eventId}:`, error);
       throw new Error(handleApiError(error));
     }
   }

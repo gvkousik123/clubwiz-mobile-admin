@@ -41,9 +41,8 @@ publicApi.interceptors.response.use(
         localStorage.removeItem(STORAGE_KEYS.refreshToken);
         localStorage.removeItem(STORAGE_KEYS.user);
 
-        // Redirect to login page
-        history.pushState({}, '', '/bz/auth/intro');
-        window.dispatchEvent(new PopStateEvent('popstate'));
+        // Redirect to home page
+        window.location.href = '/';
       }
 
       return Promise.reject({
@@ -136,9 +135,8 @@ apiClient.interceptors.response.use(
         localStorage.removeItem(STORAGE_KEYS.refreshToken);
         localStorage.removeItem(STORAGE_KEYS.user);
 
-        // Redirect to login page
-        history.pushState({}, '', '/bz/auth/intro');
-        window.dispatchEvent(new PopStateEvent('popstate'));
+        // Redirect to home page
+        window.location.href = '/';
       }
 
       return Promise.reject({

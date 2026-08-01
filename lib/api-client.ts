@@ -4,7 +4,7 @@ import { ApiResponse } from './api-types';
 
 // API Configuration
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://clubwiz.in';
-const API_TIMEOUT = 30000; // 30 seconds (increased for event creation/update operations)
+const API_TIMEOUT = 600000; // 10 minutes (increased for event/club image upload operations)
 
 // Create axios instance with default configuration
 const apiClient: AxiosInstance = axios.create({
@@ -30,6 +30,26 @@ apiClient.interceptors.request.use(
       config.headers.Authorization = authValue;
     }
 
+    // Allow Axios to set the correct multipart boundary when FormData is used.
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+      const removeContentType = (headers: Record<string, unknown> | undefined) => {
+        if (!headers) return;
+        if ('Content-Type' in headers) {
+          delete headers['Content-Type'];
+        }
+        if ('content-type' in headers) {
+          delete headers['content-type'];
+        }
+      };
+
+      removeContentType(config.headers as Record<string, unknown> | undefined);
+      removeContentType((config.headers as any)?.common);
+      if (config.method) {
+        const methodHeaders = (config.headers as any)[config.method];
+        removeContentType(methodHeaders);
+      }
+    }
+
     // Log all requests for debugging
     console.log(`📤 API Request: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`, {
       headers: config.headers,
@@ -53,10 +73,19 @@ const handleForcedLogout = () => {
     localStorage.removeItem(STORAGE_KEYS.refreshToken);
     localStorage.removeItem(STORAGE_KEYS.userDetails);
     localStorage.removeItem('userRoles'); // Clear user roles
+    
+    // Clear club registration form data
+    localStorage.removeItem(STORAGE_KEYS.clubFormData);
+    localStorage.removeItem(STORAGE_KEYS.clubLogoPreview);
+    localStorage.removeItem(STORAGE_KEYS.clubFoodDrinksPreview);
+    localStorage.removeItem(STORAGE_KEYS.clubAmbiencePreview);
+    localStorage.removeItem(STORAGE_KEYS.clubMenuPreview);
+    localStorage.removeItem(STORAGE_KEYS.clubSelectedLocation);
+    localStorage.removeItem(STORAGE_KEYS.clubSelectedMusicGenres);
+    localStorage.removeItem(STORAGE_KEYS.ownedClubId);
 
     // Silently redirect to login - NO TOAST
-    history.pushState({}, '', '/bz/auth/login');
-    window.dispatchEvent(new PopStateEvent('popstate'));
+    window.location.replace('/bz/auth/login');
   }
 };
 
@@ -78,10 +107,18 @@ apiClient.interceptors.response.use(
       message: error.message,
     });
 
-    // Handle 401 (Unauthorized) and 403 (Forbidden) - force logout silently
-    if (error.response?.status === 401 || error.response?.status === 403) {
-      console.warn(`Authentication failed (${error.response.status}): Forcing logout...`);
+    // Handle 401 (Unauthorized) - force logout silently
+    // Note: 403 (Forbidden) is NOT auto-logout - it means you don't have permission for that resource
+    if (error.response?.status === 401) {
+      console.warn(`Authentication failed (401 Unauthorized): Forcing logout...`);
       handleForcedLogout();
+      return Promise.reject(error);
+    }
+
+    // Log 403 but don't auto-logout - let the calling code handle it
+    if (error.response?.status === 403) {
+      console.warn(`Access forbidden (403): You may not have permission for this resource`);
+      // Just reject the error, don't logout
       return Promise.reject(error);
     }
 

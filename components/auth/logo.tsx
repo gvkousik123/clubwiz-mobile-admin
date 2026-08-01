@@ -6,7 +6,7 @@ interface LogoProps {
     variant?: 'icon' | 'full';
 }
 
-export function ClubVizLogo({ size = 'md', variant = 'full' }: LogoProps) {
+export function ClubwizLogo({ size = 'md', variant = 'full' }: LogoProps) {
     // Size classes for logo icon (smaller size)
     const logoSizes = {
         sm: { width: 70, height: 70 },
@@ -27,7 +27,7 @@ export function ClubVizLogo({ size = 'md', variant = 'full' }: LogoProps) {
             <div className="relative z-50">
                 <Image
                     src="/logo/logo.png"
-                    alt="ClubWiz Admin Logo"
+                    alt="ClubWiz Logo"
                     width={logoSizes[size].width}
                     height={logoSizes[size].height}
                     className="object-contain"
@@ -35,7 +35,7 @@ export function ClubVizLogo({ size = 'md', variant = 'full' }: LogoProps) {
                 />
             </div>
 
-            {/* ClubWiz Admin text with neon effect */}
+            {/* ClubWiz text with neon effect */}
             {variant === 'full' && (
                 <div className="relative z-50 text-center mt-2">
                     <Image

@@ -1,104 +1,108 @@
 import { useState } from 'react';
-import { ContactService } from '@/lib/services/contact.service';
+import { ContactService, BusinessEnquiryRequest, RatingFeedbackRequest, CustomerSupportRequest } from '@/lib/services/contact.service';
 import { useToast } from './use-toast';
 
 export function useContact() {
-  const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
+    const { toast } = useToast();
+    const [loading, setLoading] = useState(false);
 
-  const submitBusinessEnquiry = async (data: {
-    name: string;
-    email?: string;
-    contactNumber: string;
-    instagramLink?: string;
-    whatsAppLink?: string;
-    message: string;
-  }) => {
-    setLoading(true);
-    try {
-      const result = await ContactService.submitBusinessInquiry({
-        name: data.name,
-        email: data.email || '',
-        contactNumber: data.contactNumber,
-        instagramLink: data.instagramLink,
-        whatsAppLink: data.whatsAppLink,
-        message: data.message
-      });
+    const submitBusinessEnquiry = async (data: BusinessEnquiryRequest) => {
+        setLoading(true);
+        try {
+            const response = await ContactService.submitBusinessEnquiry(data);
+            if (response.success) {
+                toast({
+                    title: 'Enquiry Submitted',
+                    description: response.message || 'We will get back to you soon.',
+                });
+                return true;
+            } else {
+                toast({
+                    title: 'Submission Failed',
+                    description: response.message || 'Please try again later.',
+                    variant: 'destructive',
+                });
+                return false;
+            }
+        } catch (error: any) {
+            const errorMessage = error.message || 'Something went wrong.';
+            toast({
+                title: 'Error',
+                description: errorMessage,
+                variant: 'destructive',
+            });
+            return false;
+        } finally {
+            setLoading(false);
+        }
+    };
 
-      if (result.success) {
-        toast({
-          title: 'Success',
-          description: result.message || 'Business inquiry submitted successfully',
-          variant: 'success'
-        });
-        return true;
-      } else {
-        toast({
-          title: 'Error',
-          description: result.error || 'Failed to submit inquiry',
-          variant: 'destructive'
-        });
-        return false;
-      }
-    } catch (error) {
-      console.error('Error submitting business enquiry:', error);
-      toast({
-        title: 'Error',
-        description: 'An error occurred while submitting your inquiry',
-        variant: 'destructive'
-      });
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  };
+    const submitReview = async (data: RatingFeedbackRequest) => {
+        setLoading(true);
+        try {
+            const response = await ContactService.submitRatingFeedback(data);
+            if (response.success) {
+                toast({
+                    title: 'Thank You!',
+                    description: 'Your feedback has been submitted.',
+                });
+                return true;
+            } else {
+                toast({
+                    title: 'Submission Failed',
+                    description: response.message || 'Please try again later.',
+                    variant: 'destructive',
+                });
+                return false;
+            }
+        } catch (error: any) {
+            const errorMessage = error.message || 'Something went wrong.';
+            toast({
+                title: 'Error',
+                description: errorMessage,
+                variant: 'destructive',
+            });
+            return false;
+        } finally {
+            setLoading(false);
+        }
+    };
 
-  const submitSupportRequest = async (data: {
-    name: string;
-    email: string;
-    message: string;
-    type?: 'SUPPORT' | 'FEEDBACK';
-  }) => {
-    setLoading(true);
-    try {
-      const result = await ContactService.submitSupportRequest({
-        name: data.name,
-        email: data.email,
-        message: data.message,
-        type: data.type || 'SUPPORT'
-      });
+    const submitSupportRequest = async (data: CustomerSupportRequest) => {
+        setLoading(true);
+        try {
+            const response = await ContactService.submitCustomerSupport(data);
+            if (response.success) {
+                toast({
+                    title: 'Support Request Submitted',
+                    description: response.message || 'Thank you! Our team will respond shortly.',
+                });
+                return true;
+            } else {
+                toast({
+                    title: 'Submission Failed',
+                    description: response.message || 'Please try again later.',
+                    variant: 'destructive',
+                });
+                return false;
+            }
+        } catch (error: any) {
+            const errorMessage = error.message || 'Something went wrong.';
+            toast({
+                title: 'Error',
+                description: errorMessage,
+                variant: 'destructive',
+            });
+            return false;
+        } finally {
+            setLoading(false);
+        }
+    };
 
-      if (result.success) {
-        toast({
-          title: 'Success',
-          description: result.message || 'Request submitted successfully',
-          variant: 'success'
-        });
-        return true;
-      } else {
-        toast({
-          title: 'Error',
-          description: result.error || 'Failed to submit request',
-          variant: 'destructive'
-        });
-        return false;
-      }
-    } catch (error) {
-      console.error('Error submitting support request:', error);
-      toast({
-        title: 'Error',
-        description: 'An error occurred while submitting your request',
-        variant: 'destructive'
-      });
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return {
-    loading,
-    submitBusinessEnquiry,
-    submitSupportRequest
-  };
+    return {
+        loading,
+        submitBusinessEnquiry,
+        submitReview,
+        submitSupportRequest
+    };
 }

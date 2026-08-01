@@ -10,6 +10,8 @@ export interface ClubOffer {
     discountAmount?: number;
     promoCode?: string;
     minimumBill?: number;
+    minimumAmount?: number;
+    usageLimit?: number;
     startDate: string;
     endDate: string;
     isActive: boolean;

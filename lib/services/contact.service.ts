@@ -1,121 +1,144 @@
-import { api } from '../api-client';
+import { api, handleApiResponse, handleApiError } from '../api-client';
+import { ApiResponse } from '../api-types';
 
-export interface ContactTicket {
-  id: string;
-  type: 'SUPPORT' | 'FEEDBACK' | 'BUSINESS';
-  name: string;
-  message: string;
-  contactNumber?: string;
-  instagramLink?: string;
-  whatsAppLink?: string;
-  username: string;
-  email?: string;
-  createdAt: string;
-}
-
-export interface ContactResponse {
-  status: string;
-  message: string;
-  timestamp: string;
-}
-
-export class ContactService {
-  // Get all support tickets for current user
-  static async getUserSupportTickets() {
-    try {
-      const response = await api.get('/contact-form/contact/tickets/business-admin');
-      return {
-        success: true,
-        data: response.data || []
-      };
-    } catch (error: any) {
-      console.error('Error fetching support tickets:', error);
-      return {
-        success: false,
-        data: [],
-        error: error.message
-      };
-    }
-  }
-
-  // Get single ticket detail
-  static async getTicketDetail(ticketId: string) {
-    try {
-      const response = await api.get(`/contact-form/contact/clubwiz_business/${ticketId}`);
-      return {
-        success: true,
-        data: response.data
-      };
-    } catch (error: any) {
-      console.error('Error fetching ticket details:', error);
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  }
-
-  // Submit business inquiry
-  static async submitBusinessInquiry(data: {
+export interface BusinessEnquiryRequest {
     name: string;
-    email: string;
     contactNumber: string;
     instagramLink?: string;
     whatsAppLink?: string;
     message: string;
-  }) {
-    try {
-      const payload = {
-        name: data.name,
-        email: data.email,
-        contactNumber: data.contactNumber,
-        instagramLink: data.instagramLink || '',
-        whatsAppLink: data.whatsAppLink || '',
-        message: data.message
-      };
+}
 
-      const response = await api.post('/contact-form/contact/clubwiz_business', payload);
-      return {
-        success: true,
-        data: response.data,
-        message: response.data?.message || 'Business inquiry submitted successfully'
-      };
-    } catch (error: any) {
-      console.error('Error submitting business inquiry:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to submit inquiry'
-      };
-    }
-  }
+export interface RatingFeedbackRequest {
+    username: string;
+    rating: number;
+    review: string;
+    feedback?: string;
+    photoOrVideo?: string;
+    clubId?: string; // optional club identifier for contextual reviews
+    eventId?: string; // optional event identifier for event reviews
+}
 
-  // Submit support request/feedback
-  static async submitSupportRequest(data: {
+export interface CustomerSupportRequest {
     name: string;
     email: string;
     message: string;
-    type?: 'SUPPORT' | 'FEEDBACK';
-  }) {
-    try {
-      const payload = {
-        name: data.name,
-        email: data.email,
-        message: data.message,
-        type: data.type || 'SUPPORT'
-      };
-
-      const response = await api.post('/contact-form/contact/support', payload);
-      return {
-        success: true,
-        data: response.data,
-        message: response.data?.message || 'Request submitted successfully'
-      };
-    } catch (error: any) {
-      console.error('Error submitting support request:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to submit request'
-      };
-    }
-  }
 }
+
+export interface RatingFeedbackResponse {
+    status: string;
+    message: string;
+    timestamp: string;
+}
+
+export interface ContactTicket {
+    id: string;
+    type: 'SUPPORT' | 'FEEDBACK' | 'BUSINESS';
+    name: string;
+    message: string;
+    contactNumber?: string;
+    instagramLink?: string;
+    whatsAppLink?: string;
+    username: string;
+    email?: string;
+    createdAt: string;
+}
+
+export const ContactService = {
+    // Submit business enquiry to ClubWiz
+    submitBusinessEnquiry: async (data: BusinessEnquiryRequest): Promise<ApiResponse<any>> => {
+        try {
+            const response = await api.post('/contact-form/contact/clubwiz_business', data);
+            const result = response.data;
+            // If response status is 200-299, consider it success even if body is empty
+            if (result.status === 'success' || result.success || response.status < 300) {
+                return {
+                    success: true,
+                    message: result.message || 'Success',
+                    data: result
+                };
+            }
+            return handleApiResponse(response);
+        } catch (error: any) {
+            const errorMessage = error.response?.data?.message || handleApiError(error);
+            throw new Error(errorMessage);
+        }
+    },
+
+    // Submit user rating and feedback
+    submitRatingFeedback: async (data: RatingFeedbackRequest): Promise<ApiResponse<RatingFeedbackResponse>> => {
+        try {
+            const response = await api.post('/contact-form/contact/rating_feedback', data);
+            const result = response.data;
+            // If response status is 200-299, consider it success even if body is empty
+            if (result.status === 'success' || result.success || response.status < 300) {
+                return {
+                    success: true,
+                    message: result.message || 'Success',
+                    data: result
+                };
+            }
+            return handleApiResponse(response);
+        } catch (error: any) {
+            const errorMessage = error.response?.data?.message || handleApiError(error);
+            throw new Error(errorMessage);
+        }
+    },
+
+    // Submit customer support message
+    submitCustomerSupport: async (data: CustomerSupportRequest): Promise<ApiResponse<any>> => {
+        try {
+            const response = await api.post('/contact-form/contact/customer_support', data);
+            const result = response.data;
+            // If response status is 200-299, consider it success even if body is empty
+            if (result.status === 'success' || result.success || response.status < 300) {
+                return {
+                    success: true,
+                    message: result.message || 'Success',
+                    data: result
+                };
+            }
+            return handleApiResponse(response);
+        } catch (error: any) {
+            const errorMessage = error.response?.data?.message || handleApiError(error);
+            throw new Error(errorMessage);
+        }
+    },
+
+    // Get all support tickets submitted by the current user
+    // GET /contact-form/contact/tickets/user
+    getUserSupportTickets: async (): Promise<ApiResponse<any[]>> => {
+        try {
+            const response = await api.get('/contact-form/contact/tickets/user');
+            const result = response.data;
+            if (Array.isArray(result)) {
+                return { success: true, data: result };
+            }
+            return handleApiResponse(response);
+        } catch (error: any) {
+            const errorMessage = error.response?.data?.message || handleApiError(error);
+            throw new Error(errorMessage);
+        }
+    },
+
+    // Get specific support ticket details by ID
+    // GET /contact-form/contact/customer_support/{ticketId}
+    getTicketDetail: async (ticketId: string): Promise<ApiResponse<any>> => {
+        try {
+            const response = await api.get(`/contact-form/contact/customer_support/${ticketId}`);
+            const result = response.data;
+            // If response status is 200-299 and we have data, consider it success
+            if (response.status < 300 && result) {
+                return {
+                    success: true,
+                    message: 'Success',
+                    data: result
+                };
+            }
+            return handleApiResponse(response);
+        } catch (error: any) {
+            const errorMessage = error.response?.data?.message || handleApiError(error);
+            throw new Error(errorMessage);
+        }
+    }
+};

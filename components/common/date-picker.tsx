@@ -29,7 +29,9 @@ export const DatePicker: React.FC<DatePickerProps> = ({
     const inputRef = useRef<HTMLInputElement>(null);
 
     // Set default minDate to today if not provided
-    const effectiveMinDate = minDate || formatDateToDDMMYYYY(new Date());
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const effectiveMinDate = minDate || formatDateToDDMMYYYY(today);
 
     // Parse the current value to set display month
     useEffect(() => {
@@ -102,16 +104,22 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         // Days of the month
         for (let day = 1; day <= daysInMonth; day++) {
             const date = new Date(displayMonth.getFullYear(), displayMonth.getMonth(), day);
+            date.setHours(0, 0, 0, 0);
             const dateStr = formatDateToDDMMYYYY(date);
             const isSelected = value === dateStr;
-            const isToday = formatDateToDDMMYYYY(new Date()) === dateStr;
+            const todayDate = new Date();
+            todayDate.setHours(0, 0, 0, 0);
+            const isToday = formatDateToDDMMYYYY(todayDate) === dateStr;
 
             // Check if date is within min/max range
             let isDisabledDay = false;
             // Always use effective min date (today)
             const minDateObj = parseDDMMYYYYToDate(effectiveMinDate);
-            if (minDateObj && date < minDateObj) {
-                isDisabledDay = true;
+            if (minDateObj) {
+                minDateObj.setHours(0, 0, 0, 0);
+                if (date < minDateObj) {
+                    isDisabledDay = true;
+                }
             }
             if (maxDate) {
                 const maxDateObj = parseDDMMYYYYToDate(maxDate);

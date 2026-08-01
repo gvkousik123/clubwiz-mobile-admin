@@ -13,6 +13,7 @@ export { OffersService } from './offers.service';
 export { PricingOfferService } from './pricing-offer.service';
 export { MobileAuthService } from './mobile-auth.service';
 export { TicketService } from './ticket.service';
+export { ContactService } from './contact.service';
 
 
 // Export API client and utilities

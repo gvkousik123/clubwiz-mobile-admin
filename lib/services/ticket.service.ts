@@ -66,9 +66,30 @@ export interface TicketResponse {
     isEmailSent?: boolean;
     isValidated?: boolean;
     validatedAt?: string;
+    validatedBy?: string;
     cancellationReason?: string;
     cancelledAt?: string;
     ticketDescription?: string; // Description of the ticket type/category
+}
+
+export interface ScannedTicketSummary {
+    ticketId: string;
+    ticketNumber: string;
+    fullName?: string;
+    guestCount: number;
+    arrivalStatus: 'USED' | string;
+    bookingDate: string;
+    userEmail: string;
+    userPhone: string;
+    totalAmount: number;
+    maleCount: number;
+    femaleCount: number;
+    coupleCount: number;
+    eventTitle?: string | null;
+    eventId?: string | null;
+    isValidated: boolean;
+    validatedAt: string;
+    validatedBy: string;
 }
 
 export interface CreateNoEventTicketRequest {
@@ -96,7 +117,7 @@ export interface CreateEventTicketRequest {
  * Based on API: https://clubwiz.in/ticket
  */
 export class TicketService {
-    private static readonly BASE_URL = '/club-tickets';
+    private static readonly BASE_URL = '/ticket/club-tickets';
 
     /**
      * Create ticket after order creation (before payment)
@@ -241,6 +262,137 @@ export class TicketService {
             return result;
         } catch (error) {
             console.error('❌ Error cancelling ticket:', error);
+            throw new Error(handleApiError(error));
+        }
+    }
+
+    /**
+     * List scanned tickets for a club.
+     * GET /club-tickets/scanned
+     */
+    static async listScannedTickets(
+        clubId: string,
+        eventId?: string,
+        page = 0,
+        size = 20,
+        sortBy = 'validatedAt',
+        sortOrder: 'asc' | 'desc' = 'desc'
+    ): Promise<ApiResponse<ScannedTicketSummary[]>> {
+        try {
+            console.log('📡 Fetching scanned tickets for club:', clubId);
+
+            const params = new URLSearchParams({
+                clubId,
+                page: page.toString(),
+                size: size.toString(),
+                sortBy,
+                sortOrder,
+            });
+
+            if (eventId) {
+                params.set('eventId', eventId);
+            }
+
+            const response = await api.get<any>(
+                `${this.BASE_URL}/scanned?${params.toString()}`
+            );
+
+            const apiResult = handleApiResponse(response) as any;
+
+            let scannedTickets: ScannedTicketSummary[] = [];
+
+            if (Array.isArray(apiResult?.data)) {
+                scannedTickets = apiResult.data;
+            } else if (Array.isArray(apiResult?.content)) {
+                scannedTickets = apiResult.content;
+            } else if (Array.isArray(apiResult?.data?.content)) {
+                scannedTickets = apiResult.data.content;
+            } else if (Array.isArray(apiResult)) {
+                scannedTickets = apiResult;
+            }
+
+            const success = typeof apiResult?.success === 'boolean' ? apiResult.success : true;
+
+            console.log('✅ Scanned tickets fetched:', scannedTickets.length);
+
+            return {
+                success,
+                message: apiResult?.message || '',
+                error: apiResult?.error || '',
+                data: scannedTickets,
+                pagination: apiResult?.pagination,
+            };
+        } catch (error) {
+            console.error('❌ Error fetching scanned tickets:', error);
+            throw new Error(handleApiError(error));
+        }
+    }
+
+    /**
+     * Lookup a ticket without marking it scanned.
+     * GET /club-tickets/lookup/{bookingId}
+     */
+    static async lookupTicket(bookingId: string): Promise<ApiResponse<TicketResponse>> {
+        try {
+            console.log('📡 Looking up ticket:', bookingId);
+
+            const response = await api.get<any>(
+                `${this.BASE_URL}/lookup/${bookingId}`
+            );
+
+            const result = handleApiResponse(response) as any;
+            console.log('✅ Ticket lookup fetched:', result);
+
+            if (result && typeof result === 'object') {
+                if ('success' in result || 'data' in result) {
+                    // Already wrapped as ApiResponse<TicketResponse>
+                    return result;
+                }
+
+                // Normalize direct ticket object response
+                const ticketPayload: TicketResponse = result;
+                return {
+                    success: true,
+                    message: '',
+                    error: '',
+                    data: ticketPayload,
+                };
+            }
+
+            throw new Error('Invalid ticket lookup response');
+        } catch (error) {
+            console.error('❌ Error looking up ticket:', error);
+            throw new Error(handleApiError(error));
+        }
+    }
+
+    /**
+     * Download ticket PDF.
+     * GET /club-tickets/{bookingId}/download
+     */
+    static async downloadTicket(bookingId: string): Promise<void> {
+        try {
+            console.log('📡 Downloading ticket PDF for:', bookingId);
+
+            const response = await api.get<Blob>(
+                `${this.BASE_URL}/${bookingId}/download`,
+                { responseType: 'blob' }
+            );
+
+            const fileName = `clubwiz-ticket-${bookingId}.pdf`;
+            const blob = new Blob([response.data], { type: 'application/pdf' });
+            const url = window.URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            anchor.href = url;
+            anchor.download = fileName;
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            window.URL.revokeObjectURL(url);
+
+            console.log('✅ Ticket PDF download started');
+        } catch (error: any) {
+            console.error('❌ Error downloading ticket PDF:', error);
             throw new Error(handleApiError(error));
         }
     }

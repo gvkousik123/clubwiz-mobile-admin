@@ -71,8 +71,8 @@ export const StoryService = {
     // Upload a story from base64 data (Admin/SuperAdmin only) - For images
     uploadStory: async (data: CreateStoryRequest): Promise<ApiResponse<Story>> => {
         try {
-            const { clubId, ...storyData } = data;
-            const response = await api.post(`/story/stories/upload?clubId=${clubId}`, storyData, {
+            const { clubId } = data;
+            const response = await api.post(`/story/stories/upload?clubId=${clubId}`, data, {
                 timeout: 120000, // 2 minutes for large video uploads
                 maxBodyLength: Infinity,
                 maxContentLength: Infinity,
@@ -90,8 +90,8 @@ export const StoryService = {
     // Upload a story asynchronously from base64 data (Admin/SuperAdmin only) - For videos
     uploadStoryAsync: async (data: CreateStoryRequest): Promise<ApiResponse<Story>> => {
         try {
-            const { clubId, ...storyData } = data;
-            const response = await api.post(`/story/stories/upload-async?clubId=${clubId}`, storyData, {
+            const { clubId } = data;
+            const response = await api.post(`/story/stories/upload-async?clubId=${clubId}`, data, {
                 timeout: 120000, // 2 minutes for large video uploads
                 maxBodyLength: Infinity,
                 maxContentLength: Infinity,

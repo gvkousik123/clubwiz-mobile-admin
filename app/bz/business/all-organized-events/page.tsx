@@ -18,25 +18,40 @@ export default function AllOrganizedEventsPage() {
     const [deleteEventId, setDeleteEventId] = useState<string | null>(null);
     const [deleteEventTitle, setDeleteEventTitle] = useState<string>('');
     const [isDeleting, setIsDeleting] = useState(false);
+    const [eventTab, setEventTab] = useState<'upcoming' | 'past'>('upcoming');
     const [filteredEvents, setFilteredEvents] = useState<any[]>([]);
 
     // Load organized events on mount
     useEffect(() => {
-        loadOrganizedEvents({ page: 0, size: 100, sortBy: 'startDateTime', sortOrder: 'desc' });
+        loadOrganizedEvents({ page: 0, size: 100, sortBy: 'startDateTime', sortOrder: 'asc' });
     }, []);
 
-    // Filter events to show only upcoming events based on IST timezone
+    // Filter events based on selected tab
     useEffect(() => {
         if (organizedEvents && organizedEvents.length > 0) {
-            const upcomingEvents = filterUpcomingEvents(organizedEvents);
-            setFilteredEvents(upcomingEvents);
+            const now = new Date();
+            let filtered: any[] = [];
+            
+            if (eventTab === 'upcoming') {
+                filtered = organizedEvents.filter(e => {
+                    const eventDate = new Date(e.startDateTime);
+                    return eventDate > now && !e.ongoing && e.status !== 'ONGOING';
+                });
+            } else if (eventTab === 'past') {
+                filtered = organizedEvents.filter(e => {
+                    const eventDate = new Date(e.startDateTime);
+                    return eventDate < now;
+                });
+            }
+            
+            setFilteredEvents(filtered);
         } else {
             setFilteredEvents([]);
         }
-    }, [organizedEvents]);
+    }, [organizedEvents, eventTab]);
 
     const handleEditEvent = (eventId: string) => {
-        router.push(`/bz/business/event-preview?eventId=${eventId}&edit=true`);
+        router.push(`/bz/business/new-event?eventId=${eventId}`);
     };
 
     const handleDeleteClick = (eventId: string, eventTitle: string) => {
@@ -108,6 +123,22 @@ export default function AllOrganizedEventsPage() {
             <div className="px-0 relative mt-[140px] z-40">
                 <div className="w-full bg-[#021313] rounded-t-[40px] flex flex-col">
                     <div className="px-6 py-6">
+                        {/* Event Tab Filters */}
+                        <div className="flex gap-3 mb-4 pb-3 border-b border-[#14FFEC]/20">
+                            {['upcoming', 'past'].map((tab) => (
+                                <button
+                                    key={tab}
+                                    onClick={() => setEventTab(tab as any)}
+                                    className={`px-4 py-2 rounded-full font-medium text-sm transition-colors capitalize ${
+                                        eventTab === tab
+                                            ? 'bg-[#14FFEC] text-black'
+                                            : 'bg-[#0D1F1F] text-gray-400 hover:text-[#14FFEC] border border-[#14FFEC]/20'
+                                    }`}
+                                >
+                                    {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                                </button>
+                            ))}
+                        </div>
                         {isLoadingOrganized ? (
                             <div className="flex items-center justify-center py-20">
                                 <Loader2 className="w-8 h-8 text-[#14FFEC] animate-spin" />
@@ -137,28 +168,17 @@ export default function AllOrganizedEventsPage() {
                                                     {/* Event Details */}
                                                     <div className="flex-1 min-w-0">
                                                         <h4 className="text-white font-medium mb-2">{event.title}</h4>
-                                                        <div className="space-y-1 text-xs text-gray-400 mb-3">
+                                                        <div className="space-y-1 mb-3">
                                                             <div className="flex items-center gap-2">
                                                                 <Calendar className="w-3 h-3 text-[#14FFEC]" />
-                                                                <span>{event.formattedDate}</span>
+                                                                <span className="text-xs font-bold text-white">{event.formattedDate}</span>
                                                             </div>
                                                             <div className="flex items-center gap-2">
                                                                 <Clock className="w-3 h-3 text-[#14FFEC]" />
-                                                                <span>{event.formattedTime}</span>
+                                                                <span className="text-xs font-bold text-white">{event.formattedTime?.split(' - ')[0]} onwards</span>
                                                             </div>
-                                                            <div className="flex items-center gap-2">
-                                                                <Users className="w-3 h-3 text-[#14FFEC]" />
-                                                                <span>{event.attendeeStatus}</span>
-                                                            </div>
+                                                          
                                                         </div>
-                                                        {/* Status Badge */}
-                                                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${event.ongoing ? 'bg-green-500/20 text-green-400' :
-                                                            event.upcoming ? 'bg-blue-500/20 text-blue-400' :
-                                                                event.pastEvent ? 'bg-gray-500/20 text-gray-400' :
-                                                                    'bg-[#14FFEC]/20 text-[#14FFEC]'
-                                                            }`}>
-                                                            {event.eventStatusText}
-                                                        </span>
                                                     </div>
 
                                                     {/* Action Buttons */}

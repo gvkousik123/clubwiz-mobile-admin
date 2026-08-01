@@ -1,73 +1,46 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { ClubVizLogo } from "@/components/auth/logo";
+import { useState } from "react";
+import { ClubwizLogo } from "@/components/auth/logo";
 import { AuthLink } from "@/components/auth/auth-link";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, X } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { MobileAuthService } from '@/lib/services/mobile-auth.service';
-import { AuthService } from "@/lib/services/auth.service";
 import { useToast } from "@/hooks/use-toast";
 import { STORAGE_KEYS } from "@/lib/constants/storage";
 
 export default function MobileVerificationScreen() {
     const router = useRouter();
     const { toast } = useToast();
-    // Initialize with exactly 10 placeholder X's: +91 XXXXXXXXXX
-    const [phoneNumber, setPhoneNumber] = useState(() => {
-        const initialPhone = "+91 XXXXXXXXXX";
-        console.log("Initial phone state:", initialPhone, "Length:", initialPhone.length);
-        return initialPhone;
-    });
+    const [phoneNumber, setPhoneNumber] = useState('');
     const [email, setEmail] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [showKeypad, setShowKeypad] = useState(false);
     const [error, setError] = useState<string | null>(null);
-
-    // Handle guest login
-    const handleGuestLogin = () => {
-        if (typeof window !== 'undefined') {
-            localStorage.removeItem(STORAGE_KEYS.accessToken);
-            localStorage.removeItem(STORAGE_KEYS.user);
-            localStorage.removeItem(STORAGE_KEYS.refreshToken);
-        }
-
-        // Show success message
-        toast({
-            title: "Welcome, Guest!",
-            description: "You can browse clubs and events without logging in",
-        });
-
-        // Navigate to home page as guest
-        router.push('/bz/business');
-    };
 
     // No client-side reCAPTCHA when using backend OTP endpoints
 
-    const handleNumberPress = (num: string) => {
-        console.log("Number pressed:", num, "Current phone:", phoneNumber, "Has X?", phoneNumber.includes('X'));
-        if (phoneNumber.includes('X')) {
-            const newPhone = phoneNumber.replace('X', num);
-            console.log("New phone after replace:", newPhone);
-            setPhoneNumber(newPhone);
-        }
+    const formatIndianPhone = (digits: string) => {
+        const clean = digits.replace(/\D/g, '');
+        const normalized = clean.startsWith('91') ? clean.substring(2) : clean;
+        const trimmed = normalized.slice(0, 10);
+
+        if (!trimmed) return '';
+        if (trimmed.length <= 5) return `+91 ${trimmed}`;
+        return `+91 ${trimmed.slice(0, 5)} ${trimmed.slice(5)}`;
     };
 
-    const handleDelete = () => {
-        const lastDigitIndex = phoneNumber.lastIndexOf(/[0-9]/.exec(phoneNumber.split('').reverse().join(''))?.[0] || '');
-        if (lastDigitIndex > 3) { // Keep "+91 " format (4 characters)
-            setPhoneNumber(prev => {
-                const chars = prev.split('');
-                for (let i = chars.length - 1; i >= 0; i--) {
-                    if (/[0-9]/.test(chars[i]) && i > 3) {
-                        chars[i] = 'X';
-                        break;
-                    }
-                }
-                return chars.join('');
-            });
+    const handlePhoneNumberChange = (nextValue: string) => {
+        let digits = nextValue.replace(/\D/g, '');
+        if (digits.length > 10) {
+            if (digits.startsWith('91')) {
+                digits = digits.substring(2, 12);
+            } else {
+                digits = digits.slice(0, 10);
+            }
         }
+        setPhoneNumber(digits);
+        if (error) setError(null);
     };
 
     const handleSubmit = async () => {
@@ -77,6 +50,9 @@ export default function MobileVerificationScreen() {
 
         setIsLoading(true);
         setError(null);
+
+        // Clean phone number and format (remove + and any non-digits)
+        let cleanPhone = phoneNumber.replace(/[^0-9]/g, '');
 
         try {
             // Validate email
@@ -92,16 +68,7 @@ export default function MobileVerificationScreen() {
                 return;
             }
 
-            // Clean phone number and format (remove + and any non-digits)
-            let cleanPhone = phoneNumber.replace(/[^0-9]/g, '');
-
-            // For this specific API, we want the 10-digit number without the '91' prefix
-            // If it's 12 digits and starts with 91, take only the last 10
-            if (cleanPhone.length === 12 && cleanPhone.startsWith('91')) {
-                cleanPhone = cleanPhone.substring(2);
-            }
-
-            if (cleanPhone.length !== 10) {
+                if (cleanPhone.length !== 10) {
                 setError('Please enter a valid 10-digit mobile number');
                 setIsLoading(false);
                 return;
@@ -174,7 +141,7 @@ export default function MobileVerificationScreen() {
         }
     };
 
-    const canSubmit = !phoneNumber.includes('X') && email.trim().length > 0 && !isLoading;
+    const canSubmit = phoneNumber.length === 10 && email.trim().length > 0 && !isLoading;
 
     return (
         <div className="min-h-screen bg-[#031313] relative">
@@ -190,25 +157,18 @@ export default function MobileVerificationScreen() {
                 {/* Header with Back and Skip */}
                 <div className="flex items-center justify-between p-[1rem] pt-[1.5rem] flex-shrink-0">
                     <Link
-                        href="/bz/auth/intro"
+                        href="/auth/intro"
                         className="w-[2.5rem] h-[2.5rem] flex items-center justify-center rounded-full border border-teal-400/30 text-teal-300 hover:bg-teal-500/10 transition-colors"
                     >
                         <ArrowLeft className="w-[1.25rem] h-[1.25rem]" />
                     </Link>
-
-                    <button
-                        onClick={handleGuestLogin}
-                        className="px-[1rem] py-[0.375rem] rounded-full border border-teal-400/30 text-[0.875rem] text-teal-300 hover:bg-teal-500/10 transition"
-                    >
-                        Guest Login
-                    </button>
                 </div>
 
                 {/* White Card Container - Sticks to bottom and takes remaining space */}
                 <div className="flex-1 flex flex-col">
                     {/* Logo Area - Now positioned just above the form with increased spacing */}
                     <div className="flex-1 flex flex-col items-center justify-end px-6 pb-8">
-                        <ClubVizLogo size="lg" variant="full" />
+                        <ClubwizLogo size="lg" variant="full" />
                     </div>
 
                     <div className="bg-white rounded-t-3xl w-full px-[1.5rem] pt-[2rem] pb-[2rem] overflow-y-auto flex flex-col">
@@ -237,66 +197,24 @@ export default function MobileVerificationScreen() {
                                 Mobile Number
                             </label>
                             <input
-                                type="text"
-                                value={phoneNumber}
-                                readOnly
-                                onClick={() => setShowKeypad(true)}
-                                className="w-full px-[1rem] py-[0.875rem] border-2 border-[#0C898B] rounded-[3.25rem] bg-[#EFEFEF] text-[#2C1945] font-mono text-center placeholder:text-[#999999] focus:outline-none focus:border-[#0A5A5D] cursor-pointer"
+                                type="tel"
+                                value={formatIndianPhone(phoneNumber)}
+                                onChange={(e) => handlePhoneNumberChange(e.target.value)}
+                                inputMode="tel"
+                                maxLength={17}
+                                placeholder="+91 xxxxx xxxxx"
+                                className="w-full px-[1rem] py-[0.875rem] border-2 border-[#0C898B] rounded-[3.25rem] bg-[#EFEFEF] text-[#2C1945] font-mono text-center placeholder:text-[#999999] focus:outline-none focus:border-[#0A5A5D]"
                             />
+                        </div>
+
+                        <div className="mb-[1rem] text-[#2C1945] text-[0.875rem] text-center">
+                            Enter a 10-digit Indian mobile number. OTP will be sent to this number.
                         </div>
 
                         {/* Confirmation text */}
                         <div className="mb-[2rem] text-center">
                             <p className="text-[#2C1945] text-[0.9375rem] font-medium">We will send you a confirmation code</p>
                         </div>
-
-                        {/* Number Keypad */}
-                        {showKeypad && (
-                            <div className="mx-auto w-[17.5rem] space-y-[1rem] mb-[1.5rem] animate-in fade-in slide-in-from-bottom-4 duration-300">
-                                {/* Keypad Grid */}
-                                <div className="grid grid-cols-3 gap-[1rem]">
-                                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-                                        <button
-                                            key={num}
-                                            onClick={() => handleNumberPress(num.toString())}
-                                            className="w-[4.375rem] h-[4.375rem] rounded-full border border-[#0C898B] 
-                                                 bg-white text-[#42353B] text-[1.875rem] font-semibold
-                                                 hover:bg-gray-50 active:bg-gray-100 
-                                                 flex items-center justify-center transition-colors"
-                                        >
-                                            {num}
-                                        </button>
-                                    ))}
-
-                                    {/* Bottom Row */}
-                                    <button
-                                        onClick={handleDelete}
-                                        className="w-[4.375rem] h-[4.375rem] rounded-full bg-[#EFEFEF] 
-                                            text-gray-900 flex items-center justify-center hover:bg-gray-200 transition-colors"
-                                    >
-                                        <X className="w-[1.25rem] h-[1.25rem]" />
-                                    </button>
-
-                                    <button
-                                        onClick={() => handleNumberPress('0')}
-                                        className="w-[4.375rem] h-[4.375rem] rounded-full border border-[#0C898B] 
-                                            bg-white text-[#42353B] text-[1.875rem] font-semibold
-                                            hover:bg-gray-50 active:bg-gray-100
-                                            flex items-center justify-center transition-colors"
-                                    >
-                                        0
-                                    </button>
-
-                                    <button
-                                        onClick={() => setShowKeypad(false)}
-                                        className="w-[4.375rem] h-[4.375rem] rounded-full bg-[#0D7377] 
-                                            text-white flex items-center justify-center hover:bg-[#0A5A5D] transition-colors"
-                                    >
-                                        <span className="text-sm font-bold">DONE</span>
-                                    </button>
-                                </div>
-                            </div>
-                        )}
 
                         {/* Get Verification Code Button */}
                         <div className="mb-[1.5rem]">
@@ -332,7 +250,7 @@ export default function MobileVerificationScreen() {
                                 Already have an account?
                             </p>
                             <Link
-                                href="/bz/auth/login"
+                                href="/auth/login"
                                 className="text-[#0D7377] font-semibold text-[0.9375rem] hover:underline"
                             >
                                 Login with Password
@@ -345,7 +263,7 @@ export default function MobileVerificationScreen() {
                                 Don't have an account?
                             </p>
                             <Link
-                                href="/bz/auth/signup"
+                                href="/auth/signup"
                                 className="text-[#0D7377] font-semibold text-[0.9375rem] hover:underline"
                             >
                                 Sign Up
@@ -355,7 +273,7 @@ export default function MobileVerificationScreen() {
                         {/* Forgot Password Link */}
                         <div className="text-center py-2">
                             <AuthLink
-                                href="/bz/auth/forgot-password"
+                                href="/auth/forgot-password"
                                 className="text-[#0095FF] font-medium text-[14px] underline"
                             >
                                 Forgot Password?

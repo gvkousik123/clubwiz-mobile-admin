@@ -33,7 +33,7 @@ export default function NotFound() {
                         <div className="pointer-events-none absolute left-1/2 top-1/2 h-[260px] w-[260px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(18,255,232,0.2)_0%,rgba(18,255,232,0.08)_36%,rgba(3,10,12,0)_80%)]" />
                         <Image
                             src="/404/clubwiz-404.png"
-                            alt="ClubWiz Admin lost bottle illustration"
+                            alt="ClubWiz lost bottle illustration"
                             width={480}
                             height={900}
                             priority

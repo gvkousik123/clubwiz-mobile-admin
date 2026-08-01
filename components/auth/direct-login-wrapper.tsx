@@ -47,6 +47,9 @@ export const DirectLoginWrapper = ({ children }: { children: ReactNode }) => {
             '/bz/review',
             '/bz/story',
             '/bz/ticket',
+            '/bz/admin/running-ads',
+            '/bz/admin/scan-tickets',
+            '/bz/admin/ticket-details'
         ];
 
         // Check if current path is a user-allowed page
@@ -78,18 +81,13 @@ export const DirectLoginWrapper = ({ children }: { children: ReactNode }) => {
                 correctRoute = '/bz/auth/intro';
             }
 
-            console.log("🎯 DirectLoginWrapper: Correct route for user:", correctRoute);
 
-            // Only redirect if not already on the correct page
             if (pathname !== correctRoute) {
                 // Allow admin/superadmin to access other admin pages
                 if (isAdminPage || isSuperAdminPage) {
-                    console.log("🔑 DirectLoginWrapper: Allowing access to admin/superadmin page");
                     return; // Stay on admin pages
                 }
 
-                console.log("🔄 DirectLoginWrapper: Redirecting to correct route:", correctRoute);
-                // Use setTimeout to avoid conflicts with other navigation
                 setTimeout(() => {
                     router.push(correctRoute);
                 }, 200);

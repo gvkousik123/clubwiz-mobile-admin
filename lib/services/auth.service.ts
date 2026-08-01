@@ -1,5 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
 import { api, handleApiResponse, handleApiError } from '../api-client';
+import { publicApi } from '../api-client-public';
 import {
     ApiResponse,
     LoginRequest,
@@ -551,7 +552,7 @@ export class AuthService {
 
     static async sendMobileOTP(email: string, mobileNumber: string): Promise<ApiResponse<any>> {
         try {
-            const response = await api.post<ApiResponse<any>>(
+            const response = await publicApi.post<ApiResponse<any>>(
                 `/notification/api/otp/send?email=${encodeURIComponent(email)}&mobile=${encodeURIComponent(mobileNumber)}`
             );
             return handleApiResponse(response);

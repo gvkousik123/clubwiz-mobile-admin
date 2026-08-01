@@ -49,7 +49,7 @@ function ClubPreviewContent() {
 
     const heroImages = clubData?.images?.length > 0
         ? clubData.images.map((img: any) => img.url || img)
-        : [clubData?.logo || clubData?.logoUrl || '/venue/Screenshot 2024-12-10 195651.png'];
+        : (clubData?.logo || clubData?.logoUrl ? [clubData.logo || clubData.logoUrl] : []);
 
     useEffect(() => {
         const loadClubData = async () => {
@@ -93,11 +93,11 @@ function ClubPreviewContent() {
     }, [clubId]);
 
     const handleGoBack = () => {
-        router.push('/bz/business');
+        router.push('/business');
     };
 
     const handleEdit = () => {
-        router.push(`/bz/business/edit-club/_?id=${clubId}`);
+        router.push(`/business/edit-club/${clubId}`);
     };
 
     const handleShare = async () => {
@@ -182,7 +182,7 @@ function ClubPreviewContent() {
                             }}
                             onError={(e) => {
                                 console.error('❌ Image failed to load:', image);
-                                e.currentTarget.src = '/venue/Screenshot 2024-12-10 195651.png';
+                                e.currentTarget.style.display = 'none';
                             }}
                         />
                     ))}
@@ -209,14 +209,13 @@ function ClubPreviewContent() {
                 {/* Back button */}
                 <button
                     onClick={handleGoBack}
-                    className="absolute left-4 w-[35px] h-[35px] bg-white/20 rounded-[18px] flex items-center justify-center hover:bg-white/30 transition z-10"
-                    style={{ top: 'calc(16px + env(safe-area-inset-top, 0px))' }}
+                    className="absolute left-4 top-4 w-[35px] h-[35px] bg-white/20 rounded-[18px] flex items-center justify-center hover:bg-white/30 transition z-10"
                 >
                     <ArrowLeft className="h-5 w-5 text-white" />
                 </button>
 
                 {/* Action Buttons - Share, Edit, Delete - FIXED: At very top right with back button */}
-                <div className="absolute right-4 flex items-center gap-2 z-10" style={{ top: 'calc(16px + env(safe-area-inset-top, 0px))' }}>
+                <div className="absolute right-4 top-4 flex items-center gap-2 z-10">
                     {/* Share Button */}
                     <button
                         onClick={handleShare}
@@ -554,7 +553,8 @@ function ClubPreviewContent() {
                                                     alt={`Image ${idx + 1}`}
                                                     className="w-full h-[140px] object-cover hover:scale-105 transition-transform duration-300"
                                                     onError={(e) => {
-                                                        e.currentTarget.src = '/venue/Screenshot 2024-12-10 195651.png';
+                                                        console.error('❌ Image failed to load:', img);
+                                                        e.currentTarget.style.display = 'none';
                                                     }}
                                                 />
                                             </div>

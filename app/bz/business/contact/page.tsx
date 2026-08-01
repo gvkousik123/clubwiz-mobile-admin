@@ -74,7 +74,7 @@ export default function ContactUsPage() {
 
     // Navigate to ticket detail page
     const handleViewTicketDetail = (ticketId: string) => {
-        router.push(`/bz/business/contact/_?id=${ticketId}`);
+        router.push(`/business/contact/${ticketId}`);
     };
 
     // Submit Business Inquiry
@@ -86,7 +86,6 @@ export default function ContactUsPage() {
         }
         const success = await submitBusinessEnquiry({
             name: userInfo.name,
-            email: userInfo.email,
             contactNumber: userInfo.phone,
             instagramLink: businessForm.instagramLink,
             whatsAppLink: businessForm.whatsAppLink,
@@ -108,8 +107,7 @@ export default function ContactUsPage() {
         const success = await submitSupportRequest({
             name: userInfo.name,
             email: userInfo.email,
-            message: supportForm.message,
-            type: 'SUPPORT'
+            message: supportForm.message
         });
         if (success) {
             toast({ title: '✓ Support Request Submitted', description: 'Thank you! Our team will respond shortly.', variant: 'success' });
@@ -218,7 +216,8 @@ export default function ContactUsPage() {
             {/* TAB 2: Support */}
             {activeTab === 'support' && (
                 <div className="px-6 py-6 pb-20">
-                    <div className="max-w-2xl mx-auto">
+                    <div className="max-w-2xl mx-auto space-y-6">
+
                         <div className="bg-[#0D1F1F] border border-[#0C898B] rounded-2xl p-6">
                             <h3 className="text-white text-2xl font-bold mb-2">Send us a Message</h3>
                             <p className="text-[#9D9C9C] text-sm mb-6">Our support team will respond to your inquiry as soon as possible.</p>
@@ -226,14 +225,14 @@ export default function ContactUsPage() {
                             <form onSubmit={handleSubmitSupport} className="space-y-4">
                                 <div>
                                     <label className="text-sm text-[#9D9C9C] mb-2 block font-semibold">Name</label>
-                                    <div className="w-full bg-[#021313] border border-[#0C898B] rounded-lg p-3 text-white min-h-11 flex items-center">
+                                    <div className="w-full bg-[#0A0F0F] border border-[#0C898B]/20 rounded-lg p-3 text-[#9D9C9C] min-h-11 flex items-center opacity-60 cursor-not-allowed">
                                         {userInfo.name || 'Not provided'}
                                     </div>
                                 </div>
 
                                 <div>
                                     <label className="text-sm text-[#9D9C9C] mb-2 block font-semibold">Email</label>
-                                    <div className="w-full bg-[#021313] border border-[#0C898B] rounded-lg p-3 text-white min-h-11 flex items-center break-all">
+                                    <div className="w-full bg-[#0A0F0F] border border-[#0C898B]/20 rounded-lg p-3 text-[#9D9C9C] min-h-11 flex items-center break-all opacity-60 cursor-not-allowed">
                                         {userInfo.email || 'Not provided'}
                                     </div>
                                 </div>
@@ -251,8 +250,12 @@ export default function ContactUsPage() {
 
                                 <button
                                     type="submit"
-                                    disabled={loading}
-                                    className="w-full bg-gradient-to-r from-[#005D5C] to-[#14FFEC] text-black font-bold py-3 rounded-xl hover:brightness-110 transition disabled:opacity-50 flex justify-center items-center gap-2"
+                                    disabled={loading || !supportForm.message.trim()}
+                                    className={`w-full font-bold py-3 rounded-xl transition disabled:opacity-50 flex justify-center items-center gap-2 ${
+                                        supportForm.message.trim() 
+                                            ? 'bg-gradient-to-r from-[#005D5C] to-[#14FFEC] text-black hover:brightness-110' 
+                                            : 'bg-[#0C898B]/30 text-[#9D9C9C] cursor-not-allowed'
+                                    }`}
                                 >
                                     {loading ? <><Loader2 className="w-5 h-5 animate-spin" />Sending...</> : 'Send Message'}
                                 </button>
@@ -266,7 +269,7 @@ export default function ContactUsPage() {
                         <div className="bg-gradient-to-br from-[#0D1F1F] to-[#021313] rounded-2xl border border-[#0C898B]/50 p-6 relative overflow-hidden">
                             <div className="absolute top-0 right-0 w-24 h-24 bg-[#14FFEC]/5 rounded-full blur-2xl -mr-10 -mt-10"></div>
                             <h4 className="text-white font-bold text-lg mb-2">Partnership Opportunity</h4>
-                            <p className="text-[#9D9C9C] text-sm mb-6">Join ClubViz network and manage your events, bookings and more.</p>
+                            <p className="text-[#9D9C9C] text-sm mb-6">Join Clubwiz network and manage your events, bookings and more.</p>
                             <button
                                 onClick={() => setShowBusinessForm(!showBusinessForm)}
                                 className="bg-[#14FFEC] text-black font-bold py-2 px-6 rounded-lg hover:bg-[#14FFEC]/90 transition"
@@ -292,19 +295,19 @@ export default function ContactUsPage() {
                         <form onSubmit={handleSubmitBusiness} className="space-y-4">
                             <div>
                                 <label className="text-xs text-[#9D9C9C] mb-1 block font-semibold">Name</label>
-                                <div className="w-full bg-[#021313] border border-[#0C898B] rounded-lg p-3 text-white min-h-10 flex items-center">
+                                <div className="w-full bg-[#0A0F0F] border border-[#0C898B]/20 rounded-lg p-3 text-[#9D9C9C] min-h-10 flex items-center opacity-60 cursor-not-allowed">
                                     {userInfo.name || 'Not provided'}
                                 </div>
                             </div>
                             <div>
                                 <label className="text-xs text-[#9D9C9C] mb-1 block font-semibold">Email</label>
-                                <div className="w-full bg-[#021313] border border-[#0C898B] rounded-lg p-3 text-white min-h-10 flex items-center break-all text-xs">
+                                <div className="w-full bg-[#0A0F0F] border border-[#0C898B]/20 rounded-lg p-3 text-[#9D9C9C] min-h-10 flex items-center break-all text-xs opacity-60 cursor-not-allowed">
                                     {userInfo.email || 'Not provided'}
                                 </div>
                             </div>
                             <div>
                                 <label className="text-xs text-[#9D9C9C] mb-1 block font-semibold">Contact Number</label>
-                                <div className="w-full bg-[#021313] border border-[#0C898B] rounded-lg p-3 text-white min-h-10 flex items-center">
+                                <div className="w-full bg-[#0A0F0F] border border-[#0C898B]/20 rounded-lg p-3 text-[#9D9C9C] min-h-10 flex items-center opacity-60 cursor-not-allowed">
                                     {userInfo.phone || 'Not provided'}
                                 </div>
                             </div>

@@ -198,7 +198,7 @@ function MyStoriesContent() {
                         <h1 className="text-xl font-semibold">My Stories</h1>
                     </div>
                     <button
-                        onClick={() => router.push(`/bz/business/upload-story?clubId=${clubId}`)}
+                        onClick={() => router.push(`/business/upload-story?clubId=${clubId}`)}
                         className="w-10 h-10 flex items-center justify-center bg-[#14FFEC] hover:bg-[#14FFEC]/80 text-black rounded-full transition-colors"
                     >
                         <Plus className="w-6 h-6" />

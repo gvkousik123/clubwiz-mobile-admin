@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import { ClubService, MyClubItem, ClubUpdateRequest } from '@/lib/services/club.service';
 import { useToast } from '@/hooks/use-toast';
+import { STORAGE_KEYS } from '@/lib/constants/storage';
 
 export interface UseOwnedClubsState {
     clubs: MyClubItem[];
@@ -55,12 +56,26 @@ export function useOwnedClubs(): UseOwnedClubsState & UseOwnedClubsActions {
 
             console.log('✅ Setting my clubs:', clubsData.length, 'clubs');
             setClubs(clubsData);
-        } catch (error) {
+
+            // Store the first owned club ID in localStorage for analytics and other features
+            if (clubsData.length > 0 && clubsData[0].id) {
+                localStorage.setItem(STORAGE_KEYS.ownedClubId, clubsData[0].id);
+                console.log('💾 Stored owned club ID in localStorage:', clubsData[0].id);
+            }
+        } catch (error: any) {
             console.error('❌ Error loading my clubs:', error);
-            const errorMessage = error instanceof Error ? error.message : 'Failed to load clubs';
+            const isSessionExpired = error?.response?.status === 403;
+            const errorMessage = isSessionExpired
+                ? 'Session expired. Please login again.'
+                : error instanceof Error
+                    ? error.message
+                    : 'Failed to load clubs';
+
             setError(errorMessage);
-            showErrorToast('Load Failed', errorMessage);
             setClubs([]);
+            if (isSessionExpired) {
+                showErrorToast('Session Expired', 'Your session has expired. Please login again.');
+            }
         } finally {
             setIsLoading(false);
         }

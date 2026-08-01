@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ClubVizLogo } from "@/components/auth/logo";
+import { ClubwizLogo } from "@/components/auth/logo";
 import { AuthLink } from "@/components/auth/auth-link";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -181,7 +181,7 @@ export default function DetailsPage() {
 
             toast({
                 title: isExistingUser ? "Welcome back!" : "Registration completed!",
-                description: isExistingUser ? "You're all set!" : "Welcome to ClubViz!",
+                description: isExistingUser ? "You're all set!" : "Welcome to Clubwiz!",
             });
 
             // Determine redirect route based on role
@@ -196,13 +196,10 @@ export default function DetailsPage() {
 
                     if (userRoles.includes('ROLE_SUPERADMIN')) {
                         redirectRoute = '/superadmin';
-                        console.log("🔑 Redirecting SUPERADMIN to /superadmin");
                     } else if (userRoles.includes('ROLE_ADMIN')) {
-                        redirectRoute = '/business';
-                        console.log("🔑 Redirecting ADMIN to /business");
+                        redirectRoute = '/admin';
                     } else if (userRoles.includes('ROLE_USER')) {
                         redirectRoute = '/auth/intro';
-                        console.log("🔑 Redirecting USER to /auth/intro");
                     } else {
                         console.log("ℹ️ No specific role found, defaulting to /auth/intro");
                     }
@@ -250,7 +247,7 @@ export default function DetailsPage() {
                 {/* Header with Back and Skip */}
                 <div className="flex items-center justify-between p-[1rem] pt-[1.5rem] flex-shrink-0">
                     <Link
-                        href="/bz/auth/otp"
+                        href="/auth/otp"
                         className="w-[2.5rem] h-[2.5rem] flex items-center justify-center rounded-full border border-teal-400/30 text-teal-300 hover:bg-teal-500/10 transition-colors"
                     >
                         <ArrowLeft className="w-[1.25rem] h-[1.25rem]" />
@@ -268,7 +265,7 @@ export default function DetailsPage() {
                 <div className="flex-1 flex flex-col">
                     {/* Logo Area - Now positioned just above the form with increased spacing */}
                     <div className="flex-1 flex flex-col items-center justify-end px-6 pb-8">
-                        <ClubVizLogo size="lg" variant="full" />
+                        <ClubwizLogo size="lg" variant="full" />
                     </div>
 
                     <div className="bg-white rounded-t-3xl w-full px-[1.5rem] pt-[2rem] pb-[2rem] overflow-y-auto flex flex-col">

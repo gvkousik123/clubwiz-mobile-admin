@@ -6,9 +6,12 @@ import { useState, useRef, useEffect } from 'react';
 import { LookupService, AllLookupData } from '@/lib/services/lookup.service';
 import { ClubService } from '@/lib/services/club.service';
 import { ProfileService } from '@/lib/services/profile.service';
+import { AuthService } from '@/lib/services/auth.service';
 import { useToast } from '@/hooks/use-toast';
 import { fileToBase64 } from '@/lib/image-utils';
 import { getDetailedErrorMessage, logDetailedError } from '@/lib/error-utils';
+import { STORAGE_KEYS } from '@/lib/constants/storage';
+import LocationModal from '@/components/common/location-modal';
 import '../new-event/styles.css';
 
 // Tag Component for reusability
@@ -27,7 +30,8 @@ export default function NewClubPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isCheckingClubs, setIsCheckingClubs] = useState(true);
     const [adminDetails, setAdminDetails] = useState({ email: '', phone: '' });
-    const [selectedLocation, setSelectedLocation] = useState({ lat: 0, lng: 0, city: '', state: '', pincode: '' });
+    const [selectedLocation, setSelectedLocation] = useState({ lat: 0, lng: 0, city: '', state: '', pincode: '', address1: '', address2: '', country: '' });
+    const [showLocationModal, setShowLocationModal] = useState(false);
 
     const [formData, setFormData] = useState({
         clubName: '',
@@ -45,7 +49,13 @@ export default function NewClubPage() {
         hasTimeRestriction: false,
         timeRestriction: '',
         inclusions: '',
-        exclusions: ''
+        exclusions: '',
+        coupleEntryPrice: '',
+        maleStagEntryPrice: '',
+        femaleStagEntryPrice: '',
+        groupEntryPrice: '',
+        coverCharge: '',
+        redeemDetails: ''
     });
     const [foodDrinksImages, setFoodDrinksImages] = useState<File[]>([]);
     const [ambienceImages, setAmbienceImages] = useState<File[]>([]);
@@ -68,6 +78,15 @@ export default function NewClubPage() {
     useEffect(() => {
         const checkClubStatus = () => {
             console.log('🔍 Checking club status...');
+            
+            // ROLE_ADMIN can create multiple clubs, skip this check
+            const isAdmin = AuthService.hasRole('ADMIN') || AuthService.hasRole('ROLE_ADMIN');
+            if (isAdmin) {
+                console.log('✅ ROLE_ADMIN detected - can create multiple clubs');
+                setIsCheckingClubs(false);
+                return;
+            }
+            
             const clubStatus = ProfileService.getClubStatus();
 
             if (clubStatus.hasClub) {
@@ -87,7 +106,7 @@ export default function NewClubPage() {
                         description: "Your club is under review. Please wait for approval.",
                         variant: "default",
                     });
-                    router.push('/bz/business/club-pending');
+                    router.push('/business/club-pending');
                 }
                 return;
             }
@@ -99,10 +118,62 @@ export default function NewClubPage() {
         checkClubStatus();
     }, [router, toast]);
 
+    // Load pricing data from localStorage
+    useEffect(() => {
+        // Load ALL form data immediately on mount
+        try {
+            const savedFormData = localStorage.getItem('clubviz-form-data');
+            if (savedFormData) {
+                const formDataFromStorage = JSON.parse(savedFormData);
+                setFormData(prevData => ({
+                    ...prevData,
+                    ...formDataFromStorage
+                }));
+                console.log('📝 Immediate Load - Saved Form Data:', formDataFromStorage);
+            }
+        } catch (error) {
+            console.error('Failed to load saved form data on mount:', error);
+        }
+
+        const coupleEntryPrice = localStorage.getItem('coupleEntryPrice');
+        const coverCharge = localStorage.getItem('coverCharge');
+        const redeemDetails = localStorage.getItem('redeemDetails');
+        const maleStagEntryPrice = localStorage.getItem('maleStagEntryPrice');
+        const femaleStagEntryPrice = localStorage.getItem('femaleStagEntryPrice');
+        const groupEntryPrice = localStorage.getItem('groupEntryPrice');
+
+        if (coupleEntryPrice || coverCharge || redeemDetails) {
+            setFormData(prev => ({
+                ...prev,
+                coupleEntryPrice: coupleEntryPrice || '',
+                coverCharge: coverCharge || '',
+                redeemDetails: redeemDetails || '',
+                maleStagEntryPrice: maleStagEntryPrice || '',
+                femaleStagEntryPrice: femaleStagEntryPrice || '',
+                groupEntryPrice: groupEntryPrice || ''
+            }));
+        }
+    }, []);
+
     // Load contact details from localStorage on mount
     useEffect(() => {
         try {
-            // First try to get from separate keys (user-email, user-phone)
+            // Load location data first
+            const locationData = localStorage.getItem(STORAGE_KEYS.clubSelectedLocation);
+            if (locationData) {
+                const location = JSON.parse(locationData);
+                setSelectedLocation(location);
+                const locationString = buildLocationString(location);
+                setFormData(prev => ({
+                    ...prev,
+                    address1: location.address1 || prev.address1,
+                    address2: location.address2 || prev.address2,
+                    location: locationString,
+                }));
+                console.log('📍 Location Loaded on Mount:', location);
+            }
+
+            // Then load contact details
             let email = localStorage.getItem('user-email');
             let phone = localStorage.getItem('user-phone');
 
@@ -170,10 +241,15 @@ export default function NewClubPage() {
         // Load selected location from localStorage
         const loadSelectedLocation = () => {
             try {
-                const locationData = localStorage.getItem('clubviz-selected-location');
+                const locationData = localStorage.getItem(STORAGE_KEYS.clubSelectedLocation);
                 if (locationData) {
                     const location = JSON.parse(locationData);
                     setSelectedLocation(location);
+                    setFormData(prev => ({
+                        ...prev,
+                        address1: location.address1 || prev.address1,
+                        address2: location.address2 || prev.address2,
+                    }));
                     console.log('📍 Loaded Selected Location:', location);
                 }
             } catch (error) {
@@ -212,18 +288,62 @@ export default function NewClubPage() {
             }
         };
 
+        // Load saved image previews from localStorage
+        const loadSavedImagePreviews = () => {
+            try {
+                // Load logo preview
+                const savedLogoPreview = localStorage.getItem('clubviz-logo-preview');
+                if (savedLogoPreview) {
+                    setLogoPreview(savedLogoPreview);
+                    console.log('🖼️ Loaded Saved Logo Preview');
+                }
+
+                // Load food/drinks previews
+                const savedFoodDrinksPreview = localStorage.getItem('clubviz-food-drinks-preview');
+                if (savedFoodDrinksPreview) {
+                    const previews = JSON.parse(savedFoodDrinksPreview);
+                    setFoodDrinksPreview(previews);
+                    console.log('🖼️ Loaded Saved Food/Drinks Previews');
+                }
+
+                // Load ambience previews
+                const savedAmbiencePreview = localStorage.getItem('clubviz-ambience-preview');
+                if (savedAmbiencePreview) {
+                    const previews = JSON.parse(savedAmbiencePreview);
+                    setAmbiencePreview(previews);
+                    console.log('🖼️ Loaded Saved Ambience Previews');
+                }
+
+                // Load menu previews
+                const savedMenuPreview = localStorage.getItem('clubviz-menu-preview');
+                if (savedMenuPreview) {
+                    const previews = JSON.parse(savedMenuPreview);
+                    setMenuPreview(previews);
+                    console.log('🖼️ Loaded Saved Menu Previews');
+                }
+            } catch (error) {
+                console.error('Failed to load saved image previews:', error);
+            }
+        };
+
         fetchLookupData();
         loadSelectedLocation();
         loadSelectedMusicGenres();
         loadSavedFormData();
+        loadSavedImagePreviews();
 
         // Listen for location updates from the location page
         const handleStorageChange = (e: StorageEvent) => {
-            if (e.key === 'clubviz-selected-location' && e.newValue) {
+            if (e.key === STORAGE_KEYS.clubSelectedLocation && e.newValue) {
                 const location = JSON.parse(e.newValue);
                 setSelectedLocation(location);
+                setFormData(prev => ({
+                    ...prev,
+                    address1: location.address1 || prev.address1,
+                    address2: location.address2 || prev.address2,
+                }));
                 console.log('📍 Location Updated:', location);
-            } else if (e.key === 'clubviz-selected-music-genres' && e.newValue) {
+            } else if (e.key === STORAGE_KEYS.clubSelectedMusicGenres && e.newValue) {
                 const genres = JSON.parse(e.newValue);
                 setSelectedMusicGenres(genres);
                 console.log('🎵 Music Genres Updated:', genres);
@@ -232,7 +352,7 @@ export default function NewClubPage() {
 
         window.addEventListener('storage', handleStorageChange);
         return () => window.removeEventListener('storage', handleStorageChange);
-    }, [toast]);
+    }, [toast, isCheckingClubs]);
 
     // Save form data to localStorage whenever it changes
     useEffect(() => {
@@ -243,6 +363,62 @@ export default function NewClubPage() {
             console.error('Failed to save form data to localStorage:', error);
         }
     }, [formData]);
+
+    // Save logo preview to localStorage whenever it changes
+    useEffect(() => {
+        try {
+            if (logoPreview) {
+                localStorage.setItem('clubviz-logo-preview', logoPreview);
+                console.log('💾 Saved Logo Preview to localStorage');
+            } else {
+                localStorage.removeItem('clubviz-logo-preview');
+            }
+        } catch (error) {
+            console.error('Failed to save logo preview to localStorage:', error);
+        }
+    }, [logoPreview]);
+
+    // Save food/drinks previews to localStorage whenever they change
+    useEffect(() => {
+        try {
+            if (foodDrinksPreview.some(p => p)) {
+                localStorage.setItem('clubviz-food-drinks-preview', JSON.stringify(foodDrinksPreview));
+                console.log('💾 Saved Food/Drinks Previews to localStorage');
+            } else {
+                localStorage.removeItem('clubviz-food-drinks-preview');
+            }
+        } catch (error) {
+            console.error('Failed to save food/drinks previews to localStorage:', error);
+        }
+    }, [foodDrinksPreview]);
+
+    // Save ambience previews to localStorage whenever they change
+    useEffect(() => {
+        try {
+            if (ambiencePreview.some(p => p)) {
+                localStorage.setItem('clubviz-ambience-preview', JSON.stringify(ambiencePreview));
+                console.log('💾 Saved Ambience Previews to localStorage');
+            } else {
+                localStorage.removeItem('clubviz-ambience-preview');
+            }
+        } catch (error) {
+            console.error('Failed to save ambience previews to localStorage:', error);
+        }
+    }, [ambiencePreview]);
+
+    // Save menu previews to localStorage whenever they change
+    useEffect(() => {
+        try {
+            if (menuPreview.some(p => p)) {
+                localStorage.setItem('clubviz-menu-preview', JSON.stringify(menuPreview));
+                console.log('💾 Saved Menu Previews to localStorage');
+            } else {
+                localStorage.removeItem('clubviz-menu-preview');
+            }
+        } catch (error) {
+            console.error('Failed to save menu previews to localStorage:', error);
+        }
+    }, [menuPreview]);
 
     // Helper function to get club tags from lookup data
     const getClubTags = () => {
@@ -263,7 +439,7 @@ export default function NewClubPage() {
     };
 
     const handleGoBack = () => {
-        router.push('/bz/business');
+        router.push('/business');
     };
 
     const handleInputChange = (field: string, value: string) => {
@@ -404,12 +580,42 @@ export default function NewClubPage() {
     const handleNavigate = (path: string) => {
         // Navigate to specific sections
         if (path === '/location') {
-            router.push('/bz/business/add-location');
+            setShowLocationModal(true);
         } else if (path === '/tags/music') {
             router.push('/bz/business/tags/music');
+        } else if (path === '/entry-pricing') {
+            router.push('/bz/business/add-entry-pricing');
         } else {
             console.log(`Navigating to ${path}`);
         }
+    };
+
+    const buildLocationString = (location: any) => {
+        const parts = [location.address1, location.address2, location.city, location.state, location.pincode].filter(Boolean);
+        const coordinates = location.lat && location.lng ? ` (${location.lat.toFixed(6)}, ${location.lng.toFixed(6)})` : '';
+        return parts.length > 0 ? `${parts.join(', ')}${coordinates}` : `Current Location${coordinates}`;
+    };
+
+    const handleLocationSelect = (location: any) => {
+        console.log('📍 Location selected:', location);
+        setSelectedLocation(location);
+        const locationString = buildLocationString(location);
+
+        setFormData(prev => ({
+            ...prev,
+            address1: location.address1 || prev.address1,
+            address2: location.address2 || prev.address2,
+            location: locationString,
+        }));
+        
+        // Save to localStorage for persistence
+        localStorage.setItem(STORAGE_KEYS.clubSelectedLocation, JSON.stringify(location));
+        
+        toast({
+            title: "Success",
+            description: "Location saved successfully",
+            variant: "default"
+        });
     };
 
     const handleCreateClub = async () => {
@@ -457,65 +663,47 @@ export default function NewClubPage() {
 
         setIsSubmitting(true);
         try {
-            // Convert logo to base64
-            let logoBase64 = "";
-            if (formData.logo) {
-                logoBase64 = await fileToBase64(formData.logo);
-            }
+            // Check if we have files to upload
+            const hasFiles = formData.logo || 
+                           foodDrinksImages.some(img => img) || 
+                           ambienceImages.some(img => img) || 
+                           menuImages.some(img => img);
 
-            // Convert food/drinks images to proper format (matching event creation)
-            const foodImageData = await Promise.all(
-                foodDrinksImages.filter(img => img).map(async (img) => ({
-                    name: img.name || "food-image.jpg",
-                    contentType: img.type || "image/jpeg",
-                    data: await fileToBase64(img),
-                    url: ""
-                }))
-            );
-
-            // Convert ambience images to proper format (matching event creation)
-            const ambianceImageData = await Promise.all(
-                ambienceImages.filter(img => img).map(async (img) => ({
-                    name: img.name || "ambiance-image.jpg",
-                    contentType: img.type || "image/jpeg",
-                    data: await fileToBase64(img),
-                    url: ""
-                }))
-            );
-
-            // Convert menu images to proper format (matching event creation)
-            const menuImageData = await Promise.all(
-                menuImages.filter(img => img).map(async (img) => ({
-                    name: img.name || "menu-image.jpg",
-                    contentType: img.type || "image/jpeg",
-                    data: await fileToBase64(img),
-                    url: ""
-                }))
-            );
-
-            // ✅ BUILD PAYLOAD MATCHING API SCHEMA (clubs-apis.json)
+            // Construct payload with metadata only (no base64 images)
             const clubData: any = {
                 "name": formData.clubName.trim(),
                 "description": formData.description.trim() || "",
-                "logo": {
-                    name: formData.logo?.name || "club-logo.jpg",
-                    contentType: formData.logo?.type || "image/jpeg",
-                    data: logoBase64,
-                    url: ""
+                "contactEmail": formData.contactEmail.trim(),
+                "contactPhone": formData.contactPhone.trim(),
+                locationText: {
+                    address1: formData.address1,
+                    address2: formData.address2,
+                    city: selectedLocation.city || undefined,
+                    state: selectedLocation.state || undefined,
+                    pincode: selectedLocation.pincode || undefined,
+                    fullAddress: [formData.address1, formData.address2, selectedLocation.city, selectedLocation.state, selectedLocation.pincode]
+                        .filter(Boolean)
+                        .join(', '),
                 },
-                "contactEmail": formData.contactEmail.trim(),  // ✅ Already validated, use directly
-                "contactPhone": formData.contactPhone.trim(),  // ✅ Already validated, use directly
-                "foodImageData": foodImageData,
-                "ambianceImageData": ambianceImageData,
-                "menuImageData": menuImageData
             };
 
             console.log('🚀 Creating Club with Images - Payload:', clubData);
             console.log('📡 API Call: POST /clubs/create-json-with-images');
-            console.log('📸 Total Images:', foodImageData.length + ambianceImageData.length + menuImageData.length);
+            console.log('📸 Has Files:', hasFiles);
 
-            // Call the service to create the club
-            const response = await ClubService.createClub(clubData as any);
+            let response;
+            if (hasFiles) {
+                response = await ClubService.createClubMultipart(clubData, {
+                    logo: formData.logo,
+                    mainImage: null,
+                    galleryImages: [],
+                    foodImages: foodDrinksImages.filter(img => img),
+                    ambianceImages: ambienceImages.filter(img => img),
+                    menuImages: menuImages.filter(img => img)
+                });
+            } else {
+                response = await ClubService.createClub(clubData);
+            }
 
             console.log('✅ Club created successfully:', response);
 
@@ -528,7 +716,11 @@ export default function NewClubPage() {
             // Clear saved form data from localStorage
             try {
                 localStorage.removeItem('clubviz-form-data');
-                console.log('🧹 Cleared saved form data');
+                localStorage.removeItem('clubviz-logo-preview');
+                localStorage.removeItem('clubviz-food-drinks-preview');
+                localStorage.removeItem('clubviz-ambience-preview');
+                localStorage.removeItem('clubviz-menu-preview');
+                console.log('🧹 Cleared all saved form data and image previews');
             } catch (error) {
                 console.error('Failed to clear saved form data:', error);
             }
@@ -541,7 +733,7 @@ export default function NewClubPage() {
 
             // Redirect to club pending page
             setTimeout(() => {
-                router.push('/bz/business/club-pending');
+                router.push('/business/club-pending');
             }, 1000);
 
         } catch (error: any) {
@@ -561,6 +753,23 @@ export default function NewClubPage() {
 
     return (
         <div className="min-h-screen bg-[#021313] text-white relative">
+            {/* Location Modal */}
+            <LocationModal
+                isOpen={showLocationModal}
+                onClose={() => setShowLocationModal(false)}
+                onSelectLocation={handleLocationSelect}
+                initialAddress={{
+                    address1: selectedLocation.address1 || '',
+                    address2: selectedLocation.address2 || '',
+                    city: selectedLocation.city || '',
+                    state: selectedLocation.state || '',
+                    country: selectedLocation.country || '',
+                    pincode: selectedLocation.pincode || '',
+                    lat: selectedLocation.lat || undefined,
+                    lng: selectedLocation.lng || undefined
+                }}
+            />
+
             {/* Show loading state while checking for existing clubs */}
             {isCheckingClubs && (
                 <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center">
@@ -682,7 +891,10 @@ export default function NewClubPage() {
                                     {/* Entry/Booking */}
                                     <div className="flex flex-col gap-[8px] mt-3">
                                         <h3 className="text-[#FFFEFF] text-lg font-semibold mb-1 px-1">Entry/Booking</h3>
-                                        <div className="relative bg-[rgba(31.93,42.75,43.32,0.60)] rounded-[15px] overflow-hidden">
+                                        <div 
+                                            onClick={() => handleNavigate('/entry-pricing')}
+                                            className="relative bg-[rgba(31.93,42.75,43.32,0.60)] rounded-[15px] overflow-hidden cursor-pointer"
+                                        >
                                             <div className="bg-[#263438] rounded-[15px] p-3 pb-5">
                                                 <div className="flex w-full border-b border-gray-700">
                                                     <div className="flex-1 text-center pb-2 relative">
@@ -1092,6 +1304,21 @@ export default function NewClubPage() {
                                 </span>
                                 <ChevronRight className="text-[#14FFEC]" size={18} />
                             </div>
+
+                            {selectedLocation.city && selectedLocation.state && (
+                                <div className="px-5 text-sm text-white/70 mb-2">
+                                    {selectedLocation.country && <span>{selectedLocation.country} · </span>}
+                                    <span>{selectedLocation.city}, {selectedLocation.state}</span>
+                                    {selectedLocation.pincode ? <span> · {selectedLocation.pincode}</span> : null}
+                                </div>
+                            )}
+
+                            {formData.location && (
+                                <div className="w-full bg-[#0D1F1F] border border-[#0C898B] rounded-[30px] p-[12px] px-5 mb-3">
+                                    <p className="text-[#14FFEC] text-[11px] uppercase tracking-[0.18em] mb-2">Selected Location</p>
+                                    <p className="text-white text-sm break-words">{formData.location}</p>
+                                </div>
+                            )}
 
                             {/* Additional Address Fields */}
                             <div className="w-full flex flex-col gap-3">

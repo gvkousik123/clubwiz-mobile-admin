@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Mail, Smartphone, Eye, EyeOff, CheckCircle } from 'lucide-react';
-import { ClubVizLogo } from '@/components/auth/logo';
+import { ClubwizLogo } from '@/components/auth/logo';
 import { usePassword } from '@/hooks/use-password';
 
 type Step = 'initiate' | 'reset' | 'success';
@@ -87,7 +87,7 @@ export default function ForgotPasswordPage() {
                 >
                     <ArrowLeft className="w-5 h-5" />
                 </button>
-                <ClubVizLogo />
+                <ClubwizLogo />
                 <div className="w-10 h-10" /> {/* Spacer */}
             </div>
 

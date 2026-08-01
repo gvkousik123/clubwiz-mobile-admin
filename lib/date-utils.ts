@@ -39,7 +39,8 @@ export const parseDDMMYYYYToDate = (dateString: string): Date | null => {
             return null;
         }
 
-        const date = new Date(`${year}-${month}-${day}`);
+        // Create date in local timezone to avoid UTC offset issues
+        const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
 
         if (isNaN(date.getTime())) {
             return null;
@@ -139,11 +140,10 @@ export const formatDateTimeForAPI = (ddmmyyyy: string, time: string): string => 
 
 /**
  * Get current time in IST (Indian Standard Time - UTC+5:30)
+ * Note: Browser's new Date() already returns local time, so we use it directly
  */
 export const getCurrentTimeIST = (): Date => {
-    const utcDate = new Date();
-    const istTime = new Date(utcDate.getTime() + (5.5 * 60 * 60 * 1000));
-    return istTime;
+    return new Date();
 };
 
 /**
@@ -171,4 +171,41 @@ export const filterFutureEvents = <T extends { startDateTime?: string }>(
     } catch {
         return events;
     }
+};
+
+/**
+ * Get minimum allowed time for event creation
+ * For today: rounds up to next 30-minute slot
+ * For future dates: returns 00:00
+ */
+export const getMinimumEventTime = (eventDate: string): string => {
+    const selectedDate = parseDDMMYYYYToDate(eventDate);
+    if (!selectedDate) return '00:00';
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    selectedDate.setHours(0, 0, 0, 0);
+
+    // If not today, allow from 00:00
+    if (selectedDate.getTime() !== today.getTime()) {
+        return '00:00';
+    }
+
+    // For today, round up to next 30-minute slot
+    const now = getCurrentTimeIST();
+    let hours = now.getHours();
+    let minutes = now.getMinutes();
+
+    // Round up to next 30-minute slot
+    if (minutes > 0) {
+        if (minutes <= 30) {
+            minutes = 30;
+        } else {
+            hours += 1;
+            minutes = 0;
+        }
+    }
+
+    // Format as HH:MM
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 };

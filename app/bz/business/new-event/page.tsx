@@ -1,33 +1,21 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Upload, Calendar, Clock, Music, User, Building2, Instagram, Music2, ImageIcon, VideoIcon, ChevronDown, Plus, Trash2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Upload, Calendar, Clock, Music, User, Building2, Instagram, Music2, ImageIcon, VideoIcon, ChevronDown, Plus, Trash2, AlertCircle, Edit, RefreshCw } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback, Suspense } from 'react';
-import './styles.css';
 import { Dialog, DialogContent, DialogOverlay } from '@/components/ui/dialog';
 import { EventService } from '@/lib/services/event.service';
 import { ClubService } from '@/lib/services/club.service'; // FIXED: #2 — Using getMyClubs instead of getAllClubsAdmin
 import { useToast } from '@/hooks/use-toast';
 import DatePicker from '@/components/common/date-picker';
+import TimePicker from '@/components/common/time-picker';
 import { formatDateTimeForAPI } from '@/lib/date-utils';
 import { MusicGenreAutocomplete, MusicGenre } from '@/components/ui/music-genre-autocomplete';
-import { fileToBase64 } from '@/lib/image-utils';
 
 interface Club {
     id: string;
     name: string;
     logo?: string;
-}
-
-interface TicketType {
-    name: string;
-    price: number;
-    currency: string;
-    quantity: number;
-    isActive: boolean;
-    redeemCover?: number;
-    redeemBefore?: string;
-    remark?: string;
 }
 
 function NewEventPageContent() {
@@ -37,6 +25,11 @@ function NewEventPageContent() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const posterInputRef = useRef<HTMLInputElement>(null);
     const reelInputRef = useRef<HTMLInputElement>(null);
+
+    // Edit mode detection
+    const eventId = searchParams.get('eventId');
+    const isEditMode = !!eventId;
+    const [isLoadingEvent, setIsLoadingEvent] = useState(isEditMode);
 
     // Club management state
     const [clubs, setClubs] = useState<Club[]>([]);
@@ -48,6 +41,10 @@ function NewEventPageContent() {
     const [logoPreview, setLogoPreview] = useState<string | null>(null);
     const [posterPreview, setPosterPreview] = useState<string | null>(null);
     const [reelPreview, setReelPreview] = useState<string | null>(null);
+
+    const [existingPosterUrl, setExistingPosterUrl] = useState<string | null>(null);
+    const [existingReelUrl, setExistingReelUrl] = useState<string | null>(null);
+    const [existingOrganizerLogoUrl, setExistingOrganizerLogoUrl] = useState<string | null>(null);
 
     const [selectedGenres, setSelectedGenres] = useState<MusicGenre[]>([]);
     const [activeTab, setActiveTab] = useState('details');
@@ -69,15 +66,38 @@ function NewEventPageContent() {
         organizerLogo: null as File | null,
         poster: null as File | null,
         reel: null as File | null,
-        hasLimitedTickets: true,
-        totalTickets: ''
+        // General Pricing
+        maleStagPrice: '',
+        maleStagFee: '',
+        maleStagDesc: '',
+        maleStagEnabled: true,
+        femaleStagPrice: '',
+        femaleStagFee: '',
+        femaleStagDesc: '',
+        femaleStagEnabled: true,
+        couplePrice: '',
+        coupleFee: '',
+        coupleDesc: '',
+        coupleEnabled: true,
+        // Early Bird Pricing
+        earlyBirdEnabled: false,
+        earlyBirdEndTime: '',
+        earlyBirdMaleStagEnabled: true,
+        earlyBirdMaleStagPrice: '',
+        earlyBirdMaleStagFee: '',
+        earlyBirdMaleStagDesc: '',
+        earlyBirdFemaleStagEnabled: true,
+        earlyBirdFemaleStagPrice: '',
+        earlyBirdFemaleStagFee: '',
+        earlyBirdFemaleStagDesc: '',
+        earlyBirdCoupleEnabled: true,
+        earlyBirdCouplePrice: '',
+        earlyBirdCoupleFee: '',
+        earlyBirdCoupleDesc: '',
+        // Promo toggles
+        freeMaleStagPerCoupleEnabled: false,
+        earlyBirdFreeMaleStagPerCoupleEnabled: false,
     });
-
-    const [ticketTypes, setTicketTypes] = useState<TicketType[]>([
-        { name: 'General Entry', price: 999, currency: 'INR', quantity: 100, isActive: true }
-    ]);
-    const [newTicket, setNewTicket] = useState<TicketType>({ name: '', price: 0, currency: 'INR', quantity: 0, isActive: true });
-    const [isAddingTicket, setIsAddingTicket] = useState(false);
 
     // FIXED: #5 — Form validation state for tab navigation
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -122,6 +142,145 @@ function NewEventPageContent() {
         loadClubs();
     }, [toast]);
 
+    // Load event data if in edit mode
+    useEffect(() => {
+        if (!isEditMode || !eventId) return;
+
+        const loadEventData = async () => {
+            try {
+                setIsLoadingEvent(true);
+                console.log('📡 Loading event data for edit:', eventId);
+                
+                const response = await EventService.getEventDetailsAdmin(eventId);
+                console.log('✅ Event loaded:', response);
+
+                // Extract event data from response
+                const event = (response as any)?.data || response;
+
+                if (event) {
+                    // Parse date and time from startDateTime
+                    let eventDate = '';
+                    let eventTime = '';
+                    if (event.startDateTime) {
+                        const dateObj = new Date(event.startDateTime);
+                        eventDate = `${String(dateObj.getDate()).padStart(2, '0')}/${String(dateObj.getMonth() + 1).padStart(2, '0')}/${dateObj.getFullYear()}`;
+                        eventTime = `${String(dateObj.getHours()).padStart(2, '0')}:${String(dateObj.getMinutes()).padStart(2, '0')}`;
+                    }
+
+                    // Set form data
+                    const hasEarlyBirdData = Boolean(
+                        event.earlyBirdEnabled ||
+                        event.earlyBirdMaleStagEntry ||
+                        event.earlyBirdPricing?.maleStagEntry ||
+                        event.earlyBirdFemaleStagEntry ||
+                        event.earlyBirdPricing?.femaleStagEntry ||
+                        event.earlyBirdCoupleEntry ||
+                        event.earlyBirdPricing?.coupleEntry
+                    );
+
+                    setFormData({
+                        eventName: event.title || event.name || '',
+                        artistName: event.eventArtistName || event.artistName || '',
+                        aboutArtist: event.aboutEventArtist || event.aboutArtist || '',
+                        instagramHandle: event.instagramHandle || '',
+                        spotifyHandle: event.spotifyHandle || event.spotifyUrl || '',
+                        eventDate: eventDate,
+                        eventTime: eventTime,
+                        musicGenre: event.musicGenre || '',
+                        description: event.description || '',
+                        organizer: event.eventOrganizer || event.organizer?.username || '',
+                        organizerLogo: null,
+                        poster: null,
+                        reel: null,
+                        // General Pricing from generalPricing or flat fields
+                        maleStagPrice: event.maleStagEntry?.price?.toString() || event.generalPricing?.maleStagEntry?.price?.toString() || '',
+                        maleStagFee: event.maleStagEntry?.fee?.toString() || event.generalPricing?.maleStagEntry?.fee?.toString() || '',
+                        maleStagDesc: event.maleStagEntry?.description || event.generalPricing?.maleStagEntry?.description || '',
+                        maleStagEnabled: !!(event.maleStagEntry || event.generalPricing?.maleStagEntry),
+                        femaleStagPrice: event.femaleStagEntry?.price?.toString() || event.generalPricing?.femaleStagEntry?.price?.toString() || '',
+                        femaleStagFee: event.femaleStagEntry?.fee?.toString() || event.generalPricing?.femaleStagEntry?.fee?.toString() || '',
+                        femaleStagDesc: event.femaleStagEntry?.description || event.generalPricing?.femaleStagEntry?.description || '',
+                        femaleStagEnabled: !!(event.femaleStagEntry || event.generalPricing?.femaleStagEntry),
+                        couplePrice: event.coupleEntry?.price?.toString() || event.generalPricing?.coupleEntry?.price?.toString() || '',
+                        coupleFee: event.coupleEntry?.fee?.toString() || event.generalPricing?.coupleEntry?.fee?.toString() || '',
+                        coupleDesc: event.coupleEntry?.description || event.generalPricing?.coupleEntry?.description || '',
+                        coupleEnabled: !!(event.coupleEntry || event.generalPricing?.coupleEntry),
+                        // Early Bird Pricing
+                        earlyBirdEnabled: hasEarlyBirdData,
+                        earlyBirdEndTime: event.earlyBirdEndTime || event.earlyBirdPricing?.cutoffTime || '',
+                        earlyBirdMaleStagEnabled: !!(event.earlyBirdMaleStagEntry || event.earlyBirdPricing?.maleStagEntry),
+                        earlyBirdMaleStagPrice: event.earlyBirdMaleStagEntry?.price?.toString() || event.earlyBirdPricing?.maleStagEntry?.price?.toString() || '',
+                        earlyBirdMaleStagFee: event.earlyBirdMaleStagEntry?.fee?.toString() || event.earlyBirdPricing?.maleStagEntry?.fee?.toString() || '',
+                        earlyBirdMaleStagDesc: event.earlyBirdMaleStagEntry?.description || event.earlyBirdPricing?.maleStagEntry?.description || '',
+                        earlyBirdFemaleStagEnabled: !!(event.earlyBirdFemaleStagEntry || event.earlyBirdPricing?.femaleStagEntry),
+                        earlyBirdFemaleStagPrice: event.earlyBirdFemaleStagEntry?.price?.toString() || event.earlyBirdPricing?.femaleStagEntry?.price?.toString() || '',
+                        earlyBirdFemaleStagFee: event.earlyBirdFemaleStagEntry?.fee?.toString() || event.earlyBirdPricing?.femaleStagEntry?.fee?.toString() || '',
+                        earlyBirdFemaleStagDesc: event.earlyBirdFemaleStagEntry?.description || event.earlyBirdPricing?.femaleStagEntry?.description || '',
+                        earlyBirdCoupleEnabled: !!(event.earlyBirdCoupleEntry || event.earlyBirdPricing?.coupleEntry),
+                        earlyBirdCouplePrice: event.earlyBirdCoupleEntry?.price?.toString() || event.earlyBirdPricing?.coupleEntry?.price?.toString() || '',
+                        earlyBirdCoupleFee: event.earlyBirdCoupleEntry?.fee?.toString() || event.earlyBirdPricing?.coupleEntry?.fee?.toString() || '',
+                        earlyBirdCoupleDesc: event.earlyBirdCoupleEntry?.description || event.earlyBirdPricing?.coupleEntry?.description || '',
+                        // Promo toggles
+                        freeMaleStagPerCoupleEnabled: event.freeMaleStagPerCoupleEnabled || event.generalPricing?.freeMaleStagPerCoupleEnabled || false,
+                        earlyBirdFreeMaleStagPerCoupleEnabled: event.earlyBirdFreeMaleStagPerCoupleEnabled || event.earlyBirdPricing?.freeMaleStagPerCoupleEnabled || false,
+                    });
+
+                    // Set club ID
+                    if (event.clubId) {
+                        setSelectedClubId(event.clubId);
+                    }
+
+                    // Set existing images as previews and retain URLs for edit payloads
+                    if (event.imageUrl || event.eventImage) {
+                        const posterUrl = event.imageUrl || event.eventImage;
+                        setPosterPreview(posterUrl);
+                        setExistingPosterUrl(posterUrl);
+                    }
+
+                    const reelUrl = event.reelUrl || event.eventReel || event.videoUrl;
+                    if (reelUrl) {
+                        setReelPreview(reelUrl);
+                        setExistingReelUrl(reelUrl);
+                    }
+
+                    const organizerLogoUrl = event.eventOrganizerLogo || event.organizerLogo || event.organizerLogoUrl;
+                    if (organizerLogoUrl) {
+                        setLogoPreview(organizerLogoUrl);
+                        setExistingOrganizerLogoUrl(organizerLogoUrl);
+                    }
+
+
+                    // Set music genres
+                    if (event.musicGenre) {
+                        const genres = event.musicGenre.split(',').map((g: string) => {
+                            const trimmed = g.trim();
+                            return {
+                                id: `${trimmed.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}-${Math.random()}`,
+                                label: trimmed,
+                                active: true
+                            };
+                        }).filter(g => g.label);
+                        setSelectedGenres(genres);
+                    }
+
+                    // Clear all field errors after loading data in edit mode
+                    setFieldErrors({});
+                }
+            } catch (error) {
+                console.error('❌ Error loading event:', error);
+                toast({
+                    title: 'Error',
+                    description: 'Failed to load event data',
+                    variant: 'destructive'
+                });
+            } finally {
+                setIsLoadingEvent(false);
+            }
+        };
+
+        loadEventData();
+    }, [isEditMode, eventId, toast]);
+
     const handleGoBack = () => {
         router.back();
     };
@@ -134,7 +293,7 @@ function NewEventPageContent() {
     };
 
     const handleInputChange = (field: string, value: string) => {
-        setFormData({ ...formData, [field]: value });
+        setFormData(prev => ({ ...prev, [field]: value }));
     };
 
     const handleFileUpload = (ref: React.RefObject<HTMLInputElement>) => {
@@ -144,7 +303,7 @@ function NewEventPageContent() {
     const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            setFormData({ ...formData, organizerLogo: file });
+            setFormData(prev => ({ ...prev, organizerLogo: file }));
             // Create preview
             const reader = new FileReader();
             reader.onloadend = () => {
@@ -157,6 +316,7 @@ function NewEventPageContent() {
     const handleDeleteLogo = () => {
         setFormData({ ...formData, organizerLogo: null });
         setLogoPreview(null);
+        setExistingOrganizerLogoUrl(null);
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
@@ -165,7 +325,7 @@ function NewEventPageContent() {
     const handlePosterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            setFormData({ ...formData, poster: file });
+            setFormData(prev => ({ ...prev, poster: file }));
             // Create preview
             const reader = new FileReader();
             reader.onloadend = () => {
@@ -178,6 +338,7 @@ function NewEventPageContent() {
     const handleDeletePoster = () => {
         setFormData({ ...formData, poster: null });
         setPosterPreview(null);
+        setExistingPosterUrl(null);
         if (posterInputRef.current) {
             posterInputRef.current.value = '';
         }
@@ -186,7 +347,7 @@ function NewEventPageContent() {
     const handleReelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            setFormData({ ...formData, reel: file });
+            setFormData(prev => ({ ...prev, reel: file }));
             // Create preview (for video, we'll show file name instead)
             const reader = new FileReader();
             reader.onloadend = () => {
@@ -199,6 +360,7 @@ function NewEventPageContent() {
     const handleDeleteReel = () => {
         setFormData({ ...formData, reel: null });
         setReelPreview(null);
+        setExistingReelUrl(null);
         if (reelInputRef.current) {
             reelInputRef.current.value = '';
         }
@@ -213,21 +375,49 @@ function NewEventPageContent() {
             if (!formData.aboutArtist.trim()) errors.aboutArtist = 'About artist is required';
             if (!formData.eventDate.trim()) errors.eventDate = 'Event date is required';
             if (!formData.eventTime.trim()) errors.eventTime = 'Start time is required';
-            if (!formData.description.trim()) errors.description = 'Event description is required';
-            if (!formData.organizer.trim()) errors.organizer = 'Event organizer is required';
+            if (!selectedGenres.length) errors.musicGenre = 'Music genre is required';
         }
         if (tabId === 'creatives') {
-            if (!formData.poster) errors.poster = 'Event poster is required';
+            // In edit mode, check if there's either a new file OR an existing preview
+            if (!isEditMode && !formData.poster) {
+                errors.poster = 'Event poster is required';
+            } else if (isEditMode && !formData.poster && !posterPreview) {
+                errors.poster = 'Event poster is required';
+            }
         }
         if (tabId === 'tickets') {
-            if (ticketTypes.length === 0) errors.ticketTypes = 'At least one ticket type is required';
-            if (formData.hasLimitedTickets) {
-                const tickets = typeof formData.totalTickets === 'string' ? parseInt(formData.totalTickets) : formData.totalTickets;
-                if (!tickets || tickets < 1) errors.totalTickets = 'Ticket count must be at least 1';
+            // Check if at least one ticket type is enabled
+            if (!formData.maleStagEnabled && !formData.femaleStagEnabled && !formData.coupleEnabled) {
+                errors.tickets = 'At least one ticket type must be enabled';
+            }
+            // Validate that enabled tickets have prices
+            if (formData.maleStagEnabled && !formData.maleStagPrice) {
+                errors.maleStagPrice = 'Male Stag price is required when enabled';
+            }
+            if (formData.femaleStagEnabled && !formData.femaleStagPrice) {
+                errors.femaleStagPrice = 'Female Stag price is required when enabled';
+            }
+            if (formData.coupleEnabled && !formData.couplePrice) {
+                errors.couplePrice = 'Couple price is required when enabled';
+            }
+            // Validate early bird pricing if enabled
+            if (formData.earlyBirdEnabled) {
+                if (!formData.earlyBirdEndTime) {
+                    errors.earlyBirdEndTime = 'Early bird cutoff time is required';
+                }
+                if (formData.maleStagEnabled && formData.earlyBirdMaleStagEnabled && !formData.earlyBirdMaleStagPrice) {
+                    errors.earlyBirdMaleStagPrice = 'Early bird Male Stag price is required';
+                }
+                if (formData.femaleStagEnabled && formData.earlyBirdFemaleStagEnabled && !formData.earlyBirdFemaleStagPrice) {
+                    errors.earlyBirdFemaleStagPrice = 'Early bird Female Stag price is required';
+                }
+                if (formData.coupleEnabled && formData.earlyBirdCoupleEnabled && !formData.earlyBirdCouplePrice) {
+                    errors.earlyBirdCouplePrice = 'Early bird Couple price is required';
+                }
             }
         }
         return errors;
-    }, [formData, ticketTypes]);
+    }, [formData, isEditMode, posterPreview]);
 
     // FIXED: #5 — Handle tab switch with validation
     const handleTabSwitch = useCallback((tabId: string) => {
@@ -293,21 +483,25 @@ function NewEventPageContent() {
         setIsCreating(true);
 
         try {
-            // 🔴 CRITICAL: Validate required fields
+            // Validate required fields per API spec
             if (!formData.eventName.trim()) {
                 throw new Error('Event name is required');
             }
 
-            if (!formData.description.trim()) {
-                throw new Error('Event description is required');
+            if (!formData.artistName.trim()) {
+                throw new Error('Artist name is required');
             }
 
-            if (!formData.organizer.trim()) {
-                throw new Error('Event organizer is required');
+            if (!formData.aboutArtist.trim()) {
+                throw new Error('About artist is required');
             }
 
             if (!selectedClubId) {
                 throw new Error('Please select a club for this event');
+            }
+
+            if (!selectedGenres.length) {
+                throw new Error('Music genre is required');
             }
 
             // Prepare event data for API
@@ -317,138 +511,238 @@ function NewEventPageContent() {
                 throw new Error('Invalid date or time format');
             }
 
-            // Convert images to base64
-            let eventImageData = null;
-            if (formData.poster) {
-                const base64 = await fileToBase64(formData.poster);
-                eventImageData = {
-                    name: formData.poster.name,
-                    contentType: formData.poster.type,
-                    data: base64,
-                    url: "",
-                    type: "EVENT_IMAGE"
-                };
-            }
+            // Check if we have files to upload
+            const hasFiles = formData.poster || formData.reel || formData.organizerLogo;
 
-            let eventReelData = null;
-            if (formData.reel) {
-                const base64 = await fileToBase64(formData.reel);
-                eventReelData = {
-                    name: formData.reel.name,
-                    contentType: formData.reel.type,
-                    data: base64,
-                    url: "",
-                    type: "EVENT_REEL"
-                };
-            }
-
-            let eventOrganizerLogoData = null;
-            if (formData.organizerLogo) {
-                const base64 = await fileToBase64(formData.organizerLogo);
-                eventOrganizerLogoData = {
-                    name: formData.organizerLogo.name,
-                    contentType: formData.organizerLogo.type,
-                    data: base64,
-                    url: "",
-                    type: "ORGANIZER_LOGO"
-                };
-            }
-
-            // Construct payload matching the event-create-with-image.json structure
+            // Construct payload with metadata only (no base64 images)
             const eventData: any = {
                 title: formData.eventName.trim(),
                 description: formData.description.trim(),
                 startDateTime: startDateTime,
                 endDateTime: startDateTime, // Could be calculated based on duration
-                location: formData.organizer || "Club Location",
+                location: "Club Location",
                 locationText: "Club Location Text",
                 locationMap: {
                     lat: 0,
                     lng: 0
                 },
                 clubId: selectedClubId,
-                maxAttendees: formData.totalTickets || 500,
+                maxAttendees: 500,
                 isPublic: true,
                 requiresApproval: false,
-                eventArtistName: formData.artistName || "",
-                aboutEventArtist: formData.aboutArtist || "",
+                eventArtistName: formData.artistName.trim(),
+                aboutEventArtist: formData.aboutArtist.trim(),
+                musicGenre: selectedGenres.map(g => g.label).join(', '),
                 instagramHandle: formData.instagramHandle || "",
                 spotifyHandle: formData.spotifyHandle || "",
-                musicGenre: selectedGenres.map(g => g.label).join(', ') || "",
                 eventOrganizer: formData.organizer,
-                ticketTypes: ticketTypes,
-                hasLimitedTickets: formData.hasLimitedTickets,
-                totalTickets: formData.totalTickets,
-                eventImage: eventImageData,
-                eventReel: eventReelData,
-                eventOrganizerLogo: eventOrganizerLogoData,
                 galleryImages: [],
                 performerImages: []
             };
 
-            console.log('🚀 Creating event with images - Payload:', eventData);
-            console.log('📡 API Call: POST /events/create-json-with-images');
-            console.log('📸 Event Image:', eventImageData ? 'Yes' : 'No');
-            console.log('🎬 Event Reel:', eventReelData ? 'Yes' : 'No');
-            console.log('🏢 Organizer Logo:', eventOrganizerLogoData ? 'Yes' : 'No');
+            if (isEditMode) {
+                if (!formData.poster && existingPosterUrl) {
+                    eventData.imageUrl = existingPosterUrl;
+                }
+                if (!formData.reel && existingReelUrl) {
+                    eventData.reelUrl = existingReelUrl;
+                }
+                if (!formData.organizerLogo && existingOrganizerLogoUrl) {
+                    eventData.eventOrganizerLogo = existingOrganizerLogoUrl;
+                }
+            }
 
-            // Use the specific endpoint for JSON+Images
-            const response: any = await EventService.createEventWithImages(eventData);
+            // Flat general pricing fields (only include enabled + priced tickets)
+            if (formData.maleStagEnabled && formData.maleStagPrice) {
+                eventData.maleStagEntry = {
+                    price: parseFloat(formData.maleStagPrice),
+                    ...(formData.maleStagFee ? { fee: parseFloat(formData.maleStagFee) } : {}),
+                    ...(formData.maleStagDesc ? { description: formData.maleStagDesc } : {})
+                };
+            }
+            if (formData.femaleStagEnabled && formData.femaleStagPrice) {
+                eventData.femaleStagEntry = {
+                    price: parseFloat(formData.femaleStagPrice),
+                    ...(formData.femaleStagFee ? { fee: parseFloat(formData.femaleStagFee) } : {}),
+                    ...(formData.femaleStagDesc ? { description: formData.femaleStagDesc } : {})
+                };
+            }
+            if (formData.coupleEnabled && formData.couplePrice) {
+                eventData.coupleEntry = {
+                    price: parseFloat(formData.couplePrice),
+                    ...(formData.coupleFee ? { fee: parseFloat(formData.coupleFee) } : {}),
+                    ...(formData.coupleDesc ? { description: formData.coupleDesc } : {})
+                };
+            }
 
-            if (response && (response.id || response.success || response.data)) {
-                console.log('✅ Event created successfully:', response);
+            // Promo toggle (root level)
+            eventData.freeMaleStagPerCoupleEnabled = !!formData.freeMaleStagPerCoupleEnabled;
 
-                toast({
-                    title: 'Event Created Successfully',
-                    description: `Your event "${formData.eventName}" has been created!`,
-                    variant: 'default'
+            // Flat early bird fields (omit entirely when disabled)
+            if (formData.earlyBirdEnabled) {
+                eventData.earlyBirdEnabled = true;
+                // Ensure HH:mm:ss format
+                const rawTime = formData.earlyBirdEndTime;
+                eventData.earlyBirdEndTime = rawTime.length === 5 ? `${rawTime}:00` : rawTime;
+                eventData.earlyBirdFreeMaleStagPerCoupleEnabled = !!formData.earlyBirdFreeMaleStagPerCoupleEnabled;
+
+                if (formData.maleStagEnabled && formData.earlyBirdMaleStagEnabled && formData.earlyBirdMaleStagPrice) {
+                    eventData.earlyBirdMaleStagEntry = {
+                        price: parseFloat(formData.earlyBirdMaleStagPrice),
+                        ...(formData.earlyBirdMaleStagFee ? { fee: parseFloat(formData.earlyBirdMaleStagFee) } : {}),
+                        ...(formData.earlyBirdMaleStagDesc ? { description: formData.earlyBirdMaleStagDesc } : {})
+                    };
+                }
+                if (formData.femaleStagEnabled && formData.earlyBirdFemaleStagEnabled && formData.earlyBirdFemaleStagPrice) {
+                    eventData.earlyBirdFemaleStagEntry = {
+                        price: parseFloat(formData.earlyBirdFemaleStagPrice),
+                        ...(formData.earlyBirdFemaleStagFee ? { fee: parseFloat(formData.earlyBirdFemaleStagFee) } : {}),
+                        ...(formData.earlyBirdFemaleStagDesc ? { description: formData.earlyBirdFemaleStagDesc } : {})
+                    };
+                }
+                if (formData.coupleEnabled && formData.earlyBirdCoupleEnabled && formData.earlyBirdCouplePrice) {
+                    eventData.earlyBirdCoupleEntry = {
+                        price: parseFloat(formData.earlyBirdCouplePrice),
+                        ...(formData.earlyBirdCoupleFee ? { fee: parseFloat(formData.earlyBirdCoupleFee) } : {}),
+                        ...(formData.earlyBirdCoupleDesc ? { description: formData.earlyBirdCoupleDesc } : {})
+                    };
+                }
+            }
+
+            let response: any;
+
+            if (isEditMode && eventId) {
+                // UPDATE MODE
+                console.log('🚀 Updating event - Payload:', eventData);
+                console.log('📡 API Call: PUT /events/' + eventId);
+                console.log('� Pricing Config:', {
+                    generalPricing: {
+                        maleStagEntry: eventData.maleStagEntry,
+                        femaleStagEntry: eventData.femaleStagEntry,
+                        coupleEntry: eventData.coupleEntry,
+                        freeMaleStagPerCoupleEnabled: eventData.freeMaleStagPerCoupleEnabled
+                    },
+                    earlyBirdPricing: eventData.earlyBirdEnabled ? {
+                        enabled: true,
+                        cutoffTime: eventData.earlyBirdEndTime,
+                        maleStagEntry: eventData.earlyBirdMaleStagEntry,
+                        femaleStagEntry: eventData.earlyBirdFemaleStagEntry,
+                        coupleEntry: eventData.earlyBirdCoupleEntry,
+                        earlyBirdFreeMaleStagPerCoupleEnabled: eventData.earlyBirdFreeMaleStagPerCoupleEnabled
+                    } : { enabled: false }
                 });
+                console.log('📸 Event Image:', formData.poster ? 'Updated' : 'Not changed');
+                console.log('🎬 Event Reel:', formData.reel ? 'Updated' : 'Not changed');
+                console.log('🏢 Organizer Logo:', formData.organizerLogo ? 'Updated' : 'Not changed');
 
-                // Close the dialog and navigate to event preview
-                setShowConfirmDialog(false);
-                setDialogStage('confirm');
-                router.push(`/bz/business/club/_/events?id=${selectedClubId}`); // Go back to club events list
+                if (hasFiles) {
+                    response = await EventService.updateEventMultipart(eventId, eventData, {
+                        eventImage: formData.poster,
+                        eventReel: formData.reel,
+                        eventOrganizerLogo: formData.organizerLogo,
+                        galleryImages: [],
+                        performerImages: []
+                    }, true);
+                } else {
+                    response = await EventService.updateEvent(eventId, eventData, true);
+                }
+
+                if (response && (response.id || response.success || response.data)) {
+                    console.log('✅ Event updated successfully:', response);
+
+                    toast({
+                        title: 'Event Updated Successfully',
+                        description: `Your event "${formData.eventName}" has been updated!`,
+                        variant: 'default'
+                    });
+
+                    // Close the dialog and navigate back
+                    setShowConfirmDialog(false);
+                    setDialogStage('confirm');
+                    router.push(`/bz/business`);
+                } else {
+                    throw new Error('Failed to update event - Invalid response');
+                }
             } else {
-                throw new Error('Failed to create event - Invalid response');
+                // CREATE MODE
+                console.log('📡 API Call: POST /events/create-json-with-images');
+                console.log('💰 Pricing Config:', {
+                    generalPricing: {
+                        maleStagEntry: eventData.maleStagEntry,
+                        femaleStagEntry: eventData.femaleStagEntry,
+                        coupleEntry: eventData.coupleEntry,
+                        freeMaleStagPerCoupleEnabled: eventData.freeMaleStagPerCoupleEnabled
+                    },
+                    earlyBirdPricing: eventData.earlyBirdEnabled ? {
+                        enabled: true,
+                        cutoffTime: eventData.earlyBirdEndTime,
+                        maleStagEntry: eventData.earlyBirdMaleStagEntry,
+                        femaleStagEntry: eventData.earlyBirdFemaleStagEntry,
+                        coupleEntry: eventData.earlyBirdCoupleEntry,
+                        earlyBirdFreeMaleStagPerCoupleEnabled: eventData.earlyBirdFreeMaleStagPerCoupleEnabled
+                    } : { enabled: false }
+                });
+                console.log('📸 Event Image:', formData.poster ? 'Yes' : 'No');
+                console.log('🎬 Event Reel:', formData.reel ? 'Yes' : 'No');
+                console.log('🏢 Organizer Logo:', formData.organizerLogo ? 'Yes' : 'No');
+
+                if (hasFiles) {
+                    response = await EventService.createEventMultipart(eventData, {
+                        eventImage: formData.poster,
+                        eventReel: formData.reel,
+                        eventOrganizerLogo: formData.organizerLogo,
+                        galleryImages: [],
+                        performerImages: []
+                    });
+                } else {
+                    response = await EventService.createEventWithImages(eventData);
+                }
+
+                if (response && (response.id || response.success || response.data)) {
+                    console.log('✅ Event created successfully:', response);
+
+                    toast({
+                        title: 'Event Created Successfully',
+                        description: `Your event "${formData.eventName}" has been created!`,
+                        variant: 'default'
+                    });
+
+                    // Close the dialog and navigate to event preview
+                    setShowConfirmDialog(false);
+                    setDialogStage('confirm');
+                    router.push(`/bz/business`);
+                } else {
+                    throw new Error('Failed to create event - Invalid response');
+                }
             }
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Failed to create event. Please try again.';
             console.error('❌ Event creation error:', error);
 
-            toast({
-                title: 'Error',
-                description: errorMessage,
-                variant: 'destructive'
-            });
+            // Check for timeout error
+            const isTimeout =
+                (error as any)?.code === 'ECONNABORTED' ||
+                (typeof errorMessage === 'string' && /timeout/i.test(errorMessage));
+
+            if (isTimeout) {
+                toast({
+                    title: 'Browser timed out — check if save completed',
+                    description: 'The server may still be processing your images (1–2 minutes). Refresh this page to verify.',
+                    variant: 'destructive'
+                });
+            } else {
+                toast({
+                    title: 'Error',
+                    description: errorMessage,
+                    variant: 'destructive'
+                });
+            }
 
             setDialogStage('confirm');
             setIsCreating(false);
         }
     };
 
-    const handleAddTicket = () => {
-        setIsAddingTicket(true);
-    };
-
-    const confirmAddTicket = () => {
-        if (newTicket.name && newTicket.price > 0) {
-            setTicketTypes([...ticketTypes, newTicket]);
-            setNewTicket({ name: '', price: 0, currency: 'INR', quantity: 0, isActive: true });
-            setIsAddingTicket(false);
-        } else {
-            toast({
-                title: "Error",
-                description: "Enter valid ticket name and price",
-                variant: 'destructive'
-            });
-        }
-    };
-
-    const handleDeleteTicket = (index: number) => {
-        const updated = [...ticketTypes];
-        updated.splice(index, 1);
-        setTicketTypes(updated);
-    };
 
     const tabs = [
         { id: 'details', label: 'Event Details' },
@@ -457,26 +751,28 @@ function NewEventPageContent() {
     ];
 
     return (
-        <div className="min-h-screen bg-[#021313] text-white relative">
-            {/* Fixed Header with gradient background */}
-            <div className="fixed top-0 left-0 right-0 z-30 flex flex-col pt-10 bg-gradient-to-b from-[#11B9AB] to-[#222831] h-[140px] w-full">
-                <div className="absolute top-10 left-6">
-                    <button
-                        onClick={handleGoBack}
-                        className="w-10 h-10 flex items-center justify-center bg-black/20 hover:bg-black/30 rounded-full transition-all duration-300"
-                    >
-                        <span className="text-white text-xl font-bold">&lt;</span>
-                    </button>
+        <div className="min-h-screen bg-[#021313] text-white relative flex justify-center items-center md:py-8">
+            <div className="w-full max-w-md min-h-screen md:min-h-0 md:h-[850px] relative overflow-hidden md:rounded-[2.5rem] md:border border-white/10 shadow-2xl bg-[#021313] flex flex-col">
+                {/* Fixed Header with gradient background */}
+                <div className="w-full z-30 flex flex-col pt-10 bg-gradient-to-b from-[#11B9AB] to-[#222831] h-[140px] md:rounded-t-[2.5rem] overflow-hidden relative">
+                    <div className="absolute top-10 left-6">
+                        <button
+                            onClick={handleGoBack}
+                            className="w-10 h-10 flex items-center justify-center bg-black/20 hover:bg-black/30 rounded-full transition-all duration-300"
+                        >
+                            <span className="text-white text-xl font-bold">&lt;</span>
+                        </button>
+                    </div>
+                    <div className="mt-2 text-center">
+                        <h1 className="text-xl font-bold text-white">{isEditMode ? 'Edit Event' : 'Create new event'}</h1>
+                    </div>
                 </div>
-                <div className="mt-2 text-center">
-                    <h1 className="text-xl font-bold text-white">Create new event</h1>
-                </div>
-            </div>
 
-            {/* Main Content Card - Positioned below fixed header */}
-            <div className="px-0 relative mt-[100px] z-40">
-                {/* Main Container with rounded corners */}
-                <div className="w-full bg-[#021313] rounded-t-[40px] flex flex-col">
+                {/* Main Content - Scrollable */}
+                <div className="flex-1 overflow-y-auto">
+                    <div className="px-0 relative">
+                        {/* Main Container with rounded corners */}
+                        <div className="w-full bg-[#021313] rounded-t-[40px] flex flex-col">
                     {/* Fixed header section that stays in place */}
                     <div className="w-full bg-[#021313] rounded-t-[40px]">
                         {/* Heading container */}
@@ -577,7 +873,7 @@ function NewEventPageContent() {
                                             type="text"
                                             value={formData.eventName}
                                             onChange={(e) => { handleInputChange('eventName', e.target.value); setFieldErrors(prev => { const next = { ...prev }; delete next.eventName; return next; }); }}
-                                            onBlur={() => { if (!formData.eventName.trim()) setFieldErrors(prev => ({ ...prev, eventName: 'Event name is required' })); }}
+                                            onBlur={() => { if (!isEditMode && !formData.eventName.trim()) setFieldErrors(prev => ({ ...prev, eventName: 'Event name is required' })); }}
                                             className="w-full bg-transparent text-white placeholder-[#9D9C9C] outline-none text-base font-semibold"
                                             placeholder="Artist Name here"
                                         />
@@ -596,7 +892,7 @@ function NewEventPageContent() {
                                             type="text"
                                             value={formData.artistName}
                                             onChange={(e) => { handleInputChange('artistName', e.target.value); setFieldErrors(prev => { const next = { ...prev }; delete next.artistName; return next; }); }}
-                                            onBlur={() => { if (!formData.artistName.trim()) setFieldErrors(prev => ({ ...prev, artistName: 'Artist name is required' })); }}
+                                            onBlur={() => { if (!isEditMode && !formData.artistName.trim()) setFieldErrors(prev => ({ ...prev, artistName: 'Artist name is required' })); }}
                                             className="w-full bg-transparent text-white placeholder-[#9D9C9C] outline-none text-base font-semibold"
                                             placeholder="Artist Name here"
                                         />
@@ -613,7 +909,7 @@ function NewEventPageContent() {
                                         <textarea
                                             value={formData.aboutArtist}
                                             onChange={(e) => { handleInputChange('aboutArtist', e.target.value); setFieldErrors(prev => { const next = { ...prev }; delete next.aboutArtist; return next; }); }}
-                                            onBlur={() => { if (!formData.aboutArtist.trim()) setFieldErrors(prev => ({ ...prev, aboutArtist: 'About artist is required' })); }}
+                                            onBlur={() => { if (!isEditMode && !formData.aboutArtist.trim()) setFieldErrors(prev => ({ ...prev, aboutArtist: 'About artist is required' })); }}
                                             className="w-full bg-transparent text-white placeholder-[#9D9C9C] outline-none resize-none h-[80px] text-base font-semibold"
                                             placeholder="Artist Name here"
                                         />
@@ -666,14 +962,11 @@ function NewEventPageContent() {
                                         <div className="px-5">
                                             <label className="text-[#14FFEC] font-semibold text-base">Start Time *</label>
                                         </div>
-                                        <div className={`bg-[#0D1F1F] border ${fieldErrors.eventTime ? 'border-[#FF6B6B]' : 'border-[#0C898B]'} rounded-[30px] p-[10px] px-5`}>
-                                            <input
-                                                type="time"
-                                                value={formData.eventTime}
-                                                onChange={(e) => { handleInputChange('eventTime', e.target.value); setFieldErrors(prev => { const next = { ...prev }; delete next.eventTime; return next; }); }}
-                                                className="w-full bg-transparent text-white placeholder-[#9D9C9C] outline-none text-base font-semibold"
-                                            />
-                                        </div>
+                                        <TimePicker
+                                            value={formData.eventTime}
+                                            onChange={(time) => { handleInputChange('eventTime', time); setFieldErrors(prev => { const next = { ...prev }; delete next.eventTime; return next; }); }}
+                                            eventDate={formData.eventDate}
+                                        />
                                         {fieldErrors.eventTime && <p className="text-[#FF6B6B] text-xs font-medium px-5 flex items-center gap-1"><AlertCircle size={12} />{fieldErrors.eventTime}</p>}
                                     </div>
                                 </div>
@@ -700,7 +993,7 @@ function NewEventPageContent() {
                                         <textarea
                                             value={formData.description}
                                             onChange={(e) => { handleInputChange('description', e.target.value); setFieldErrors(prev => { const next = { ...prev }; delete next.description; return next; }); }}
-                                            onBlur={() => { if (!formData.description.trim()) setFieldErrors(prev => ({ ...prev, description: 'Event description is required' })); }}
+                                            onBlur={() => { if (!isEditMode && !formData.description.trim()) setFieldErrors(prev => ({ ...prev, description: 'Event description is required' })); }}
                                             className="w-full bg-transparent text-white placeholder-[#9D9C9C] outline-none resize-none h-[80px] text-base font-semibold"
                                             placeholder="Write a description of the the event here..."
                                         />
@@ -711,7 +1004,7 @@ function NewEventPageContent() {
                                 {/* Event Organizer */}
                                 <div className="space-y-3">
                                     <div className="px-5">
-                                        <label className="text-[#14FFEC] font-semibold text-base">Event Organizer *</label>
+                                        <label className="text-[#14FFEC] font-semibold text-base">Event Organizer</label>
                                     </div>
                                     <div className={`bg-[#0D1F1F] border ${fieldErrors.organizer ? 'border-[#FF6B6B]' : 'border-[#0C898B]'} rounded-[30px] p-[10px] px-5`}>
                                         <div className="flex items-center gap-3">
@@ -720,13 +1013,11 @@ function NewEventPageContent() {
                                                 type="text"
                                                 value={formData.organizer}
                                                 onChange={(e) => { handleInputChange('organizer', e.target.value); setFieldErrors(prev => { const next = { ...prev }; delete next.organizer; return next; }); }}
-                                                onBlur={() => { if (!formData.organizer.trim()) setFieldErrors(prev => ({ ...prev, organizer: 'Event organizer is required' })); }}
                                                 className="flex-1 bg-transparent text-white placeholder-[#9D9C9C] outline-none text-base font-semibold"
                                                 placeholder="Event Organized by"
                                             />
                                         </div>
                                     </div>
-                                    {fieldErrors.organizer && <p className="text-[#FF6B6B] text-xs font-medium px-5 flex items-center gap-1"><AlertCircle size={12} />{fieldErrors.organizer}</p>}
                                 </div>
 
                                 {/* Event Organizer Logo */}
@@ -882,163 +1173,321 @@ function NewEventPageContent() {
                                     />
                                 </div>
                             </div>
-                        )}                        {activeTab === 'tickets' && (
-                            <div className="space-y-6">
-                                {/* Ticket Types */}
-                                <div className="space-y-3">
-                                    <div className="px-5">
-                                        <label className="text-[#14FFEC] font-semibold text-base">Ticket Types *</label>
-                                    </div>
-                                    <div className={`bg-[#0D1F1F] border ${fieldErrors.ticketTypes ? 'border-[#FF6B6B]' : 'border-[#0C898B]'} rounded-[30px] p-[15px] px-5`}>
-                                        <div className="flex flex-col gap-4">
-                                            {/* List Existing Tickets */}
-                                            {ticketTypes.map((ticket, idx) => (
-                                                <div key={idx} className="flex items-center justify-between border-b border-[#0C898B]/30 pb-2">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-5 h-5 rounded-full border border-[#14FFEC] flex items-center justify-center">
-                                                            <div className={`w-3 h-3 bg-[#14FFEC] rounded-full ${ticket.isActive ? '' : 'bg-gray-500'}`}></div>
-                                                        </div>
-                                                        <div>
-                                                            <div className="text-white font-semibold">{ticket.name}</div>
-                                                            <div className="text-xs text-gray-400">Qty: {ticket.quantity}</div>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-[#14FFEC] font-semibold">₹ {ticket.price}</span>
-                                                        <button
-                                                            onClick={() => handleDeleteTicket(idx)}
-                                                            className="p-1 rounded-full text-red-500 hover:bg-red-500/10"
-                                                        >
-                                                            <Trash2 size={16} />
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            ))}
+                        )}
 
-                                            {/* Add New Ticket Form */}
-                                            {isAddingTicket ? (
-                                                <div className="bg-[#021313] p-4 rounded-xl space-y-3">
-                                                    <input
-                                                        placeholder="Ticket Name (e.g. VIP)"
-                                                        className="w-full bg-[#0D1F1F] border border-[#0C898B] rounded-lg p-2 text-white"
-                                                        value={newTicket.name}
-                                                        onChange={e => setNewTicket({ ...newTicket, name: e.target.value })}
-                                                    />
-                                                    <div className="flex gap-2">
-                                                        <input
-                                                            type="number"
-                                                            placeholder="Price"
-                                                            min={0}
-                                                            className="w-1/2 bg-[#0D1F1F] border border-[#0C898B] rounded-lg p-2 text-white"
-                                                            value={newTicket.price || ''}
-                                                            onChange={e => setNewTicket({ ...newTicket, price: Math.max(0, parseInt(e.target.value) || 0) })}
-                                                        />
-                                                        <input
-                                                            type="number"
-                                                            placeholder="Qty"
-                                                            min={1}
-                                                            className="w-1/2 bg-[#0D1F1F] border border-[#0C898B] rounded-lg p-2 text-white"
-                                                            value={newTicket.quantity || ''}
-                                                            onChange={e => {
-                                                                // FIXED: #3 — Clamp ticket quantity to minimum of 1
-                                                                const val = parseInt(e.target.value) || 0;
-                                                                setNewTicket({ ...newTicket, quantity: Math.max(1, val) });
-                                                            }}
-                                                        />
-                                                    </div>
-                                                    <div className="flex gap-2">
-                                                        <input
-                                                            type="number"
-                                                            placeholder="Redeem Cover Amount (optional)"
-                                                            min={0}
-                                                            className="w-1/2 bg-[#0D1F1F] border border-[#0C898B] rounded-lg p-2 text-white"
-                                                            value={newTicket.redeemCover || ''}
-                                                            onChange={e => setNewTicket({ ...newTicket, redeemCover: Math.max(0, parseInt(e.target.value) || 0) })}
-                                                        />
-                                                        <input
-                                                            type="time"
-                                                            placeholder="Redeem Before (optional)"
-                                                            className="w-1/2 bg-[#0D1F1F] border border-[#0C898B] rounded-lg p-2 text-white"
-                                                            value={newTicket.redeemBefore || ''}
-                                                            onChange={e => setNewTicket({ ...newTicket, redeemBefore: e.target.value })}
-                                                        />
-                                                    </div>
-                                                    <input
-                                                        placeholder="Remark (optional)"
-                                                        className="w-full bg-[#0D1F1F] border border-[#0C898B] rounded-lg p-2 text-white"
-                                                        value={newTicket.remark || ''}
-                                                        onChange={e => setNewTicket({ ...newTicket, remark: e.target.value })}
-                                                    />
-                                                    <div className="flex gap-2">
-                                                        <button onClick={confirmAddTicket} className="flex-1 bg-[#14FFEC] text-black py-1 rounded-lg font-bold">Add</button>
-                                                        <button onClick={() => setIsAddingTicket(false)} className="flex-1 bg-gray-700 text-white py-1 rounded-lg">Cancel</button>
-                                                    </div>
+                        {activeTab === 'tickets' && (
+                            <div className="space-y-8">
+                                {/* General Pricing Section */}
+                                <div className="space-y-3">
+                                    <div>
+                                        <label className="text-[#14FFEC] font-semibold text-base">General Pricing</label>
+                                        <p className="text-xs text-gray-400 mt-0.5">Regular pricing after early bird cutoff</p>
+                                    </div>
+
+                                    {/* Male Stag Entry */}
+                                    <div className={`bg-[#0D1F1F] border ${!formData.maleStagEnabled ? 'border-white/10' : 'border-[#0C898B]/50'} rounded-xl overflow-hidden transition-all`}>
+                                        <div className={`flex items-center justify-between px-4 py-3 ${!formData.maleStagEnabled ? 'opacity-50' : ''}`}>
+                                            <button
+                                                type="button"
+                                                className="flex items-center gap-3"
+                                                onClick={() => setFormData(prev => ({ ...prev, maleStagEnabled: !prev.maleStagEnabled }))}
+                                            >
+                                                <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${formData.maleStagEnabled ? 'bg-[#14FFEC] border-[#14FFEC]' : 'border-gray-500'}`}>
+                                                    {formData.maleStagEnabled && <svg className="w-3 h-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
                                                 </div>
-                                            ) : (
-                                                <button
-                                                    onClick={handleAddTicket}
-                                                    className="flex items-center justify-center gap-2 py-2 border border-dashed border-[#14FFEC] rounded-[15px] text-[#14FFEC] font-semibold"
-                                                >
-                                                    <span>+</span> Add New Ticket Type
+                                                <span className="text-white font-semibold text-sm">Male Stag Entry</span>
+                                            </button>
+                                            {formData.maleStagEnabled && (
+                                                <button onClick={() => setFormData(prev => ({ ...prev, maleStagEnabled: false }))} className="text-gray-500 hover:text-red-400 transition-colors">
+                                                    <Trash2 size={15} />
                                                 </button>
                                             )}
                                         </div>
+                                        {formData.maleStagEnabled && (
+                                            <div className="border-t border-[#0C898B]/20">
+                                                <div className={`flex items-center border-b border-[#0C898B]/20 px-4 py-2.5 ${fieldErrors.maleStagPrice ? 'border-l-2 border-l-red-500' : ''}`}>
+                                                    <input type="text" inputMode="numeric" placeholder="Price *" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                        value={formData.maleStagPrice}
+                                                        onChange={(e) => { handleInputChange('maleStagPrice', e.target.value); setFieldErrors(prev => { const n = { ...prev }; delete n.maleStagPrice; return n; }); }} />
+                                                </div>
+                                                {fieldErrors.maleStagPrice && <p className="text-red-400 text-xs px-4 py-1">{fieldErrors.maleStagPrice}</p>}
+                                                <div className="flex items-center border-b border-[#0C898B]/20 px-4 py-2.5">
+                                                    <input type="text" inputMode="numeric" placeholder="Cover / Redeem (optional)" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                        value={formData.maleStagFee} onChange={(e) => handleInputChange('maleStagFee', e.target.value)} />
+                                                </div>
+                                                <div className="flex items-center px-4 py-2.5">
+                                                    <input type="text" placeholder="Description (optional)" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                        value={formData.maleStagDesc} onChange={(e) => handleInputChange('maleStagDesc', e.target.value)} />
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
-                                    {/* FIXED: #5 — Inline error for ticket types */}
-                                    {fieldErrors.ticketTypes && <p className="text-[#FF6B6B] text-xs font-medium px-5 flex items-center gap-1"><AlertCircle size={12} />{fieldErrors.ticketTypes}</p>}
+
+                                    {/* Female Stag Entry */}
+                                    <div className={`bg-[#0D1F1F] border ${!formData.femaleStagEnabled ? 'border-white/10' : 'border-[#0C898B]/50'} rounded-xl overflow-hidden transition-all`}>
+                                        <div className={`flex items-center justify-between px-4 py-3 ${!formData.femaleStagEnabled ? 'opacity-50' : ''}`}>
+                                            <button
+                                                type="button"
+                                                className="flex items-center gap-3"
+                                                onClick={() => setFormData(prev => ({ ...prev, femaleStagEnabled: !prev.femaleStagEnabled }))}
+                                            >
+                                                <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${formData.femaleStagEnabled ? 'bg-[#14FFEC] border-[#14FFEC]' : 'border-gray-500'}`}>
+                                                    {formData.femaleStagEnabled && <svg className="w-3 h-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                                                </div>
+                                                <span className="text-white font-semibold text-sm">Female Stag Entry</span>
+                                            </button>
+                                            {formData.femaleStagEnabled && (
+                                                <button onClick={() => setFormData(prev => ({ ...prev, femaleStagEnabled: false }))} className="text-gray-500 hover:text-red-400 transition-colors">
+                                                    <Trash2 size={15} />
+                                                </button>
+                                            )}
+                                        </div>
+                                        {formData.femaleStagEnabled && (
+                                            <div className="border-t border-[#0C898B]/20">
+                                                <div className={`flex items-center border-b border-[#0C898B]/20 px-4 py-2.5 ${fieldErrors.femaleStagPrice ? 'border-l-2 border-l-red-500' : ''}`}>
+                                                    <input type="text" inputMode="numeric" placeholder="Price *" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                        value={formData.femaleStagPrice}
+                                                        onChange={(e) => { handleInputChange('femaleStagPrice', e.target.value); setFieldErrors(prev => { const n = { ...prev }; delete n.femaleStagPrice; return n; }); }} />
+                                                </div>
+                                                {fieldErrors.femaleStagPrice && <p className="text-red-400 text-xs px-4 py-1">{fieldErrors.femaleStagPrice}</p>}
+                                                <div className="flex items-center border-b border-[#0C898B]/20 px-4 py-2.5">
+                                                    <input type="text" inputMode="numeric" placeholder="Cover / Redeem (optional)" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                        value={formData.femaleStagFee} onChange={(e) => handleInputChange('femaleStagFee', e.target.value)} />
+                                                </div>
+                                                <div className="flex items-center px-4 py-2.5">
+                                                    <input type="text" placeholder="Description (optional)" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                        value={formData.femaleStagDesc} onChange={(e) => handleInputChange('femaleStagDesc', e.target.value)} />
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Couple Entry */}
+                                    <div className={`bg-[#0D1F1F] border ${!formData.coupleEnabled ? 'border-white/10' : 'border-[#0C898B]/50'} rounded-xl overflow-hidden transition-all`}>
+                                        <div className={`flex items-center justify-between px-4 py-3 ${!formData.coupleEnabled ? 'opacity-50' : ''}`}>
+                                            <button
+                                                type="button"
+                                                className="flex items-center gap-3"
+                                                onClick={() => setFormData(prev => ({ ...prev, coupleEnabled: !prev.coupleEnabled }))}
+                                            >
+                                                <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${formData.coupleEnabled ? 'bg-[#14FFEC] border-[#14FFEC]' : 'border-gray-500'}`}>
+                                                    {formData.coupleEnabled && <svg className="w-3 h-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                                                </div>
+                                                <span className="text-white font-semibold text-sm">Couple Entry</span>
+                                            </button>
+                                            {formData.coupleEnabled && (
+                                                <button onClick={() => setFormData(prev => ({ ...prev, coupleEnabled: false }))} className="text-gray-500 hover:text-red-400 transition-colors">
+                                                    <Trash2 size={15} />
+                                                </button>
+                                            )}
+                                        </div>
+                                        {formData.coupleEnabled && (
+                                            <div className="border-t border-[#0C898B]/20">
+                                                <div className={`flex items-center border-b border-[#0C898B]/20 px-4 py-2.5 ${fieldErrors.couplePrice ? 'border-l-2 border-l-red-500' : ''}`}>
+                                                    <input type="text" inputMode="numeric" placeholder="Price *" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                        value={formData.couplePrice}
+                                                        onChange={(e) => { handleInputChange('couplePrice', e.target.value); setFieldErrors(prev => { const n = { ...prev }; delete n.couplePrice; return n; }); }} />
+                                                </div>
+                                                {fieldErrors.couplePrice && <p className="text-red-400 text-xs px-4 py-1">{fieldErrors.couplePrice}</p>}
+                                                <div className="flex items-center border-b border-[#0C898B]/20 px-4 py-2.5">
+                                                    <input type="text" inputMode="numeric" placeholder="Cover / Redeem (optional)" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                        value={formData.coupleFee} onChange={(e) => handleInputChange('coupleFee', e.target.value)} />
+                                                </div>
+                                                <div className="flex items-center px-4 py-2.5">
+                                                    <input type="text" placeholder="Description (optional)" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                        value={formData.coupleDesc} onChange={(e) => handleInputChange('coupleDesc', e.target.value)} />
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {fieldErrors.tickets && (
+                                        <div className="flex items-center gap-2 text-red-400 text-xs px-1">
+                                            <AlertCircle size={14} /><span>{fieldErrors.tickets}</span>
+                                        </div>
+                                    )}
+
+                                    {/* Free Male Stag per Couple promo - General Pricing */}
+                                    <div className="bg-[#0D1F1F] border border-[#0C898B]/50 rounded-lg px-4 py-3 flex items-center justify-between gap-4">
+                                        <div className="flex-1 min-w-0">
+                                            <span className="text-white font-semibold text-sm">Free Male Stag per Couple</span>
+                                            <p className="text-xs text-gray-400 mt-0.5">1 complimentary male stag per couple</p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setFormData(prev => ({ ...prev, freeMaleStagPerCoupleEnabled: !prev.freeMaleStagPerCoupleEnabled }))}
+                                            className={`relative inline-flex h-6 w-10 flex-shrink-0 items-center rounded-full transition-colors duration-200 ${formData.freeMaleStagPerCoupleEnabled ? 'bg-[#14FFEC]' : 'bg-gray-700'}`}
+                                        >
+                                            <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${formData.freeMaleStagPerCoupleEnabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                                        </button>
+                                    </div>
                                 </div>
 
-                                {/* Ticket Availability */}
+                                {/* Early Bird Pricing Section */}
                                 <div className="space-y-3">
-                                    <div className="px-5">
-                                        <label className="text-[#14FFEC] font-semibold text-base">Ticket Availability</label>
+                                    <div>
+                                        <label className="text-[#14FFEC] font-semibold text-base">Early Bird Pricing</label>
+                                        <p className="text-xs text-gray-400 mt-0.5">Discounted pricing before cutoff time</p>
                                     </div>
-                                    <div className="bg-[#0D1F1F] border border-[#0C898B] rounded-[30px] p-[15px] px-5">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-white font-semibold">Limited Tickets</span>
-                                            <div
-                                                className="relative cursor-pointer"
-                                                onClick={() => setFormData({ ...formData, hasLimitedTickets: !formData.hasLimitedTickets })}
-                                            >
-                                                <div className={`w-12 h-6 rounded-full transition-colors ${formData.hasLimitedTickets ? 'bg-[#14FFEC]' : 'bg-gray-600'}`}></div>
-                                                <div className={`absolute top-0 w-6 h-6 bg-white rounded-full shadow transition-transform ${formData.hasLimitedTickets ? 'right-0' : 'left-0'}`}></div>
+
+                                    {/* Enable Early Bird toggle */}
+                                    <div className="bg-[#0D1F1F] border border-[#0C898B]/50 rounded-lg px-4 py-3 flex items-center justify-between">
+                                        <span className="text-white font-semibold text-sm">Enable Early Bird</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setFormData(prev => ({ ...prev, earlyBirdEnabled: !prev.earlyBirdEnabled }))}
+                                            className={`relative inline-flex h-6 w-10 items-center rounded-full transition-colors duration-200 ${formData.earlyBirdEnabled ? 'bg-[#14FFEC]' : 'bg-gray-700'}`}
+                                        >
+                                            <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${formData.earlyBirdEnabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                                        </button>
+                                    </div>
+
+                                    {formData.earlyBirdEnabled && (
+                                        <div className="space-y-3">
+                                            {/* Cutoff Time */}
+                                            <div className="bg-[#0D1F1F] border border-[#0C898B]/50 rounded-xl overflow-hidden">
+                                                <div className="px-4 py-2 border-b border-[#0C898B]/20">
+                                                    <label className="text-[#14FFEC] text-xs font-semibold">Cutoff Time *</label>
+                                                </div>
+                                                <div className={`px-4 py-2.5 ${fieldErrors.earlyBirdEndTime ? 'border-l-2 border-l-red-500' : ''}`}>
+                                                    <input type="time" value={formData.earlyBirdEndTime}
+                                                        onChange={(e) => { handleInputChange('earlyBirdEndTime', e.target.value); setFieldErrors(prev => { const n = { ...prev }; delete n.earlyBirdEndTime; return n; }); }}
+                                                        className="w-full bg-transparent text-white outline-none text-sm" />
+                                                </div>
+                                                {fieldErrors.earlyBirdEndTime && <p className="text-red-400 text-xs px-4 pb-2">{fieldErrors.earlyBirdEndTime}</p>}
+                                            </div>
+
+                                            {/* Early Bird: Male Stag */}
+                                            {formData.maleStagEnabled && (
+                                                <div className={`bg-[#0D1F1F] border ${!formData.earlyBirdMaleStagEnabled ? 'border-white/10' : 'border-[#0C898B]/50'} rounded-xl overflow-hidden transition-all`}>
+                                                    <div className={`flex items-center justify-between px-4 py-3 ${!formData.earlyBirdMaleStagEnabled ? 'opacity-50' : ''}`}>
+                                                        <button type="button" className="flex items-center gap-3"
+                                                            onClick={() => setFormData(prev => ({ ...prev, earlyBirdMaleStagEnabled: !prev.earlyBirdMaleStagEnabled }))}>
+                                                            <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${formData.earlyBirdMaleStagEnabled ? 'bg-[#14FFEC] border-[#14FFEC]' : 'border-gray-500'}`}>
+                                                                {formData.earlyBirdMaleStagEnabled && <svg className="w-3 h-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                                                            </div>
+                                                            <span className="text-white font-semibold text-sm">Male Stag <span className="text-gray-400 font-normal">(Early Bird)</span></span>
+                                                        </button>
+                                                        {formData.earlyBirdMaleStagEnabled && (
+                                                            <button onClick={() => setFormData(prev => ({ ...prev, earlyBirdMaleStagEnabled: false }))} className="text-gray-500 hover:text-red-400 transition-colors">
+                                                                <Trash2 size={15} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                    {formData.earlyBirdMaleStagEnabled && (
+                                                        <div className="border-t border-[#0C898B]/20">
+                                                            <div className={`flex items-center border-b border-[#0C898B]/20 px-4 py-2.5 ${fieldErrors.earlyBirdMaleStagPrice ? 'border-l-2 border-l-red-500' : ''}`}>
+                                                                <input type="text" inputMode="numeric" placeholder="Price *" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                                    value={formData.earlyBirdMaleStagPrice}
+                                                                    onChange={(e) => { handleInputChange('earlyBirdMaleStagPrice', e.target.value); setFieldErrors(prev => { const n = { ...prev }; delete n.earlyBirdMaleStagPrice; return n; }); }} />
+                                                            </div>
+                                                            {fieldErrors.earlyBirdMaleStagPrice && <p className="text-red-400 text-xs px-4 py-1">{fieldErrors.earlyBirdMaleStagPrice}</p>}
+                                                            <div className="flex items-center border-b border-[#0C898B]/20 px-4 py-2.5">
+                                                                <input type="text" inputMode="numeric" placeholder="Cover / Redeem (optional)" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                                    value={formData.earlyBirdMaleStagFee} onChange={(e) => handleInputChange('earlyBirdMaleStagFee', e.target.value)} />
+                                                            </div>
+                                                            <div className="flex items-center px-4 py-2.5">
+                                                                <input type="text" placeholder="Description (optional)" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                                    value={formData.earlyBirdMaleStagDesc} onChange={(e) => handleInputChange('earlyBirdMaleStagDesc', e.target.value)} />
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* Early Bird: Female Stag */}
+                                            {formData.femaleStagEnabled && (
+                                                <div className={`bg-[#0D1F1F] border ${!formData.earlyBirdFemaleStagEnabled ? 'border-white/10' : 'border-[#0C898B]/50'} rounded-xl overflow-hidden transition-all`}>
+                                                    <div className={`flex items-center justify-between px-4 py-3 ${!formData.earlyBirdFemaleStagEnabled ? 'opacity-50' : ''}`}>
+                                                        <button type="button" className="flex items-center gap-3"
+                                                            onClick={() => setFormData(prev => ({ ...prev, earlyBirdFemaleStagEnabled: !prev.earlyBirdFemaleStagEnabled }))}>
+                                                            <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${formData.earlyBirdFemaleStagEnabled ? 'bg-[#14FFEC] border-[#14FFEC]' : 'border-gray-500'}`}>
+                                                                {formData.earlyBirdFemaleStagEnabled && <svg className="w-3 h-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                                                            </div>
+                                                            <span className="text-white font-semibold text-sm">Female Stag <span className="text-gray-400 font-normal">(Early Bird)</span></span>
+                                                        </button>
+                                                        {formData.earlyBirdFemaleStagEnabled && (
+                                                            <button onClick={() => setFormData(prev => ({ ...prev, earlyBirdFemaleStagEnabled: false }))} className="text-gray-500 hover:text-red-400 transition-colors">
+                                                                <Trash2 size={15} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                    {formData.earlyBirdFemaleStagEnabled && (
+                                                        <div className="border-t border-[#0C898B]/20">
+                                                            <div className={`flex items-center border-b border-[#0C898B]/20 px-4 py-2.5 ${fieldErrors.earlyBirdFemaleStagPrice ? 'border-l-2 border-l-red-500' : ''}`}>
+                                                                <input type="text" inputMode="numeric" placeholder="Price *" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                                    value={formData.earlyBirdFemaleStagPrice}
+                                                                    onChange={(e) => { handleInputChange('earlyBirdFemaleStagPrice', e.target.value); setFieldErrors(prev => { const n = { ...prev }; delete n.earlyBirdFemaleStagPrice; return n; }); }} />
+                                                            </div>
+                                                            {fieldErrors.earlyBirdFemaleStagPrice && <p className="text-red-400 text-xs px-4 py-1">{fieldErrors.earlyBirdFemaleStagPrice}</p>}
+                                                            <div className="flex items-center border-b border-[#0C898B]/20 px-4 py-2.5">
+                                                                <input type="text" inputMode="numeric" placeholder="Cover / Redeem (optional)" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                                    value={formData.earlyBirdFemaleStagFee} onChange={(e) => handleInputChange('earlyBirdFemaleStagFee', e.target.value)} />
+                                                            </div>
+                                                            <div className="flex items-center px-4 py-2.5">
+                                                                <input type="text" placeholder="Description (optional)" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                                    value={formData.earlyBirdFemaleStagDesc} onChange={(e) => handleInputChange('earlyBirdFemaleStagDesc', e.target.value)} />
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* Early Bird: Couple */}
+                                            {formData.coupleEnabled && (
+                                                <div className={`bg-[#0D1F1F] border ${!formData.earlyBirdCoupleEnabled ? 'border-white/10' : 'border-[#0C898B]/50'} rounded-xl overflow-hidden transition-all`}>
+                                                    <div className={`flex items-center justify-between px-4 py-3 ${!formData.earlyBirdCoupleEnabled ? 'opacity-50' : ''}`}>
+                                                        <button type="button" className="flex items-center gap-3"
+                                                            onClick={() => setFormData(prev => ({ ...prev, earlyBirdCoupleEnabled: !prev.earlyBirdCoupleEnabled }))}>
+                                                            <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${formData.earlyBirdCoupleEnabled ? 'bg-[#14FFEC] border-[#14FFEC]' : 'border-gray-500'}`}>
+                                                                {formData.earlyBirdCoupleEnabled && <svg className="w-3 h-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                                                            </div>
+                                                            <span className="text-white font-semibold text-sm">Couple <span className="text-gray-400 font-normal">(Early Bird)</span></span>
+                                                        </button>
+                                                        {formData.earlyBirdCoupleEnabled && (
+                                                            <button onClick={() => setFormData(prev => ({ ...prev, earlyBirdCoupleEnabled: false }))} className="text-gray-500 hover:text-red-400 transition-colors">
+                                                                <Trash2 size={15} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                    {formData.earlyBirdCoupleEnabled && (
+                                                        <div className="border-t border-[#0C898B]/20">
+                                                            <div className={`flex items-center border-b border-[#0C898B]/20 px-4 py-2.5 ${fieldErrors.earlyBirdCouplePrice ? 'border-l-2 border-l-red-500' : ''}`}>
+                                                                <input type="text" inputMode="numeric" placeholder="Price *" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                                    value={formData.earlyBirdCouplePrice}
+                                                                    onChange={(e) => { handleInputChange('earlyBirdCouplePrice', e.target.value); setFieldErrors(prev => { const n = { ...prev }; delete n.earlyBirdCouplePrice; return n; }); }} />
+                                                            </div>
+                                                            {fieldErrors.earlyBirdCouplePrice && <p className="text-red-400 text-xs px-4 py-1">{fieldErrors.earlyBirdCouplePrice}</p>}
+                                                            <div className="flex items-center border-b border-[#0C898B]/20 px-4 py-2.5">
+                                                                <input type="text" inputMode="numeric" placeholder="Cover / Redeem (optional)" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                                    value={formData.earlyBirdCoupleFee} onChange={(e) => handleInputChange('earlyBirdCoupleFee', e.target.value)} />
+                                                            </div>
+                                                            <div className="flex items-center px-4 py-2.5">
+                                                                <input type="text" placeholder="Description (optional)" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                                    value={formData.earlyBirdCoupleDesc} onChange={(e) => handleInputChange('earlyBirdCoupleDesc', e.target.value)} />
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* Free Male Stag per Couple promo - Early Bird */}
+                                            <div className="bg-[#0D1F1F] border border-[#0C898B]/50 rounded-lg px-4 py-3 flex items-center justify-between gap-4">
+                                                <div className="flex-1 min-w-0">
+                                                    <span className="text-white font-semibold text-sm">Free Male Stag per Couple</span>
+                                                    <p className="text-xs text-gray-400 mt-0.5">1 complimentary male stag per couple (early bird)</p>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setFormData(prev => ({ ...prev, earlyBirdFreeMaleStagPerCoupleEnabled: !prev.earlyBirdFreeMaleStagPerCoupleEnabled }))}
+                                                    className={`relative inline-flex h-6 w-10 flex-shrink-0 items-center rounded-full transition-colors duration-200 ${formData.earlyBirdFreeMaleStagPerCoupleEnabled ? 'bg-[#14FFEC]' : 'bg-gray-700'}`}
+                                                >
+                                                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${formData.earlyBirdFreeMaleStagPerCoupleEnabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                                                </button>
                                             </div>
                                         </div>
-                                    </div>
+                                    )}
                                 </div>
-
-                                {/* FIXED: #3 — Ticket count with min=1, clamp on change, inline error */}
-                                {formData.hasLimitedTickets && (
-                                    <div className="space-y-3">
-                                        <div className="px-5">
-                                            <label className="text-[#14FFEC] font-semibold text-base">Total Tickets</label>
-                                        </div>
-                                        <div className={`bg-[#0D1F1F] border ${fieldErrors.totalTickets ? 'border-[#FF6B6B]' : 'border-[#0C898B]'} rounded-[30px] p-[10px] px-5`}>
-                                            <input
-                                                type="number"
-                                                min={1}
-                                                value={formData.totalTickets}
-                                                onChange={(e) => {
-                                                    const value = e.target.value;
-                                                    // FIXED: #3 — Prevent negative values, clamp to minimum 1
-                                                    if (value === '') {
-                                                        setFormData({ ...formData, totalTickets: '' });
-                                                        setFieldErrors(prev => ({ ...prev, totalTickets: 'Ticket count must be at least 1' }));
-                                                    } else {
-                                                        const numValue = parseInt(value.replace(/^0+/, '') || '0');
-                                                        const clampedValue = Math.max(1, numValue); // FIXED: #3 — Clamp to min 1
-                                                        setFormData({ ...formData, totalTickets: clampedValue });
-                                                        setFieldErrors(prev => { const next = { ...prev }; delete next.totalTickets; return next; });
-                                                    }
-                                                }}
-                                                className="w-full bg-transparent text-white placeholder-[#9D9C9C] outline-none text-base font-semibold"
-                                                placeholder="100"
-                                            />
-                                        </div>
-                                        {/* FIXED: #3 — Inline validation error for ticket count */}
-                                        {fieldErrors.totalTickets && <p className="text-[#FF6B6B] text-xs font-medium px-5 flex items-center gap-1"><AlertCircle size={12} />{fieldErrors.totalTickets}</p>}
-                                    </div>
-                                )}
                             </div>
                         )}
                         </>
@@ -1056,7 +1505,7 @@ function NewEventPageContent() {
                                     className="w-full h-full flex justify-center items-center"
                                 >
                                     <span className="text-center text-white text-[16px] font-['Manrope'] font-bold tracking-[0.05px]">
-                                        Save & Create Event
+                                        {isEditMode ? 'Save Changes' : 'Save & Create Event'}
                                     </span>
                                 </button>
                             </div>
@@ -1096,10 +1545,10 @@ function NewEventPageContent() {
 
                                 <div className="flex flex-col items-center gap-[12px]">
                                     <div className="text-[#F9F9F9] text-[20px] font-semibold font-['Manrope']">
-                                        Proceed to create event
+                                        {isEditMode ? 'Update event' : 'Proceed to create event'}
                                     </div>
                                     <div className="text-center text-[#9D9C9C] text-[16px] font-['Manrope'] leading-[19.20px]">
-                                        You are about to create a new event
+                                        {isEditMode ? 'You are about to update this event' : 'You are about to create a new event'}
                                     </div>
                                 </div>
 
@@ -1109,7 +1558,7 @@ function NewEventPageContent() {
                                         className="w-[154px] h-[38px] bg-[#007877] rounded-[30px] flex justify-center items-center cursor-pointer hover:bg-[#008c8c] transition-all duration-300"
                                     >
                                         <div className="text-center text-white text-[16px] font-['Manrope'] font-medium tracking-[0.05px]">
-                                            Create event
+                                            {isEditMode ? 'Update event' : 'Create event'}
                                         </div>
                                     </button>
 
@@ -1132,7 +1581,7 @@ function NewEventPageContent() {
 
                                 <div className="flex flex-col items-center gap-[12px]">
                                     <div className="text-[#F9F9F9] text-[20px] font-semibold font-['Manrope']">
-                                        Creating your event
+                                        {isEditMode ? 'Updating your event' : 'Creating your event'}
                                     </div>
                                 </div>
 
@@ -1163,7 +1612,9 @@ function NewEventPageContent() {
                     </div>
                 </DialogContent>
             </Dialog>
-        </div>
+                    </div>
+                </div>
+            </div>
     );
 }
 

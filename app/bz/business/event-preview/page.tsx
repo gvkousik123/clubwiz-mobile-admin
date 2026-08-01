@@ -44,18 +44,32 @@ function EventPreviewContent() {
     const editMode = searchParams.get('edit') === 'true';
     const { toast } = useToast();
 
+    // Redirect to new-event page if edit mode is requested
+    useEffect(() => {
+        if (editMode && eventId) {
+            router.replace(`/bz/business/new-event?eventId=${eventId}`);
+        }
+    }, [editMode, eventId, router]);
+
     const [isLiked, setIsLiked] = useState(false);
     const [eventData, setEventData] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     // Editing states
-    const [isEditing, setIsEditing] = useState(editMode || false);
+    const [isEditing, setIsEditing] = useState(false);
     const [editData, setEditData] = useState<any>({});
     const [isSaving, setIsSaving] = useState(false);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [favoriteCount, setFavoriteCount] = useState<number | null>(null);
+    const [isAddingTicket, setIsAddingTicket] = useState(false);
+    const [newTicket, setNewTicket] = useState<any>({ name: '', price: 0, currency: 'INR', quantity: 0 });
+
+    // File upload refs
+    const posterInputRef = React.useRef<HTMLInputElement>(null);
+    const reelInputRef = React.useRef<HTMLInputElement>(null);
+    const logoInputRef = React.useRef<HTMLInputElement>(null);
 
     // Load event data on mount
     useEffect(() => {
@@ -206,8 +220,130 @@ function EventPreviewContent() {
         }));
     };
 
+    const handleAddTicket = () => {
+        if (newTicket.name && newTicket.price >= 0 && newTicket.quantity > 0) {
+            const updatedTickets = [...(editData.ticketTypes || []), newTicket];
+            setEditData((prev: any) => ({
+                ...prev,
+                ticketTypes: updatedTickets
+            }));
+            setNewTicket({ name: '', price: 0, currency: 'INR', quantity: 0 });
+            setIsAddingTicket(false);
+            toast({
+                title: "Success",
+                description: "Ticket type added successfully",
+                variant: "default"
+            });
+        } else {
+            toast({
+                title: "Error",
+                description: "Please fill in all required fields (name, price, quantity)",
+                variant: "destructive"
+            });
+        }
+    };
+
+    const handleDeleteTicket = (index: number) => {
+        const updatedTickets = (editData.ticketTypes || []).filter((_: any, i: number) => i !== index);
+        setEditData((prev: any) => ({
+            ...prev,
+            ticketTypes: updatedTickets
+        }));
+        toast({
+            title: "Success",
+            description: "Ticket type removed",
+            variant: "default"
+        });
+    };
+
+    // Image upload handlers
+    const handlePosterUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                setEditData((prev: any) => ({
+                    ...prev,
+                    eventImage: event.target?.result as string
+                }));
+                toast({
+                    title: "Success",
+                    description: "Event poster uploaded",
+                    variant: "default"
+                });
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleReelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                setEditData((prev: any) => ({
+                    ...prev,
+                    eventReel: event.target?.result as string
+                }));
+                toast({
+                    title: "Success",
+                    description: "Event reel uploaded",
+                    variant: "default"
+                });
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                setEditData((prev: any) => ({
+                    ...prev,
+                    organizerLogo: event.target?.result as string
+                }));
+                toast({
+                    title: "Success",
+                    description: "Organizer logo uploaded",
+                    variant: "default"
+                });
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
     const handleSaveChanges = async () => {
         if (!eventId) return;
+
+        // Validate required fields
+        if (!editData.title && !eventData?.title) {
+            toast({
+                title: 'Error',
+                description: 'Event title is required',
+                variant: 'destructive'
+            });
+            return;
+        }
+
+        if (!editData.description && !eventData?.description) {
+            toast({
+                title: 'Error',
+                description: 'Event description is required',
+                variant: 'destructive'
+            });
+            return;
+        }
+
+        if (!editData.startDateTime && !eventData?.startDateTime) {
+            toast({
+                title: 'Error',
+                description: 'Event start date and time are required',
+                variant: 'destructive'
+            });
+            return;
+        }
 
         setIsSaving(true);
         try {
@@ -215,28 +351,38 @@ function EventPreviewContent() {
             const clubId = editData.clubId || eventData?.clubId || eventData?.club?.id;
 
             const updateData = {
-                title: editData.title,
-                description: editData.description,
-                location: editData.location,
-                startDateTime: editData.startDateTime,
-                endDateTime: editData.endDateTime,
-                maxAttendees: editData.maxAttendees ? parseInt(editData.maxAttendees) : undefined,
-                requiresApproval: editData.requiresApproval,
+                title: editData.title || eventData?.title,
+                description: editData.description || eventData?.description,
+                location: editData.location || eventData?.location || "Club Location",
+                locationText: "Club Location Text",
+                locationMap: {
+                    lat: 0,
+                    lng: 0
+                },
+                startDateTime: editData.startDateTime || eventData?.startDateTime,
+                endDateTime: editData.endDateTime || eventData?.endDateTime,
+                maxAttendees: editData.maxAttendees ? parseInt(editData.maxAttendees) : (eventData?.maxAttendees || 500),
+                isPublic: true,
+                requiresApproval: editData.requiresApproval ?? eventData?.requiresApproval ?? false,
                 clubId: clubId,
                 // Artist details
-                eventArtistName: editData.artistName,
-                aboutEventArtist: editData.aboutArtist,
-                instagramHandle: editData.instagramHandle,
-                spotifyHandle: editData.spotifyHandle,
+                eventArtistName: editData.artistName || eventData?.eventArtistName || "",
+                aboutEventArtist: editData.aboutArtist || eventData?.aboutEventArtist || "",
+                instagramHandle: editData.instagramHandle || eventData?.instagramHandle || "",
+                spotifyHandle: editData.spotifyHandle || eventData?.spotifyHandle || "",
                 // Music genre and category
-                musicGenre: editData.musicGenre,
-                category: editData.category,
+                musicGenre: editData.musicGenre || eventData?.musicGenre || "",
+                category: editData.category || eventData?.category || "",
                 // Organizer
-                eventOrganizer: editData.organizer,
+                eventOrganizer: editData.organizer || eventData?.eventOrganizer || eventData?.organizer,
                 // Ticket information
-                ticketTypes: editData.ticketTypes,
-                hasLimitedTickets: editData.hasLimitedTickets,
-                totalTickets: editData.totalTickets ? parseInt(editData.totalTickets) : null
+                ticketTypes: editData.ticketTypes && editData.ticketTypes.length > 0 ? editData.ticketTypes : (eventData?.ticketTypes || []),
+                hasLimitedTickets: editData.hasLimitedTickets ?? eventData?.hasLimitedTickets ?? false,
+                totalTickets: editData.totalTickets ? parseInt(editData.totalTickets) : (eventData?.totalTickets || null),
+                // Image data (fallback to existing if not changed)
+                eventImage: editData.eventImage || eventData?.eventImage || eventData?.imageUrl || null,
+                eventReel: editData.eventReel || eventData?.eventReel || null,
+                eventOrganizerLogo: editData.organizerLogo || eventData?.organizerLogo || eventData?.eventOrganizerLogo || null
             };
 
             console.log('📡 Updating event with data:', updateData);
@@ -256,7 +402,7 @@ function EventPreviewContent() {
                 });
                 // Navigate to all organized events after a short delay
                 setTimeout(() => {
-                    router.push('/bz/business/all-organized-events');
+                    router.push('/business/all-organized-events');
                 }, 1000);
             }
         } catch (error) {
@@ -403,7 +549,7 @@ function EventPreviewContent() {
                     ) : (
                         <>
                             <button
-                                onClick={handleEditToggle}
+                                onClick={() => router.push(`/bz/business/new-event?eventId=${eventId}`)}
                                 className="p-2 bg-[#005D5C]/60 backdrop-blur-sm rounded-full hover:bg-[#005D5C]/80 transition-all duration-300"
                             >
                                 <Edit3 size={16} className="text-[#14FFEC]" />
@@ -543,9 +689,10 @@ function EventPreviewContent() {
                         <label className="text-white text-sm font-['Manrope'] mb-2 block">Max Attendees</label>
                         <input
                             type="number"
+                            min="0"
                             value={editData.maxAttendees}
                             onChange={(e) => handleInputChange('maxAttendees', e.target.value)}
-                            className="bg-[#0D1F1F] text-white rounded-lg px-4 py-2 border border-[#14FFEC]/30 focus:border-[#14FFEC] outline-none w-full"
+                            className="bg-[#0D1F1F] text-white rounded-lg px-4 py-2 border border-[#14FFEC]/30 focus:border-[#14FFEC] outline-none w-full [appearance-none] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                             placeholder="Maximum number of attendees"
                         />
                     </div>
@@ -566,21 +713,23 @@ function EventPreviewContent() {
                     </div>
                 )}
 
-                {/* People Attending */}
-                <div className="px-6 mb-6">
-                    <div className="flex items-center gap-2">
-                        <div className="flex">
-                            <img
-                                src="/event page going people/Frame 3896.png"
-                                alt="People attending"
-                                className="w-32 h-8 rounded-full object-cover"
-                            />
+                {/* People Attending - Hide during edit mode */}
+                {!isEditing && (
+                    <div className="px-6 mb-6">
+                        <div className="flex items-center gap-2">
+                            <div className="flex">
+                                <img
+                                    src="/event page going people/Frame 3896.png"
+                                    alt="People attending"
+                                    className="w-32 h-8 rounded-full object-cover"
+                                />
+                            </div>
+                            <span className="text-white text-sm font-['Manrope']">
+                                {eventData?.attendeeCount || 0}+ going in this event
+                            </span>
                         </div>
-                        <span className="text-white text-sm font-['Manrope']">
-                            {eventData?.attendeeCount || 0}+ going in this event
-                        </span>
                     </div>
-                </div>
+                )}
 
                 {/* Separator Line */}
                 <div className="flex justify-center my-4">
@@ -746,8 +895,30 @@ function EventPreviewContent() {
 
                 {/* Event Creatives Section - Show only in edit mode OR if data exists */}
                 {(isEditing || editData?.eventImage || eventData?.eventImage || editData?.eventReel || eventData?.eventReel || editData?.organizerLogo || eventData?.organizerLogo) && (
-                    <div>
+                    <div className="px-6 mb-8">
                         <h2 className="text-white text-xl font-['Manrope'] mb-3">Event Creatives</h2>
+                        {/* Hidden file inputs */}
+                        <input
+                            ref={posterInputRef}
+                            type="file"
+                            accept="image/*"
+                            onChange={handlePosterUpload}
+                            className="hidden"
+                        />
+                        <input
+                            ref={reelInputRef}
+                            type="file"
+                            accept="video/*"
+                            onChange={handleReelUpload}
+                            className="hidden"
+                        />
+                        <input
+                            ref={logoInputRef}
+                            type="file"
+                            accept="image/*"
+                            onChange={handleLogoUpload}
+                            className="hidden"
+                        />
                         <div className="bg-[#0D1F1F] rounded-lg p-4 space-y-4">
                             {/* Event Poster */}
                             <div className="space-y-2">
@@ -763,7 +934,9 @@ function EventPreviewContent() {
                                                 className="w-full h-auto object-contain rounded-lg"
                                             />
                                             {isEditing && (
-                                                <button className="mt-2 w-full bg-[#14FFEC]/20 text-[#14FFEC] py-2 rounded-lg text-sm font-semibold hover:bg-[#14FFEC]/30 transition-all">
+                                                <button 
+                                                    onClick={() => posterInputRef.current?.click()}
+                                                    className="mt-2 w-full bg-[#14FFEC]/20 text-[#14FFEC] py-2 rounded-lg text-sm font-semibold hover:bg-[#14FFEC]/30 transition-all">
                                                     Replace Poster
                                                 </button>
                                             )}
@@ -771,7 +944,9 @@ function EventPreviewContent() {
                                     ) : (
                                         <div className="text-center text-white/50">
                                             {isEditing ? (
-                                                <button className="bg-[#14FFEC]/20 text-[#14FFEC] px-6 py-3 rounded-lg text-sm font-semibold hover:bg-[#14FFEC]/30 transition-all flex items-center gap-2 mx-auto">
+                                                <button 
+                                                    onClick={() => posterInputRef.current?.click()}
+                                                    className="bg-[#14FFEC]/20 text-[#14FFEC] px-6 py-3 rounded-lg text-sm font-semibold hover:bg-[#14FFEC]/30 transition-all flex items-center gap-2 mx-auto">
                                                     <Upload size={16} /> Upload Poster
                                                 </button>
                                             ) : (
@@ -787,24 +962,34 @@ function EventPreviewContent() {
                                 <label className="text-[#14FFEC] text-sm font-semibold flex items-center gap-2">
                                     <Video size={16} /> Event Reel/Video
                                 </label>
-                                <div className="bg-[#021313] rounded-lg p-3 min-h-[80px] flex items-center justify-center">
-                                    {editData.eventReel || eventData?.eventReel ? (
-                                        <div className="w-full text-center">
-                                            <p className="text-white text-sm mb-2">Video uploaded</p>
+                                <div className="bg-[#021313] border border-[#14FFEC]/20 rounded-xl p-3 min-h-[120px] flex flex-col items-center justify-center overflow-hidden">
+                                    {(editData.eventReel || eventData?.eventReel || eventData?.reelUrl || eventData?.videoUrl) ? (
+                                        <div className="w-full">
+                                            <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden mb-3">
+                                                <video 
+                                                    src={editData.eventReel || eventData?.eventReel || eventData?.reelUrl || eventData?.videoUrl} 
+                                                    className="w-full h-full object-contain"
+                                                    controls
+                                                />
+                                            </div>
                                             {isEditing && (
-                                                <button className="w-full bg-[#14FFEC]/20 text-[#14FFEC] py-2 rounded-lg text-sm font-semibold hover:bg-[#14FFEC]/30 transition-all">
+                                                <button 
+                                                    onClick={() => reelInputRef.current?.click()}
+                                                    className="w-full bg-[#14FFEC]/20 text-[#14FFEC] py-2 rounded-lg text-sm font-semibold hover:bg-[#14FFEC]/30 transition-all">
                                                     Replace Video
                                                 </button>
                                             )}
                                         </div>
                                     ) : (
-                                        <div className="text-center text-white/50">
+                                        <div className="text-center text-white/50 py-4">
                                             {isEditing ? (
-                                                <button className="bg-[#14FFEC]/20 text-[#14FFEC] px-6 py-3 rounded-lg text-sm font-semibold hover:bg-[#14FFEC]/30 transition-all flex items-center gap-2 mx-auto">
+                                                <button 
+                                                    onClick={() => reelInputRef.current?.click()}
+                                                    className="bg-[#14FFEC]/20 text-[#14FFEC] px-6 py-3 rounded-lg text-sm font-semibold hover:bg-[#14FFEC]/30 transition-all flex items-center gap-2 mx-auto">
                                                     <Upload size={16} /> Upload Video
                                                 </button>
                                             ) : (
-                                                <p>No video uploaded</p>
+                                                <p className="text-xs">No video uploaded</p>
                                             )}
                                         </div>
                                     )}
@@ -825,7 +1010,9 @@ function EventPreviewContent() {
                                                 className="w-20 h-20 object-cover rounded-full"
                                             />
                                             {isEditing && (
-                                                <button className="mt-2 bg-[#14FFEC]/20 text-[#14FFEC] px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#14FFEC]/30 transition-all">
+                                                <button 
+                                                    onClick={() => logoInputRef.current?.click()}
+                                                    className="mt-2 bg-[#14FFEC]/20 text-[#14FFEC] px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#14FFEC]/30 transition-all">
                                                     Replace Logo
                                                 </button>
                                             )}
@@ -833,7 +1020,9 @@ function EventPreviewContent() {
                                     ) : (
                                         <div className="text-center text-white/50">
                                             {isEditing ? (
-                                                <button className="bg-[#14FFEC]/20 text-[#14FFEC] px-6 py-3 rounded-lg text-sm font-semibold hover:bg-[#14FFEC]/30 transition-all flex items-center gap-2 mx-auto">
+                                                <button 
+                                                    onClick={() => logoInputRef.current?.click()}
+                                                    className="bg-[#14FFEC]/20 text-[#14FFEC] px-6 py-3 rounded-lg text-sm font-semibold hover:bg-[#14FFEC]/30 transition-all flex items-center gap-2 mx-auto">
                                                     <Upload size={16} /> Upload Logo
                                                 </button>
                                             ) : (
@@ -902,14 +1091,18 @@ function EventPreviewContent() {
                                                 <p className="text-white/60 text-sm">{ticket.currency} {ticket.price} • Qty: {ticket.quantity}</p>
                                             </div>
                                             {isEditing && (
-                                                <button className="text-red-400 hover:text-red-500">
+                                                <button 
+                                                    onClick={() => handleDeleteTicket(index)}
+                                                    className="text-red-400 hover:text-red-500">
                                                     <Trash2 size={16} />
                                                 </button>
                                             )}
                                         </div>
                                     ))}
                                     {isEditing && (
-                                        <button className="w-full bg-[#14FFEC]/20 text-[#14FFEC] py-2 rounded-lg text-sm font-semibold hover:bg-[#14FFEC]/30 transition-all flex items-center justify-center gap-2">
+                                        <button 
+                                            onClick={() => setIsAddingTicket(true)}
+                                            className="w-full bg-[#14FFEC]/20 text-[#14FFEC] py-2 rounded-lg text-sm font-semibold hover:bg-[#14FFEC]/30 transition-all flex items-center justify-center gap-2">
                                             <Plus size={16} /> Add Ticket Type
                                         </button>
                                     )}
@@ -918,7 +1111,9 @@ function EventPreviewContent() {
                                 <div className="text-center py-4">
                                     <p className="text-white/50 mb-2">No ticket types configured</p>
                                     {isEditing && (
-                                        <button className="bg-[#14FFEC]/20 text-[#14FFEC] px-6 py-2 rounded-lg text-sm font-semibold hover:bg-[#14FFEC]/30 transition-all flex items-center gap-2 mx-auto">
+                                        <button 
+                                            onClick={() => setIsAddingTicket(true)}
+                                            className="bg-[#14FFEC]/20 text-[#14FFEC] px-6 py-2 rounded-lg text-sm font-semibold hover:bg-[#14FFEC]/30 transition-all flex items-center gap-2 mx-auto">
                                             <Plus size={16} /> Add Ticket Type
                                         </button>
                                     )}
@@ -1068,6 +1263,79 @@ function EventPreviewContent() {
                                 <div className="text-center text-white text-[16px] font-['Manrope'] font-medium tracking-[0.05px]">
                                     Cancel
                                 </div>
+                            </button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Add Ticket Type Modal */}
+            <Dialog open={isAddingTicket} onOpenChange={setIsAddingTicket}>
+                <DialogOverlay />
+                <DialogContent className="p-0 border-none bg-transparent max-w-[420px]" showCloseButton={false}>
+                    <div className="w-full p-6 bg-[#0D1F1F] overflow-hidden rounded-[17px] flex flex-col gap-6">
+                        <div className="text-center">
+                            <h3 className="text-white text-xl font-semibold">Add Ticket Type</h3>
+                        </div>
+
+                        <div className="w-full space-y-5">
+                            {/* Ticket Name */}
+                            <div className="space-y-3">
+                                <label className="text-[#14FFEC] font-semibold text-base block px-5">Ticket Name *</label>
+                                <div className="bg-[#021313] border border-[#0C898B] rounded-[30px] p-[10px] px-5">
+                                    <input
+                                        type="text"
+                                        placeholder="e.g., General Entry, VIP, etc."
+                                        value={newTicket.name}
+                                        onChange={(e) => setNewTicket({ ...newTicket, name: e.target.value })}
+                                        className="w-full bg-transparent text-white placeholder-[#9D9C9C] outline-none text-base font-semibold"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Price and Quantity */}
+                            <div className="flex gap-4">
+                                <div className="flex-1 space-y-3">
+                                    <label className="text-[#14FFEC] font-semibold text-base block px-5">Price (INR) *</label>
+                                    <div className="bg-[#021313] border border-[#0C898B] rounded-[30px] p-[10px] px-5">
+                                        <input
+                                            type="number"
+                                            placeholder="0"
+                                            min={0}
+                                            value={newTicket.price}
+                                            onChange={(e) => setNewTicket({ ...newTicket, price: Math.max(0, parseInt(e.target.value) || 0) })}
+                                            className="w-full bg-transparent text-white placeholder-[#9D9C9C] outline-none text-base font-semibold"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex-1 space-y-3">
+                                    <label className="text-[#14FFEC] font-semibold text-base block px-5">Quantity *</label>
+                                    <div className="bg-[#021313] border border-[#0C898B] rounded-[30px] p-[10px] px-5">
+                                        <input
+                                            type="number"
+                                            placeholder="0"
+                                            min={1}
+                                            value={newTicket.quantity}
+                                            onChange={(e) => setNewTicket({ ...newTicket, quantity: Math.max(1, parseInt(e.target.value) || 0) })}
+                                            className="w-full bg-transparent text-white placeholder-[#9D9C9C] outline-none text-base font-semibold"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 w-full pt-4">
+                            <button
+                                onClick={() => setIsAddingTicket(false)}
+                                className="flex-1 bg-[#0F6861] hover:bg-[#10766F] text-white py-3 rounded-[30px] font-semibold transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleAddTicket}
+                                className="flex-1 bg-[#14FFEC] hover:bg-[#12E6D6] text-black py-3 rounded-[30px] font-semibold transition-colors"
+                            >
+                                Add Ticket
                             </button>
                         </div>
                     </div>

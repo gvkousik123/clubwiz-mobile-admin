@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ClubVizLogo } from "@/components/auth/logo";
+import { ClubwizLogo } from "@/components/auth/logo";
 import { AuthLink } from "@/components/auth/auth-link";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -105,7 +105,7 @@ export default function RegisterPage() {
 
                 router.replace("/bz/auth/login");
             } else {
-                throw new Error(result.error || result.message || "Registration failed");
+                throw new Error(result!.error || result.message || "Registration failed");
             }
         } catch (error: any) {
             console.error("❌ Register error:", error);
@@ -135,7 +135,7 @@ export default function RegisterPage() {
             <div className="relative z-10 min-h-screen flex flex-col">
                 <div className="flex items-center justify-between p-[1rem] pt-[1.5rem] flex-shrink-0">
                     <Link
-                        href="/bz/auth/mobile"
+                        href="/auth/mobile"
                         className="w-[2.5rem] h-[2.5rem] flex items-center justify-center rounded-full border border-teal-400/30 text-teal-300 hover:bg-teal-500/10 transition-colors"
                     >
                         <ArrowLeft className="w-[1.25rem] h-[1.25rem]" />
@@ -151,7 +151,7 @@ export default function RegisterPage() {
 
                 <div className="flex-1 flex flex-col">
                     <div className="flex flex-col items-center justify-end px-6 pb-6">
-                        <ClubVizLogo size="lg" variant="full" />
+                        <ClubwizLogo size="lg" variant="full" />
                     </div>
 
                     <div className="bg-white rounded-t-3xl w-full px-[1.5rem] pt-[1.5rem] pb-[2rem] overflow-y-auto flex flex-col">
@@ -272,7 +272,7 @@ export default function RegisterPage() {
                         <div className="mt-4 text-center">
                             <p className="text-[#6A6A6A] text-[0.875rem]">
                                 Need to switch account?{" "}
-                                <Link href="/bz/auth/mobile" className="text-[#0D7377] font-semibold hover:underline">
+                                <Link href="/auth/mobile" className="text-[#0D7377] font-semibold hover:underline">
                                     Restart verification
                                 </Link>
                             </p>

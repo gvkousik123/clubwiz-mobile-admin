@@ -187,7 +187,7 @@ export default function EventAnalyticsPage() {
                             <div className="flex justify-center items-center px-8 h-full">
                                 <div className="w-[220px] h-[45px] bg-[#0F6861] rounded-[30px] flex justify-center items-center">
                                     <button
-                                        onClick={() => router.push('/bz/business/all-organized-events')}
+                                        onClick={() => router.push('/business/events')}
                                         className="w-full h-full flex justify-center items-center cursor-pointer"
                                     >
                                         <span className="text-center text-white text-[16px] font-['Manrope'] font-bold tracking-[0.05px]">

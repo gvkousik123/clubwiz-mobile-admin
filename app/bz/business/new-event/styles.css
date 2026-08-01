@@ -10,3 +10,8 @@
     scrollbar-width: none;
     /* Firefox */
 }
+
+/* Toggle switch styling */
+.toggle-enabled {
+    transform: translateX(1rem);
+}

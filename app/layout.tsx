@@ -6,11 +6,10 @@ import { AuthProvider } from "@/components/auth/auth-provider"
 import { DirectLoginWrapper } from "@/components/auth/direct-login-wrapper"
 import { ToastProvider } from "@/components/ui/toast"
 import { Toaster } from "@/components/ui/toaster"
-import { CapacitorBackButton } from "@/components/capacitor-back-button"
 
 export const metadata: Metadata = {
-  title: "ClubWiz Admin - Club & Event Management Platform",
-  description: "ClubWiz Admin Platform - Manage clubs, events, and bookings. Admin and SuperAdmin access only.",
+  title: "Clubwiz Admin - Club & Event Management Platform",
+  description: "Clubwiz Admin Platform - Manage clubs, events, and bookings. Admin and SuperAdmin access only.",
 }
 
 export const viewport: Viewport = {
@@ -42,7 +41,6 @@ export default function RootLayout({
           <ThemeProvider attribute="class" defaultTheme="dark" forcedTheme="dark">
             <AuthProvider>
               <DirectLoginWrapper>
-                <CapacitorBackButton />
                 <main className="min-h-screen max-w-md mx-auto relative overflow-hidden">
                   {children}
                 </main>

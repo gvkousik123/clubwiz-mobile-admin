@@ -15,7 +15,11 @@ import {
   Edit2,
   MessageSquare,
   ExternalLink,
+  QrCode,
+  Video,
+  LogOut,
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { AuthService } from '@/lib/services/auth.service';
 import { ClubService, AdminClubFull } from '@/lib/services/club.service';
@@ -45,6 +49,8 @@ const EMPTY_UPLOAD: UploadForm = {
 
 export default function AdminPage() {
   const { toast } = useToast();
+  const router = useRouter();
+  const [showQRScanner, setShowQRScanner] = useState(false);
 
   // Auth
   const isAuthenticated = AuthService.isAuthenticated();
@@ -621,44 +627,71 @@ export default function AdminPage() {
     );
   };
 
-  // â”€â”€â”€ Main render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+  const handleLogout = () => {
+    if (!confirm('Do you really want to logout?')) {
+      return;
+    }
+    
+    localStorage.clear();
+    router.push('/bz/auth/intro');
+  };
+
+  const handleScanSuccess = (bookingId: string, data: any) => {
+    setShowQRScanner(false);
+    router.push(`/bz/admin/ticket-details/${bookingId}`);
+  };
+
   return (
     <div
-      className="min-h-screen bg-[#021313]"
+      className="min-h-screen bg-[#021313] flex justify-center items-center md:py-8"
       onClick={() => { setShowClubDropdown(false); setShowEventDropdown(false); }}
     >
+      <div className="w-full max-w-md min-h-screen md:min-h-0 md:h-[850px] relative overflow-hidden md:rounded-[2.5rem] md:border border-white/10 shadow-2xl bg-[#021313] flex flex-col">
       {/* Top bar */}
       <div className="sticky top-0 z-10 bg-[#021313] border-b border-[#14FFEC]/10 px-4 py-3">
-        <div className="max-w-lg mx-auto flex items-center justify-between">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-[#14FFEC] font-bold text-lg">Admin</span>
             <span className="bg-[#14FFEC]/10 text-[#14FFEC] text-xs px-2 py-0.5 rounded-full font-medium">ROLE_ADMIN</span>
           </div>
-          <button
-            onClick={(e) => { e.stopPropagation(); loadClubs(); }}
-            disabled={isLoadingClubs}
-            className="p-1.5 rounded-lg text-[#14FFEC] hover:bg-[#14FFEC]/10 transition-colors"
-          >
-            <RefreshCw className={`w-4 h-4 ${isLoadingClubs ? 'animate-spin' : ''}`} />
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={(e) => { e.stopPropagation(); router.push('/bz/admin/scan-tickets'); }}
+              className="w-12 h-12 bg-[#14FFEC]/10 hover:bg-[#14FFEC]/20 rounded-2xl flex items-center justify-center border border-[#14FFEC]/30 transition-all active:scale-95"
+            >
+              <QrCode className="w-6 h-6 text-[#14FFEC]" />
+            </button>
+            <button
+              onClick={handleLogout}
+              className="w-12 h-12 bg-red-500/10 hover:bg-red-500/20 rounded-2xl flex items-center justify-center border border-red-500/30 transition-all active:scale-95"
+            >
+              <LogOut className="w-5 h-5 text-red-400" />
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Quick Access Navigation */}
-      <div className="sticky top-11 z-9 bg-[#021313]/80 backdrop-blur border-b border-[#14FFEC]/10 px-4 py-2">
-        <div className="max-w-lg mx-auto flex items-center gap-2 overflow-x-auto">
-          <Link
-            href="/bz/admin/contact-form-api"
-            className="flex items-center gap-2 px-3 py-1.5 bg-[#14FFEC]/10 hover:bg-[#14FFEC]/20 rounded-lg text-[#14FFEC] text-xs font-medium transition-colors whitespace-nowrap"
-          >
-            <MessageSquare className="w-4 h-4" />
-            API Docs
-            <ExternalLink className="w-3 h-3" />
-          </Link>
-        </div>
-      </div>
+      <div className="flex-1 overflow-y-auto px-4 py-5 space-y-4" onClick={(e) => e.stopPropagation()}>
 
-      <div className="px-4 py-5 max-w-lg mx-auto space-y-4" onClick={(e) => e.stopPropagation()}>
+        {/* Running Ads Management */}
+        <div 
+          onClick={() => router.push('/bz/admin/running-ads')}
+          className="bg-gradient-to-br from-purple-500/10 to-purple-600/5 rounded-[15px] p-4 border border-purple-500/20 cursor-pointer hover:border-purple-500/40 transition-all active:scale-[0.98]"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center border border-purple-500/30">
+              <Video className="w-6 h-6 text-purple-400" />
+            </div>
+            <div className="flex-1">
+              <p className="text-white font-bold text-sm">Running Ads Management</p>
+              <p className="text-purple-300/60 text-xs mt-0.5">Manage homepage hero ads</p>
+            </div>
+            <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </div>
 
         {/* Step 1 â€” Club */}
         <div className="bg-[#0D1F1F] rounded-[15px] p-4 border border-[#14FFEC]/10">
@@ -667,7 +700,7 @@ export default function AdminPage() {
               <span className="text-[#14FFEC] text-xs font-bold">1</span>
             </div>
             <span className="text-white font-semibold text-sm">Select Club</span>
-            {clubs.length > 0 && <span className="ml-auto text-gray-500 text-xs">{clubs.length} club(s)</span>}
+            {clubs.length > 0 && <span className="ml-auto text-white text-xl">{clubs.length} club(s)</span>}
           </div>
           {renderClubDropdown()}
         </div>
@@ -710,6 +743,7 @@ export default function AdminPage() {
           </div>
         )}
       </div>
+    </div>
     </div>
   );
 }

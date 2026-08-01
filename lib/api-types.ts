@@ -1,5 +1,6 @@
 // Common API Response Structure
 export interface ApiResponse<T = any> {
+  error: string;
   success: boolean;
   message: string;
   data: T;
@@ -263,6 +264,70 @@ export interface TicketType {
   quantity: number;
   sold: number;
   isActive: boolean;
+  coverCharge?: number;
+  currency?: string;
+  remark?: string;
+}
+
+// Event pricing types
+export interface TicketPricing {
+  price: number;
+  fee?: number;
+  coverCharge?: number;
+  description?: string;
+}
+
+export interface EventTierPricing {
+  enabled?: boolean;
+  cutoffTime?: string;
+  maleStagEntry?: TicketPricing | null;
+  femaleStagEntry?: TicketPricing | null;
+  coupleEntry?: TicketPricing | null;
+}
+
+export interface ImageData {
+  name?: string;
+  contentType?: string;
+  data?: string;
+  url?: string;
+  type?: string;
+}
+
+export interface EventCreatePayload {
+  title: string;
+  description?: string;
+  startDateTime: string;
+  endDateTime: string;
+  clubId: string;
+  location?: string;
+  locationText?: string;
+  locationMap?: { lat: number; lng: number };
+  maxAttendees?: number;
+  isPublic?: boolean;
+  requiresApproval?: boolean;
+  eventArtistName: string;
+  aboutEventArtist: string;
+  musicGenre: string;
+  instagramHandle?: string;
+  spotifyHandle?: string;
+  eventOrganizer?: string;
+  hasLimitedTickets?: boolean;
+  totalTickets?: number;
+  freeMaleStagPerCoupleEnabled?: boolean;
+  guestListPricing?: EventTierPricing;
+  generalPricing?: EventTierPricing;
+  ticketTypes?: TicketType[];
+  eventImage?: ImageData;
+  eventReel?: ImageData;
+  eventOrganizerLogo?: ImageData;
+  galleryImages?: ImageData[];
+  performerImages?: ImageData[];
+}
+
+export interface EventUpdatePayload extends Partial<EventCreatePayload> {
+  imageUrl?: string | ImageData;
+  reelUrl?: string;
+  carouselCategories?: string[];
 }
 
 export interface Performer {

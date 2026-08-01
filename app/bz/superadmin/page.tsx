@@ -159,11 +159,11 @@ export default function SuperAdminPage() {
 
     // Navigation handlers
     const handleCreateClub = () => {
-        router.push('/bz/business/new-club');
+        router.push('/business/new-club');
     };
 
     const handleCreateEvent = () => {
-        router.push('/bz/business/new-event');
+        router.push('/business/new-event');
     };
 
     const filteredUsers = users.filter(user => {
@@ -650,7 +650,7 @@ export default function SuperAdminPage() {
                                         <button
                                             onClick={() => {
                                                 // Navigate to club preview
-                                                router.push(`/bz/business/club-preview?clubId=${club.id}`);
+                                                router.push(`/business/club-preview?clubId=${club.id}`);
                                             }}
                                             className="p-2 bg-[#14FFEC]/20 rounded-lg hover:bg-[#14FFEC]/30 transition-colors"
                                             title="View Club"
