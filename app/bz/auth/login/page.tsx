@@ -5,11 +5,11 @@ import { AuthBackground } from "@/components/auth/auth-background";
 import { AuthInput } from "@/components/auth/auth-input";
 import { AuthButton } from "@/components/auth/auth-button";
 import { AuthLink } from "@/components/auth/auth-link";
+import { ClubwizLogo } from "@/components/auth/logo";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Mail, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import Image from "next/image";
 import { AuthService } from "@/lib/services/auth.service";
 import { getDetailedErrorMessage, logDetailedError } from "@/lib/error-utils";
 
@@ -133,9 +133,9 @@ export default function LoginPage() {
                 
                 <div className="relative z-10 flex flex-col flex-1">
                     {/* Header */}
-                    <div className="px-6 pt-8 flex items-center justify-between animate-in fade-in slide-in-from-top-4 duration-700">
+                    <div className="flex items-center justify-between px-6 pt-8 pb-4 flex-shrink-0 animate-in fade-in slide-in-from-top-4 duration-700">
                         <Link
-                            href="/auth/intro"
+                            href="/bz/auth/intro"
                             className="w-11 h-11 flex items-center justify-center rounded-full border border-white/10 text-white bg-black/20 backdrop-blur-md hover:bg-white/10 hover:border-white/30 transition-all"
                         >
                             <ArrowLeft className="w-5 h-5" />
@@ -143,15 +143,10 @@ export default function LoginPage() {
                     </div>
 
                     {/* Logo */}
-                    <div className="flex-1 flex items-center justify-center animate-in fade-in zoom-in-95 duration-700 delay-150">
-                        <Image
-                            src="/logo/clubwizlogo.png"
-                            alt="ClubWiz"
-                            width={120}
-                            height={120}
-                            className="object-contain"
-                            priority
-                        />
+                    <div className="flex-1 flex flex-col items-center justify-center px-6 py-6 animate-in fade-in zoom-in-95 duration-700 delay-150">
+                        <div className="relative mb-4 drop-shadow-[0_0_25px_rgba(20,255,236,0.4)]">
+                            <ClubwizLogo size="lg" variant="full" />
+                        </div>
                     </div>
 
                     {/* Glass Card */}
@@ -184,10 +179,10 @@ export default function LoginPage() {
                         </p>
 
                         {/* Form */}
-                        <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+                        <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
                             {/* Username/Email Input */}
-                            <div>
-                                <label className="text-white/60 text-xs font-medium uppercase tracking-wider mb-2 block">
+                            <div className="mb-5">
+                                <label className="block text-white/50 text-[11px] font-bold mb-2 ml-2 uppercase tracking-widest">
                                     Username or Email
                                 </label>
                                 <AuthInput
@@ -205,13 +200,13 @@ export default function LoginPage() {
                                     error={!!errors.usernameOrEmail}
                                 />
                                 {errors.usernameOrEmail && (
-                                    <p className="text-red-400 text-xs mt-2">{errors.usernameOrEmail}</p>
+                                    <p className="text-red-400 text-xs mt-1.5 ml-3">{errors.usernameOrEmail}</p>
                                 )}
                             </div>
 
                             {/* Password Input */}
-                            <div>
-                                <label className="text-white/60 text-xs font-medium uppercase tracking-wider mb-2 block">
+                            <div className="mb-3">
+                                <label className="block text-white/50 text-[11px] font-bold mb-2 ml-2 uppercase tracking-widest">
                                     Password
                                 </label>
                                 <AuthInput
@@ -229,16 +224,16 @@ export default function LoginPage() {
                                     error={!!errors.password}
                                 />
                                 {errors.password && (
-                                    <p className="text-red-400 text-xs mt-2">{errors.password}</p>
+                                    <p className="text-red-400 text-xs mt-1.5 ml-3">{errors.password}</p>
                                 )}
                             </div>
 
                             {/* Forgot Password */}
-                            <div className="text-right">
+                            <div className="text-right mb-8">
                                 <button
                                     type="button"
                                     onClick={handleForgotPassword}
-                                    className="text-[#14FFEC] text-sm font-medium hover:text-[#14FFEC]/80 transition-colors"
+                                    className="text-[#14FFEC]/70 text-[11px] font-bold hover:text-[#14FFEC] transition-colors uppercase tracking-wider"
                                 >
                                     Forgot Password?
                                 </button>
@@ -255,15 +250,16 @@ export default function LoginPage() {
 
                             {/* Divider */}
                             <div className="flex items-center my-6">
-                                <div className="flex-1 border-t border-white/10"></div>
-                                <span className="px-4 text-white/40 text-sm uppercase tracking-wider">or</span>
-                                <div className="flex-1 border-t border-white/10"></div>
+                                <div className="h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent flex-1" />
+                                <span className="px-4 text-white/40 text-[10px] uppercase tracking-[0.2em] font-bold">or</span>
+                                <div className="h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent flex-1" />
                             </div>
 
                             {/* OTP Button */}
                             <AuthButton
                                 variant="secondary"
                                 onClick={() => router.push('/bz/auth/mobile')}
+                                className="py-3.5 text-[13px] font-bold tracking-wider"
                             >
                                 Continue with OTP
                             </AuthButton>
@@ -271,9 +267,9 @@ export default function LoginPage() {
 
                         {/* Sign Up Link */}
                         <div className="mt-8 text-center">
-                            <p className="text-white/60 text-sm">
+                            <p className="text-white/60 text-sm font-medium">
                                 Don&apos;t have an account?{' '}
-                                <Link href="/auth/register" className="text-[#14FFEC] font-semibold hover:underline">
+                                <Link href="/bz/auth/register" className="text-[#14FFEC] font-bold hover:underline transition-all">
                                     Sign Up
                                 </Link>
                             </p>
@@ -281,11 +277,11 @@ export default function LoginPage() {
 
                         {/* Terms */}
                         <div className="mt-6 text-center">
-                            <p className="text-white/40 text-xs">
+                            <p className="text-white/30 text-[10px] font-medium tracking-wide">
                                 By logging in you agree to our{' '}
-                                <AuthLink href="/terms" className="text-[#14FFEC] underline">Terms</AuthLink>
-                                {' '}and{' '}
-                                <AuthLink href="/privacy" className="text-[#14FFEC] underline">Privacy Policy</AuthLink>
+                                <AuthLink href="/terms" className="text-white/50 hover:text-white underline">Terms</AuthLink>
+                                {' & '}
+                                <AuthLink href="/privacy" className="text-white/50 hover:text-white underline">Privacy Policy</AuthLink>
                             </p>
                         </div>
                     </div>

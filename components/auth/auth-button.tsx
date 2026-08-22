@@ -1,6 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { LucideIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface AuthButtonProps {
     href?: string;
@@ -46,7 +47,8 @@ export function AuthButton({
     };
 
     const widthClass = fullWidth ? "w-full" : "";
-    const buttonClasses = `${baseClasses} ${variantClasses[variant]} ${widthClass} ${className}`;
+    // cn() so a caller's className actually wins over the base/variant classes.
+    const buttonClasses = cn(baseClasses, variantClasses[variant], widthClass, className);
 
     if (href && !disabled) {
         return (
@@ -85,7 +87,7 @@ export function AuthIconButton({
         outline: "border border-white/10 text-white bg-black/20 backdrop-blur-md hover:bg-white/10 hover:border-white/30",
     };
 
-    const buttonClasses = `${baseClasses} ${variantClasses[variant]} ${className}`;
+    const buttonClasses = cn(baseClasses, variantClasses[variant], className);
 
     return (
         <Link href={href} className={buttonClasses} onClick={onClick}>

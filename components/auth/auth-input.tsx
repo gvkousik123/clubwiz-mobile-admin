@@ -56,7 +56,7 @@ export function AuthInput({
                 onFocus={() => setIsFocused(true)}
                 onBlur={() => setIsFocused(false)}
                 className={`
-                    w-full bg-white/5 border ${error ? 'border-red-500' : 'border-white/10'} 
+                    w-full bg-white/5 border ${error ? 'border-red-500/50' : 'border-white/10'}
                     ${error ? 'focus:border-red-500' : 'focus:border-[#14FFEC]/50'} text-white rounded-2xl 
                     ${icon ? 'pl-12' : 'pl-4'} 
                     ${type === 'password' ? 'pr-12' : 'pr-4'} 

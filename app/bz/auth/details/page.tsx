@@ -247,14 +247,14 @@ export default function DetailsPage() {
                 {/* Header with Back and Skip */}
                 <div className="flex items-center justify-between p-[1rem] pt-[1.5rem] flex-shrink-0">
                     <Link
-                        href="/auth/otp"
+                        href="/bz/auth/otp"
                         className="w-[2.5rem] h-[2.5rem] flex items-center justify-center rounded-full border border-teal-400/30 text-teal-300 hover:bg-teal-500/10 transition-colors"
                     >
                         <ArrowLeft className="w-[1.25rem] h-[1.25rem]" />
                     </Link>
 
                     <button
-                        onClick={() => router.push('/location/allow')}
+                        onClick={() => router.push('/bz/auth/intro')}
                         className="px-[1rem] py-[0.375rem] rounded-full border border-teal-400/30 text-[0.875rem] text-teal-300 hover:bg-teal-500/10 transition"
                     >
                         Skip

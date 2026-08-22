@@ -125,10 +125,17 @@ export default function NewClubPage() {
             const savedFormData = localStorage.getItem('clubviz-form-data');
             if (savedFormData) {
                 const formDataFromStorage = JSON.parse(savedFormData);
-                setFormData(prevData => ({
-                    ...prevData,
-                    ...formDataFromStorage
-                }));
+                setFormData(prevData => {
+                    const merged = { ...prevData, ...formDataFromStorage };
+                    // Preserve contact details if saved data is empty
+                    if (!formDataFromStorage.contactEmail && prevData.contactEmail) {
+                        merged.contactEmail = prevData.contactEmail;
+                    }
+                    if (!formDataFromStorage.contactPhone && prevData.contactPhone) {
+                        merged.contactPhone = prevData.contactPhone;
+                    }
+                    return merged;
+                });
                 console.log('📝 Immediate Load - Saved Form Data:', formDataFromStorage);
             }
         } catch (error) {

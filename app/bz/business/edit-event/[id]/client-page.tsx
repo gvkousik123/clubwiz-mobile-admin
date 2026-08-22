@@ -1,16 +1,17 @@
 'use client';
 
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Upload, Calendar, Clock, Music, User, Building2, Instagram, Music2, ImageIcon, VideoIcon, ChevronDown, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Upload, Calendar, Clock, Music, User, Building2, Instagram, Music2, ImageIcon, VideoIcon, ChevronDown, Plus, Trash2, AlertCircle } from 'lucide-react';
 import { useState, useRef, useEffect, Suspense } from 'react';
 import { Dialog, DialogContent, DialogOverlay } from '@/components/ui/dialog';
 import { EventService } from '@/lib/services/event.service';
 import { ClubService } from '@/lib/services/club.service';
 import { useToast } from '@/hooks/use-toast';
 import DatePicker from '@/components/common/date-picker';
-import { formatDateTimeForAPI, formatDateToDDMMYYYY } from '@/lib/date-utils';
+import TimePicker from '@/components/common/time-picker';
+import { formatDateTimeForAPI, formatDateToDDMMYYYY, parseDDMMYYYYToDate } from '@/lib/date-utils';
+import { buildGeneralPricingFromTickets, buildGuestListPricingFromTickets } from '@/lib/event-pricing-utils';
 import { MusicGenreAutocomplete, MusicGenre } from '@/components/ui/music-genre-autocomplete';
-import { fileToBase64 } from '@/lib/image-utils';
 
 interface Club {
     id: string;
@@ -45,6 +46,10 @@ function EditEventPageContent() {
     const [posterPreview, setPosterPreview] = useState<string | null>(null);
     const [reelPreview, setReelPreview] = useState<string | null>(null);
 
+    const [existingPosterUrl, setExistingPosterUrl] = useState<string | null>(null);
+    const [existingReelUrl, setExistingReelUrl] = useState<string | null>(null);
+    const [existingOrganizerLogoUrl, setExistingOrganizerLogoUrl] = useState<string | null>(null);
+
     // Loading state
     const [isLoadingEvent, setIsLoadingEvent] = useState(true);
 
@@ -74,7 +79,38 @@ function EditEventPageContent() {
         poster: null as File | null,
         reel: null as File | null,
         hasLimitedTickets: true,
-        totalTickets: ''
+        totalTickets: '',
+        // General Pricing
+        maleStagPrice: '',
+        maleStagFee: '',
+        maleStagDesc: '',
+        maleStagEnabled: true,
+        femaleStagPrice: '',
+        femaleStagFee: '',
+        femaleStagDesc: '',
+        femaleStagEnabled: true,
+        couplePrice: '',
+        coupleFee: '',
+        coupleDesc: '',
+        coupleEnabled: true,
+        // Early Bird Pricing
+        earlyBirdEnabled: false,
+        earlyBirdEndTime: '',
+        earlyBirdMaleStagEnabled: true,
+        earlyBirdMaleStagPrice: '',
+        earlyBirdMaleStagFee: '',
+        earlyBirdMaleStagDesc: '',
+        earlyBirdFemaleStagEnabled: true,
+        earlyBirdFemaleStagPrice: '',
+        earlyBirdFemaleStagFee: '',
+        earlyBirdFemaleStagDesc: '',
+        earlyBirdCoupleEnabled: true,
+        earlyBirdCouplePrice: '',
+        earlyBirdCoupleFee: '',
+        earlyBirdCoupleDesc: '',
+        // Promo toggles
+        freeMaleStagPerCoupleEnabled: false,
+        earlyBirdFreeMaleStagPerCoupleEnabled: false,
     });
 
     const [ticketTypes, setTicketTypes] = useState<TicketType[]>([
@@ -90,7 +126,7 @@ function EditEventPageContent() {
                 setIsLoadingEvent(true);
                 console.log('📡 Loading event data for ID:', eventId);
 
-                const response = await EventService.getEventDetails(eventId);
+                const response = await EventService.getEventDetailsAdmin(eventId);
 
                 if (response.success && response.data) {
                     const event = response.data as any;
@@ -102,13 +138,63 @@ function EditEventPageContent() {
                     let endTime = '';
                     if (event.startDateTime) {
                         const dateObj = new Date(event.startDateTime);
-                        eventDate = formatDateToDDMMYYYY(dateObj); // DD/MM/YYYY for DatePicker
+                        eventDate = formatDateToDDMMYYYY(dateObj); // DD/MM/YYYY
                         eventTime = dateObj.toTimeString().slice(0, 5); // HH:MM
                     }
                     if (event.endDateTime) {
                         const endDateObj = new Date(event.endDateTime);
                         endTime = endDateObj.toTimeString().slice(0, 5); // HH:MM
                     }
+
+                    // Resolve early bird pricing from explicit earlyBirdPricing, guestListPricing, or generalPricing
+                    const earlyBirdSource =
+                        event.earlyBirdPricing ||
+                        ((event.guestListPricing?.cutoffTime ||
+                          event.guestListPricing?.maleStagEntry ||
+                          event.guestListPricing?.femaleStagEntry ||
+                          event.guestListPricing?.coupleEntry ||
+                          event.guestListPricing?.freeMaleStagPerCoupleEnabled !== undefined)
+                            ? event.guestListPricing
+                            : null) ||
+                        event.generalPricing;
+
+                    // Normalize time format for input
+                    const normalizeTimeForInput = (time?: string | null): string => {
+                        if (!time) return '';
+                        const trimmed = time.trim();
+                        if (!trimmed) return '';
+
+                        if (trimmed.includes('T')) {
+                            const date = new Date(trimmed);
+                            if (!Number.isNaN(date.getTime())) {
+                                return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+                            }
+                        }
+
+                        const [hours, minutes] = trimmed.split(':');
+                        if (hours !== undefined && minutes !== undefined) {
+                            return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+                        }
+
+                        return '';
+                    };
+
+                    // Check if event has early bird data
+                    const hasEarlyBirdData = Boolean(
+                        event.earlyBirdEnabled ||
+                        event.earlyBirdEndTime ||
+                        event.earlyBirdMaleStagEntry ||
+                        event.earlyBirdPricing?.maleStagEntry ||
+                        event.earlyBirdPricing?.femaleStagEntry ||
+                        event.earlyBirdPricing?.coupleEntry ||
+                        event.guestListPricing?.cutoffTime ||
+                        earlyBirdSource?.cutoffTime ||
+                        earlyBirdSource?.maleStagEntry ||
+                        earlyBirdSource?.femaleStagEntry ||
+                        earlyBirdSource?.coupleEntry ||
+                        event.earlyBirdFreeMaleStagPerCoupleEnabled ||
+                        earlyBirdSource?.freeMaleStagPerCoupleEnabled
+                    );
 
                     // Set form data with proper null/undefined handling
                     setFormData({
@@ -126,18 +212,56 @@ function EditEventPageContent() {
                         poster: null,
                         reel: null,
                         hasLimitedTickets: event.hasLimitedTickets ?? (event.maxAttendees ? true : false),
-                        totalTickets: event.totalTickets || event.maxAttendees || ''
+                        totalTickets: event.totalTickets || event.maxAttendees || '',
+                        // General Pricing from generalPricing or flat fields
+                        maleStagPrice: event.maleStagEntry?.price?.toString() || event.generalPricing?.maleStagEntry?.price?.toString() || '',
+                        maleStagFee: event.maleStagEntry?.fee?.toString() || event.generalPricing?.maleStagEntry?.fee?.toString() || '',
+                        maleStagDesc: event.maleStagEntry?.description || event.generalPricing?.maleStagEntry?.description || '',
+                        maleStagEnabled: !!(event.maleStagEntry || event.generalPricing?.maleStagEntry),
+                        femaleStagPrice: event.femaleStagEntry?.price?.toString() || event.generalPricing?.femaleStagEntry?.price?.toString() || '',
+                        femaleStagFee: event.femaleStagEntry?.fee?.toString() || event.generalPricing?.femaleStagEntry?.fee?.toString() || '',
+                        femaleStagDesc: event.femaleStagEntry?.description || event.generalPricing?.femaleStagEntry?.description || '',
+                        femaleStagEnabled: !!(event.femaleStagEntry || event.generalPricing?.femaleStagEntry),
+                        couplePrice: event.coupleEntry?.price?.toString() || event.generalPricing?.coupleEntry?.price?.toString() || '',
+                        coupleFee: event.coupleEntry?.fee?.toString() || event.generalPricing?.coupleEntry?.fee?.toString() || '',
+                        coupleDesc: event.coupleEntry?.description || event.generalPricing?.coupleEntry?.description || '',
+                        coupleEnabled: !!(event.coupleEntry || event.generalPricing?.coupleEntry),
+                        // Early Bird Pricing
+                        earlyBirdEnabled: hasEarlyBirdData,
+                        earlyBirdEndTime: normalizeTimeForInput(event.earlyBirdEndTime || earlyBirdSource?.cutoffTime || ''),
+                        earlyBirdMaleStagEnabled: !!(event.earlyBirdMaleStagEntry || earlyBirdSource?.maleStagEntry),
+                        earlyBirdMaleStagPrice: event.earlyBirdMaleStagEntry?.price?.toString() || earlyBirdSource?.maleStagEntry?.price?.toString() || '',
+                        earlyBirdMaleStagFee: event.earlyBirdMaleStagEntry?.fee?.toString() || earlyBirdSource?.maleStagEntry?.fee?.toString() || '',
+                        earlyBirdMaleStagDesc: event.earlyBirdMaleStagEntry?.description || earlyBirdSource?.maleStagEntry?.description || '',
+                        earlyBirdFemaleStagEnabled: !!(event.earlyBirdFemaleStagEntry || earlyBirdSource?.femaleStagEntry),
+                        earlyBirdFemaleStagPrice: event.earlyBirdFemaleStagEntry?.price?.toString() || earlyBirdSource?.femaleStagEntry?.price?.toString() || '',
+                        earlyBirdFemaleStagFee: event.earlyBirdFemaleStagEntry?.fee?.toString() || earlyBirdSource?.femaleStagEntry?.fee?.toString() || '',
+                        earlyBirdFemaleStagDesc: event.earlyBirdFemaleStagEntry?.description || earlyBirdSource?.femaleStagEntry?.description || '',
+                        earlyBirdCoupleEnabled: !!(event.earlyBirdCoupleEntry || earlyBirdSource?.coupleEntry),
+                        earlyBirdCouplePrice: event.earlyBirdCoupleEntry?.price?.toString() || earlyBirdSource?.coupleEntry?.price?.toString() || '',
+                        earlyBirdCoupleFee: event.earlyBirdCoupleEntry?.fee?.toString() || earlyBirdSource?.coupleEntry?.fee?.toString() || '',
+                        earlyBirdCoupleDesc: event.earlyBirdCoupleEntry?.description || earlyBirdSource?.coupleEntry?.description || '',
+                        // Promo toggles
+                        freeMaleStagPerCoupleEnabled: event.freeMaleStagPerCoupleEnabled || event.generalPricing?.freeMaleStagPerCoupleEnabled || false,
+                        earlyBirdFreeMaleStagPerCoupleEnabled: event.earlyBirdFreeMaleStagPerCoupleEnabled || earlyBirdSource?.freeMaleStagPerCoupleEnabled || false,
                     });
 
-                    // Load existing images for preview
+                    // Load existing images for preview and retain original URLs for edit payloads
                     if (event.imageUrl) {
                         setPosterPreview(event.imageUrl);
+                        setExistingPosterUrl(event.imageUrl);
                     }
-                    if (event.organizerLogo || event.organizerLogoUrl) {
-                        setLogoPreview(event.organizerLogo || event.organizerLogoUrl);
+
+                    const organizerLogoUrl = event.eventOrganizerLogo || event.organizerLogo || event.organizerLogoUrl;
+                    if (organizerLogoUrl) {
+                        setLogoPreview(organizerLogoUrl);
+                        setExistingOrganizerLogoUrl(organizerLogoUrl);
                     }
-                    if (event.reelUrl || event.videoUrl) {
-                        setReelPreview(event.reelUrl || event.videoUrl);
+
+                    const reelUrl = event.reelUrl || event.videoUrl;
+                    if (reelUrl) {
+                        setReelPreview(reelUrl);
+                        setExistingReelUrl(reelUrl);
                     }
 
                     // Set club ID
@@ -229,6 +353,7 @@ function EditEventPageContent() {
     const handleDeleteLogo = () => {
         setFormData({ ...formData, organizerLogo: null });
         setLogoPreview(null);
+        setExistingOrganizerLogoUrl(null);
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
@@ -237,6 +362,7 @@ function EditEventPageContent() {
     const handleDeletePoster = () => {
         setFormData({ ...formData, poster: null });
         setPosterPreview(null);
+        setExistingPosterUrl(null);
         if (posterInputRef.current) {
             posterInputRef.current.value = '';
         }
@@ -245,6 +371,7 @@ function EditEventPageContent() {
     const handleDeleteReel = () => {
         setFormData({ ...formData, reel: null });
         setReelPreview(null);
+        setExistingReelUrl(null);
         if (reelInputRef.current) {
             reelInputRef.current.value = '';
         }
@@ -257,7 +384,7 @@ function EditEventPageContent() {
     };
 
     const handleInputChange = (field: string, value: string) => {
-        setFormData({ ...formData, [field]: value });
+        setFormData(prev => ({ ...prev, [field]: value }));
     };
 
     const handleFileUpload = (ref: React.RefObject<HTMLInputElement>) => {
@@ -267,7 +394,7 @@ function EditEventPageContent() {
     const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            setFormData({ ...formData, organizerLogo: file });
+            setFormData(prev => ({ ...prev, organizerLogo: file }));
             const reader = new FileReader();
             reader.onloadend = () => {
                 setLogoPreview(reader.result as string);
@@ -279,7 +406,7 @@ function EditEventPageContent() {
     const handlePosterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            setFormData({ ...formData, poster: file });
+            setFormData(prev => ({ ...prev, poster: file }));
             const reader = new FileReader();
             reader.onloadend = () => {
                 setPosterPreview(reader.result as string);
@@ -291,7 +418,7 @@ function EditEventPageContent() {
     const handleReelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            setFormData({ ...formData, reel: file });
+            setFormData(prev => ({ ...prev, reel: file }));
             const reader = new FileReader();
             reader.onloadend = () => {
                 setReelPreview(file.name);
@@ -340,51 +467,13 @@ function EditEventPageContent() {
                 throw new Error('Invalid date or time format');
             }
 
-            // Convert images to base64 if they are new uploads (File objects)
-            let eventImageData = null;
-            if (formData.poster instanceof File) {
-                const base64 = await fileToBase64(formData.poster);
-                eventImageData = {
-                    name: formData.poster.name,
-                    contentType: formData.poster.type,
-                    data: base64,
-                    url: "",
-                    type: "EVENT_IMAGE"
-                };
-            }
-
-            let eventReelData = null;
-            if (formData.reel instanceof File) {
-                const base64 = await fileToBase64(formData.reel);
-                eventReelData = {
-                    name: formData.reel.name,
-                    contentType: formData.reel.type,
-                    data: base64,
-                    url: "",
-                    type: "EVENT_REEL"
-                };
-            }
-
-            let eventOrganizerLogoData = null;
-            if (formData.organizerLogo instanceof File) {
-                const base64 = await fileToBase64(formData.organizerLogo);
-                eventOrganizerLogoData = {
-                    name: formData.organizerLogo.name,
-                    contentType: formData.organizerLogo.type,
-                    data: base64,
-                    url: "",
-                    type: "ORGANIZER_LOGO"
-                };
-            }
-
-            // Construct payload - Include images if they were updated
             const eventData: any = {
                 title: formData.eventName.trim(),
                 name: formData.eventName.trim(),
                 description: formData.description.trim(),
                 startDateTime: startDateTime,
                 endDateTime: startDateTime,
-                location: formData.organizer || "Club Location",
+                location: "Club Location",
                 locationText: "Club Location Text",
                 locationMap: {
                     lat: 0,
@@ -405,23 +494,152 @@ function EditEventPageContent() {
                 totalTickets: formData.totalTickets
             };
 
-            // Add image data only if new images were uploaded
-            if (eventImageData) {
-                eventData.eventImage = eventImageData;
+            // Build general pricing from form data
+            if (formData.maleStagEnabled && formData.maleStagPrice) {
+                eventData.maleStagEntry = {
+                    price: parseFloat(formData.maleStagPrice),
+                    ...(formData.maleStagFee ? { fee: parseFloat(formData.maleStagFee) } : {}),
+                    ...(formData.maleStagDesc ? { description: formData.maleStagDesc } : {})
+                };
+            } else {
+                // Explicitly set to null when disabled to remove from backend
+                eventData.maleStagEntry = null;
             }
-            if (eventReelData) {
-                eventData.eventReel = eventReelData;
+            if (formData.femaleStagEnabled && formData.femaleStagPrice) {
+                eventData.femaleStagEntry = {
+                    price: parseFloat(formData.femaleStagPrice),
+                    ...(formData.femaleStagFee ? { fee: parseFloat(formData.femaleStagFee) } : {}),
+                    ...(formData.femaleStagDesc ? { description: formData.femaleStagDesc } : {})
+                };
+            } else {
+                // Explicitly set to null when disabled to remove from backend
+                eventData.femaleStagEntry = null;
             }
-            if (eventOrganizerLogoData) {
-                eventData.eventOrganizerLogo = eventOrganizerLogoData;
+            if (formData.coupleEnabled && formData.couplePrice) {
+                eventData.coupleEntry = {
+                    price: parseFloat(formData.couplePrice),
+                    ...(formData.coupleFee ? { fee: parseFloat(formData.coupleFee) } : {}),
+                    ...(formData.coupleDesc ? { description: formData.coupleDesc } : {})
+                };
+            } else {
+                // Explicitly set to null when disabled to remove from backend
+                eventData.coupleEntry = null;
             }
 
-            console.log('🚀 Updating event with payload:', JSON.stringify(eventData, null, 2));
-            console.log('📸 Event Image:', eventImageData ? 'Updated' : 'Not changed');
-            console.log('🎬 Event Reel:', eventReelData ? 'Updated' : 'Not changed');
-            console.log('🏢 Organizer Logo:', eventOrganizerLogoData ? 'Updated' : 'Not changed');
+            // Promo toggle (root level)
+            eventData.freeMaleStagPerCoupleEnabled = !!formData.freeMaleStagPerCoupleEnabled;
 
-            const response = await EventService.updateEvent(eventId, eventData);
+            // Build early bird pricing if enabled
+            if (formData.earlyBirdEnabled) {
+                eventData.earlyBirdEnabled = true;
+                // Ensure HH:mm:ss format
+                const rawTime = formData.earlyBirdEndTime;
+                const formattedEarlyBirdTime = rawTime.length === 5 ? `${rawTime}:00` : rawTime;
+                eventData.earlyBirdEndTime = formattedEarlyBirdTime;
+                eventData.earlyBirdFreeMaleStagPerCoupleEnabled = !!formData.earlyBirdFreeMaleStagPerCoupleEnabled;
+
+                if (formData.maleStagEnabled && formData.earlyBirdMaleStagEnabled && formData.earlyBirdMaleStagPrice) {
+                    eventData.earlyBirdMaleStagEntry = {
+                        price: parseFloat(formData.earlyBirdMaleStagPrice),
+                        ...(formData.earlyBirdMaleStagFee ? { fee: parseFloat(formData.earlyBirdMaleStagFee) } : {}),
+                        ...(formData.earlyBirdMaleStagDesc ? { description: formData.earlyBirdMaleStagDesc } : {})
+                    };
+                } else {
+                    // Explicitly set to null when disabled to remove from backend
+                    eventData.earlyBirdMaleStagEntry = null;
+                }
+                if (formData.femaleStagEnabled && formData.earlyBirdFemaleStagEnabled && formData.earlyBirdFemaleStagPrice) {
+                    eventData.earlyBirdFemaleStagEntry = {
+                        price: parseFloat(formData.earlyBirdFemaleStagPrice),
+                        ...(formData.earlyBirdFemaleStagFee ? { fee: parseFloat(formData.earlyBirdFemaleStagFee) } : {}),
+                        ...(formData.earlyBirdFemaleStagDesc ? { description: formData.earlyBirdFemaleStagDesc } : {})
+                    };
+                } else {
+                    // Explicitly set to null when disabled to remove from backend
+                    eventData.earlyBirdFemaleStagEntry = null;
+                }
+                if (formData.coupleEnabled && formData.earlyBirdCoupleEnabled && formData.earlyBirdCouplePrice) {
+                    eventData.earlyBirdCoupleEntry = {
+                        price: parseFloat(formData.earlyBirdCouplePrice),
+                        ...(formData.earlyBirdCoupleFee ? { fee: parseFloat(formData.earlyBirdCoupleFee) } : {}),
+                        ...(formData.earlyBirdCoupleDesc ? { description: formData.earlyBirdCoupleDesc } : {})
+                    };
+                } else {
+                    // Explicitly set to null when disabled to remove from backend
+                    eventData.earlyBirdCoupleEntry = null;
+                }
+
+                eventData.earlyBirdPricing = {
+                    enabled: true,
+                    cutoffTime: formattedEarlyBirdTime,
+                    maleStagEntry: eventData.earlyBirdMaleStagEntry || null,
+                    femaleStagEntry: eventData.earlyBirdFemaleStagEntry || null,
+                    coupleEntry: eventData.earlyBirdCoupleEntry || null,
+                    earlyBirdFreeMaleStagPerCoupleEnabled: !!formData.earlyBirdFreeMaleStagPerCoupleEnabled
+                };
+            } else {
+                // Explicitly disable early bird when toggled off
+                eventData.earlyBirdEnabled = false;
+                eventData.earlyBirdEndTime = null;
+                eventData.earlyBirdMaleStagEntry = null;
+                eventData.earlyBirdFemaleStagEntry = null;
+                eventData.earlyBirdCoupleEntry = null;
+                eventData.earlyBirdFreeMaleStagPerCoupleEnabled = false;
+                eventData.earlyBirdPricing = null;
+            }
+
+            const { generalPricing } = buildGeneralPricingFromTickets(ticketTypes, true);
+            const guestListPricing = buildGuestListPricingFromTickets(ticketTypes, undefined, true);
+
+            if (generalPricing) {
+                eventData.generalPricing = generalPricing;
+            }
+            if (guestListPricing) {
+                eventData.guestListPricing = guestListPricing;
+            }
+
+            if (formData.poster) {
+                // New poster file will be sent in multipart; omit imageUrl from JSON payload.
+            } else if (existingPosterUrl) {
+                eventData.imageUrl = existingPosterUrl;
+            } else if (existingPosterUrl === null) {
+                eventData.imageUrl = null;
+            }
+
+            if (formData.reel) {
+                // New reel file will be sent in multipart; omit reelUrl from JSON payload.
+            } else if (existingReelUrl) {
+                eventData.reelUrl = existingReelUrl;
+            } else if (existingReelUrl === null) {
+                eventData.reelUrl = null;
+            }
+
+            if (formData.organizerLogo) {
+                // New organizer logo file will be sent in multipart; omit eventOrganizerLogo from JSON payload.
+            } else if (existingOrganizerLogoUrl) {
+                eventData.eventOrganizerLogo = existingOrganizerLogoUrl;
+            } else if (existingOrganizerLogoUrl === null) {
+                eventData.eventOrganizerLogo = null;
+            }
+
+            const hasFiles = Boolean(formData.poster || formData.reel || formData.organizerLogo);
+            console.log('🚀 Updating event with payload:', eventData);
+            console.log('📸 Event Image:', formData.poster ? 'Updated' : 'Not changed');
+            console.log('🎬 Event Reel:', formData.reel ? 'Updated' : 'Not changed');
+            console.log('🏢 Organizer Logo:', formData.organizerLogo ? 'Updated' : 'Not changed');
+
+            let response: any;
+            if (hasFiles) {
+                response = await EventService.updateEventMultipart(eventId, eventData, {
+                    eventImage: formData.poster,
+                    eventReel: formData.reel,
+                    eventOrganizerLogo: formData.organizerLogo,
+                    galleryImages: [],
+                    performerImages: []
+                }, true);
+            } else {
+                response = await EventService.updateEvent(eventId, eventData, true);
+            }
 
             if (response && (response.success || response.data)) {
                 console.log('✅ Event updated successfully:', response);
@@ -436,12 +654,8 @@ function EditEventPageContent() {
                 setShowConfirmDialog(false);
                 setDialogStage('confirm');
 
-                // Navigate back to the club events page
-                if (selectedClubId) {
-                    router.push(`/bz/business/club/_/events?id=${selectedClubId}`); // FIXED: Extra — Navigate to business route, not admin
-                } else {
-                    router.push('/bz/business');
-                }
+                // Navigate back to the business dashboard
+                router.replace('/bz/business');
             } else {
                 throw new Error('Failed to update event - Invalid response');
             }
@@ -465,7 +679,7 @@ function EditEventPageContent() {
     };
 
     const confirmAddTicket = () => {
-        if (newTicket.name && newTicket.price > 0) {
+        if (newTicket.name && newTicket.price >= 0) {
             setTicketTypes([...ticketTypes, newTicket]);
             setNewTicket({ name: '', price: 0, currency: 'INR', quantity: 0, isActive: true });
             setIsAddingTicket(false);
@@ -647,14 +861,11 @@ function EditEventPageContent() {
                                         <div className="px-5">
                                             <label className="text-[#14FFEC] font-semibold text-base">Start Time *</label>
                                         </div>
-                                        <div className="bg-[#0D1F1F] border border-[#0C898B] rounded-[30px] p-[10px] px-5">
-                                            <input
-                                                type="time"
-                                                value={formData.eventTime}
-                                                onChange={(e) => handleInputChange('eventTime', e.target.value)}
-                                                className="w-full bg-transparent text-white placeholder-[#9D9C9C] outline-none text-base font-semibold"
-                                            />
-                                        </div>
+                                        <TimePicker
+                                            value={formData.eventTime}
+                                            onChange={(time) => handleInputChange('eventTime', time)}
+                                            eventDate={formData.eventDate}
+                                        />
                                     </div>
                                 </div>
 
@@ -994,7 +1205,7 @@ function EditEventPageContent() {
                                                         setFormData({ ...formData, totalTickets: '' });
                                                     } else {
                                                         const numValue = parseInt(value.replace(/^0+/, '') || '0');
-                                                        setFormData({ ...formData, totalTickets: numValue });
+                                                        setFormData({ ...formData, totalTickets: numValue.toString() });
                                                     }
                                                 }}
                                                 className="w-full bg-transparent text-white placeholder-[#9D9C9C] outline-none text-base font-semibold"
@@ -1003,6 +1214,323 @@ function EditEventPageContent() {
                                         </div>
                                     </div>
                                 )}
+
+                                {/* General Pricing Section */}
+                                <div className="space-y-3">
+                                    <div>
+                                        <label className="text-[#14FFEC] font-semibold text-base">General Pricing</label>
+                                        <p className="text-xs text-gray-400 mt-0.5">Regular pricing after early bird cutoff</p>
+                                    </div>
+
+                                    {/* Male Stag */}
+                                    <div className={`bg-[#0D1F1F] border ${!formData.maleStagEnabled ? 'border-white/10' : 'border-[#0C898B]/50'} rounded-xl overflow-hidden transition-all`}>
+                                        <div className={`flex items-center justify-between px-4 py-3 ${!formData.maleStagEnabled ? 'opacity-50' : ''}`}>
+                                            <button type="button" className="flex items-center gap-3"
+                                                onClick={() => setFormData(prev => {
+                                                    const isEnabling = !prev.maleStagEnabled;
+                                                    if (!isEnabling) {
+                                                        // Clear values when disabling
+                                                        return { ...prev, maleStagEnabled: false, maleStagPrice: '', maleStagFee: '', maleStagDesc: '' };
+                                                    }
+                                                    return { ...prev, maleStagEnabled: true };
+                                                })}>
+                                                <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${formData.maleStagEnabled ? 'bg-[#14FFEC] border-[#14FFEC]' : 'border-gray-500'}`}>
+                                                    {formData.maleStagEnabled && <svg className="w-3 h-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                                                </div>
+                                                <span className="text-white font-semibold text-sm">Male Stag</span>
+                                            </button>
+                                        </div>
+                                        {formData.maleStagEnabled && (
+                                            <div className="border-t border-[#0C898B]/20">
+                                                <div className="flex items-center border-b border-[#0C898B]/20 px-4 py-2.5">
+                                                    <input type="text" inputMode="numeric" placeholder="Price *" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                        value={formData.maleStagPrice}
+                                                        onChange={(e) => handleInputChange('maleStagPrice', e.target.value)} />
+                                                </div>
+                                                <div className="flex items-center border-b border-[#0C898B]/20 px-4 py-2.5">
+                                                    <input type="text" inputMode="numeric" placeholder="Cover / Redeem (optional)" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                        value={formData.maleStagFee} onChange={(e) => handleInputChange('maleStagFee', e.target.value)} />
+                                                </div>
+                                                <div className="flex items-center px-4 py-2.5">
+                                                    <input type="text" placeholder="Description (optional)" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                        value={formData.maleStagDesc} onChange={(e) => handleInputChange('maleStagDesc', e.target.value)} />
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Female Stag */}
+                                    <div className={`bg-[#0D1F1F] border ${!formData.femaleStagEnabled ? 'border-white/10' : 'border-[#0C898B]/50'} rounded-xl overflow-hidden transition-all`}>
+                                        <div className={`flex items-center justify-between px-4 py-3 ${!formData.femaleStagEnabled ? 'opacity-50' : ''}`}>
+                                            <button type="button" className="flex items-center gap-3"
+                                                onClick={() => setFormData(prev => {
+                                                    const isEnabling = !prev.femaleStagEnabled;
+                                                    if (!isEnabling) {
+                                                        // Clear values when disabling
+                                                        return { ...prev, femaleStagEnabled: false, femaleStagPrice: '', femaleStagFee: '', femaleStagDesc: '' };
+                                                    }
+                                                    return { ...prev, femaleStagEnabled: true };
+                                                })}>
+                                                <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${formData.femaleStagEnabled ? 'bg-[#14FFEC] border-[#14FFEC]' : 'border-gray-500'}`}>
+                                                    {formData.femaleStagEnabled && <svg className="w-3 h-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                                                </div>
+                                                <span className="text-white font-semibold text-sm">Female Stag</span>
+                                            </button>
+                                        </div>
+                                        {formData.femaleStagEnabled && (
+                                            <div className="border-t border-[#0C898B]/20">
+                                                <div className="flex items-center border-b border-[#0C898B]/20 px-4 py-2.5">
+                                                    <input type="text" inputMode="numeric" placeholder="Price *" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                        value={formData.femaleStagPrice}
+                                                        onChange={(e) => handleInputChange('femaleStagPrice', e.target.value)} />
+                                                </div>
+                                                <div className="flex items-center border-b border-[#0C898B]/20 px-4 py-2.5">
+                                                    <input type="text" inputMode="numeric" placeholder="Cover / Redeem (optional)" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                        value={formData.femaleStagFee} onChange={(e) => handleInputChange('femaleStagFee', e.target.value)} />
+                                                </div>
+                                                <div className="flex items-center px-4 py-2.5">
+                                                    <input type="text" placeholder="Description (optional)" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                        value={formData.femaleStagDesc} onChange={(e) => handleInputChange('femaleStagDesc', e.target.value)} />
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Couple */}
+                                    <div className={`bg-[#0D1F1F] border ${!formData.coupleEnabled ? 'border-white/10' : 'border-[#0C898B]/50'} rounded-xl overflow-hidden transition-all`}>
+                                        <div className={`flex items-center justify-between px-4 py-3 ${!formData.coupleEnabled ? 'opacity-50' : ''}`}>
+                                            <button type="button" className="flex items-center gap-3"
+                                                onClick={() => setFormData(prev => {
+                                                    const isEnabling = !prev.coupleEnabled;
+                                                    if (!isEnabling) {
+                                                        // Clear values when disabling
+                                                        return { ...prev, coupleEnabled: false, couplePrice: '', coupleFee: '', coupleDesc: '' };
+                                                    }
+                                                    return { ...prev, coupleEnabled: true };
+                                                })}>
+                                                <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${formData.coupleEnabled ? 'bg-[#14FFEC] border-[#14FFEC]' : 'border-gray-500'}`}>
+                                                    {formData.coupleEnabled && <svg className="w-3 h-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                                                </div>
+                                                <span className="text-white font-semibold text-sm">Couple</span>
+                                            </button>
+                                        </div>
+                                        {formData.coupleEnabled && (
+                                            <div className="border-t border-[#0C898B]/20">
+                                                <div className="flex items-center border-b border-[#0C898B]/20 px-4 py-2.5">
+                                                    <input type="text" inputMode="numeric" placeholder="Price *" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                        value={formData.couplePrice}
+                                                        onChange={(e) => handleInputChange('couplePrice', e.target.value)} />
+                                                </div>
+                                                <div className="flex items-center border-b border-[#0C898B]/20 px-4 py-2.5">
+                                                    <input type="text" inputMode="numeric" placeholder="Cover / Redeem (optional)" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                        value={formData.coupleFee} onChange={(e) => handleInputChange('coupleFee', e.target.value)} />
+                                                </div>
+                                                <div className="flex items-center px-4 py-2.5">
+                                                    <input type="text" placeholder="Description (optional)" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                        value={formData.coupleDesc} onChange={(e) => handleInputChange('coupleDesc', e.target.value)} />
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Free Male Stag per Couple */}
+                                    <div className="bg-[#0D1F1F] border border-[#0C898B]/50 rounded-lg px-4 py-3 flex items-center justify-between gap-4">
+                                        <div className="flex-1 min-w-0">
+                                            <span className="text-white font-semibold text-sm">Free Male Stag per Couple</span>
+                                            <p className="text-xs text-gray-400 mt-0.5">1 complimentary male stag per couple</p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setFormData(prev => ({ ...prev, freeMaleStagPerCoupleEnabled: !prev.freeMaleStagPerCoupleEnabled }))}
+                                            className={`relative inline-flex h-6 w-10 flex-shrink-0 items-center rounded-full transition-colors duration-200 ${formData.freeMaleStagPerCoupleEnabled ? 'bg-[#14FFEC]' : 'bg-gray-700'}`}
+                                        >
+                                            <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${formData.freeMaleStagPerCoupleEnabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Early Bird Pricing Section */}
+                                <div className="space-y-3">
+                                    <div>
+                                        <label className="text-[#14FFEC] font-semibold text-base">Early Bird Pricing</label>
+                                        <p className="text-xs text-gray-400 mt-0.5">Discounted pricing before cutoff time</p>
+                                    </div>
+
+                                    {/* Enable Early Bird toggle */}
+                                    <div className="bg-[#0D1F1F] border border-[#0C898B]/50 rounded-lg px-4 py-3 flex items-center justify-between">
+                                        <span className="text-white font-semibold text-sm">Enable Early Bird</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setFormData(prev => ({ ...prev, earlyBirdEnabled: !prev.earlyBirdEnabled }))}
+                                            className={`relative inline-flex h-6 w-10 items-center rounded-full transition-colors duration-200 ${formData.earlyBirdEnabled ? 'bg-[#14FFEC]' : 'bg-gray-700'}`}
+                                        >
+                                            <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${formData.earlyBirdEnabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                                        </button>
+                                    </div>
+
+                                    {formData.earlyBirdEnabled && (
+                                        <div className="space-y-3">
+                                            {/* Cutoff Time */}
+                                            <div className="bg-[#0D1F1F] border border-[#0C898B]/50 rounded-xl overflow-hidden">
+                                                <div className="px-4 py-2 border-b border-[#0C898B]/20">
+                                                    <label className="text-[#14FFEC] text-xs font-semibold">Cutoff Time *</label>
+                                                </div>
+                                                <div className="px-4 py-2.5">
+                                                    <input type="time" value={formData.earlyBirdEndTime}
+                                                        onChange={(e) => handleInputChange('earlyBirdEndTime', e.target.value)}
+                                                        className="w-full bg-transparent text-white outline-none text-sm" />
+                                                </div>
+                                            </div>
+
+                                            {/* Early Bird: Male Stag */}
+                                            {formData.maleStagEnabled && (
+                                                <div className={`bg-[#0D1F1F] border ${!formData.earlyBirdMaleStagEnabled ? 'border-white/10' : 'border-[#0C898B]/50'} rounded-xl overflow-hidden transition-all`}>
+                                                    <div className={`flex items-center justify-between px-4 py-3 ${!formData.earlyBirdMaleStagEnabled ? 'opacity-50' : ''}`}>
+                                                        <button type="button" className="flex items-center gap-3"
+                                                            onClick={() => setFormData(prev => {
+                                                                const isEnabling = !prev.earlyBirdMaleStagEnabled;
+                                                                if (!isEnabling) {
+                                                                    // Clear values when disabling
+                                                                    return { ...prev, earlyBirdMaleStagEnabled: false, earlyBirdMaleStagPrice: '', earlyBirdMaleStagFee: '', earlyBirdMaleStagDesc: '' };
+                                                                }
+                                                                return { ...prev, earlyBirdMaleStagEnabled: true };
+                                                            })}>
+                                                            <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${formData.earlyBirdMaleStagEnabled ? 'bg-[#14FFEC] border-[#14FFEC]' : 'border-gray-500'}`}>
+                                                                {formData.earlyBirdMaleStagEnabled && <svg className="w-3 h-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                                                            </div>
+                                                            <span className="text-white font-semibold text-sm">Male Stag <span className="text-gray-400 font-normal">(Early Bird)</span></span>
+                                                        </button>
+                                                        {formData.earlyBirdMaleStagEnabled && (
+                                                            <button onClick={() => setFormData(prev => ({ ...prev, earlyBirdMaleStagEnabled: false, earlyBirdMaleStagPrice: '', earlyBirdMaleStagFee: '', earlyBirdMaleStagDesc: '' }))} className="text-gray-500 hover:text-red-400 transition-colors">
+                                                                <Trash2 size={15} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                    {formData.earlyBirdMaleStagEnabled && (
+                                                        <div className="border-t border-[#0C898B]/20">
+                                                            <div className="flex items-center border-b border-[#0C898B]/20 px-4 py-2.5">
+                                                                <input type="text" inputMode="numeric" placeholder="Price *" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                                    value={formData.earlyBirdMaleStagPrice}
+                                                                    onChange={(e) => handleInputChange('earlyBirdMaleStagPrice', e.target.value)} />
+                                                            </div>
+                                                            <div className="flex items-center border-b border-[#0C898B]/20 px-4 py-2.5">
+                                                                <input type="text" inputMode="numeric" placeholder="Cover / Redeem (optional)" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                                    value={formData.earlyBirdMaleStagFee} onChange={(e) => handleInputChange('earlyBirdMaleStagFee', e.target.value)} />
+                                                            </div>
+                                                            <div className="flex items-center px-4 py-2.5">
+                                                                <input type="text" placeholder="Description (optional)" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                                    value={formData.earlyBirdMaleStagDesc} onChange={(e) => handleInputChange('earlyBirdMaleStagDesc', e.target.value)} />
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* Early Bird: Female Stag */}
+                                            {formData.femaleStagEnabled && (
+                                                <div className={`bg-[#0D1F1F] border ${!formData.earlyBirdFemaleStagEnabled ? 'border-white/10' : 'border-[#0C898B]/50'} rounded-xl overflow-hidden transition-all`}>
+                                                    <div className={`flex items-center justify-between px-4 py-3 ${!formData.earlyBirdFemaleStagEnabled ? 'opacity-50' : ''}`}>
+                                                        <button type="button" className="flex items-center gap-3"
+                                                            onClick={() => setFormData(prev => {
+                                                                const isEnabling = !prev.earlyBirdFemaleStagEnabled;
+                                                                if (!isEnabling) {
+                                                                    // Clear values when disabling
+                                                                    return { ...prev, earlyBirdFemaleStagEnabled: false, earlyBirdFemaleStagPrice: '', earlyBirdFemaleStagFee: '', earlyBirdFemaleStagDesc: '' };
+                                                                }
+                                                                return { ...prev, earlyBirdFemaleStagEnabled: true };
+                                                            })}>
+                                                            <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${formData.earlyBirdFemaleStagEnabled ? 'bg-[#14FFEC] border-[#14FFEC]' : 'border-gray-500'}`}>
+                                                                {formData.earlyBirdFemaleStagEnabled && <svg className="w-3 h-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                                                            </div>
+                                                            <span className="text-white font-semibold text-sm">Female Stag <span className="text-gray-400 font-normal">(Early Bird)</span></span>
+                                                        </button>
+                                                        {formData.earlyBirdFemaleStagEnabled && (
+                                                            <button onClick={() => setFormData(prev => ({ ...prev, earlyBirdFemaleStagEnabled: false, earlyBirdFemaleStagPrice: '', earlyBirdFemaleStagFee: '', earlyBirdFemaleStagDesc: '' }))} className="text-gray-500 hover:text-red-400 transition-colors">
+                                                                <Trash2 size={15} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                    {formData.earlyBirdFemaleStagEnabled && (
+                                                        <div className="border-t border-[#0C898B]/20">
+                                                            <div className="flex items-center border-b border-[#0C898B]/20 px-4 py-2.5">
+                                                                <input type="text" inputMode="numeric" placeholder="Price *" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                                    value={formData.earlyBirdFemaleStagPrice}
+                                                                    onChange={(e) => handleInputChange('earlyBirdFemaleStagPrice', e.target.value)} />
+                                                            </div>
+                                                            <div className="flex items-center border-b border-[#0C898B]/20 px-4 py-2.5">
+                                                                <input type="text" inputMode="numeric" placeholder="Cover / Redeem (optional)" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                                    value={formData.earlyBirdFemaleStagFee} onChange={(e) => handleInputChange('earlyBirdFemaleStagFee', e.target.value)} />
+                                                            </div>
+                                                            <div className="flex items-center px-4 py-2.5">
+                                                                <input type="text" placeholder="Description (optional)" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                                    value={formData.earlyBirdFemaleStagDesc} onChange={(e) => handleInputChange('earlyBirdFemaleStagDesc', e.target.value)} />
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* Early Bird: Couple */}
+                                            {formData.coupleEnabled && (
+                                                <div className={`bg-[#0D1F1F] border ${!formData.earlyBirdCoupleEnabled ? 'border-white/10' : 'border-[#0C898B]/50'} rounded-xl overflow-hidden transition-all`}>
+                                                    <div className={`flex items-center justify-between px-4 py-3 ${!formData.earlyBirdCoupleEnabled ? 'opacity-50' : ''}`}>
+                                                        <button type="button" className="flex items-center gap-3"
+                                                            onClick={() => setFormData(prev => {
+                                                                const isEnabling = !prev.earlyBirdCoupleEnabled;
+                                                                if (!isEnabling) {
+                                                                    // Clear values when disabling
+                                                                    return { ...prev, earlyBirdCoupleEnabled: false, earlyBirdCouplePrice: '', earlyBirdCoupleFee: '', earlyBirdCoupleDesc: '' };
+                                                                }
+                                                                return { ...prev, earlyBirdCoupleEnabled: true };
+                                                            })}>
+                                                            <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${formData.earlyBirdCoupleEnabled ? 'bg-[#14FFEC] border-[#14FFEC]' : 'border-gray-500'}`}>
+                                                                {formData.earlyBirdCoupleEnabled && <svg className="w-3 h-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                                                            </div>
+                                                            <span className="text-white font-semibold text-sm">Couple <span className="text-gray-400 font-normal">(Early Bird)</span></span>
+                                                        </button>
+                                                        {formData.earlyBirdCoupleEnabled && (
+                                                            <button onClick={() => setFormData(prev => ({ ...prev, earlyBirdCoupleEnabled: false, earlyBirdCouplePrice: '', earlyBirdCoupleFee: '', earlyBirdCoupleDesc: '' }))} className="text-gray-500 hover:text-red-400 transition-colors">
+                                                                <Trash2 size={15} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                    {formData.earlyBirdCoupleEnabled && (
+                                                        <div className="border-t border-[#0C898B]/20">
+                                                            <div className="flex items-center border-b border-[#0C898B]/20 px-4 py-2.5">
+                                                                <input type="text" inputMode="numeric" placeholder="Price *" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                                    value={formData.earlyBirdCouplePrice}
+                                                                    onChange={(e) => handleInputChange('earlyBirdCouplePrice', e.target.value)} />
+                                                            </div>
+                                                            <div className="flex items-center border-b border-[#0C898B]/20 px-4 py-2.5">
+                                                                <input type="text" inputMode="numeric" placeholder="Cover / Redeem (optional)" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                                    value={formData.earlyBirdCoupleFee} onChange={(e) => handleInputChange('earlyBirdCoupleFee', e.target.value)} />
+                                                            </div>
+                                                            <div className="flex items-center px-4 py-2.5">
+                                                                <input type="text" placeholder="Description (optional)" className="w-full bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+                                                                    value={formData.earlyBirdCoupleDesc} onChange={(e) => handleInputChange('earlyBirdCoupleDesc', e.target.value)} />
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* Free Male Stag per Couple promo - Early Bird */}
+                                            <div className="bg-[#0D1F1F] border border-[#0C898B]/50 rounded-lg px-4 py-3 flex items-center justify-between gap-4">
+                                                <div className="flex-1 min-w-0">
+                                                    <span className="text-white font-semibold text-sm">Free Male Stag per Couple</span>
+                                                    <p className="text-xs text-gray-400 mt-0.5">1 complimentary male stag per couple (early bird)</p>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setFormData(prev => ({ ...prev, earlyBirdFreeMaleStagPerCoupleEnabled: !prev.earlyBirdFreeMaleStagPerCoupleEnabled }))}
+                                                    className={`relative inline-flex h-6 w-10 flex-shrink-0 items-center rounded-full transition-colors duration-200 ${formData.earlyBirdFreeMaleStagPerCoupleEnabled ? 'bg-[#14FFEC]' : 'bg-gray-700'}`}
+                                                >
+                                                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${formData.earlyBirdFreeMaleStagPerCoupleEnabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>

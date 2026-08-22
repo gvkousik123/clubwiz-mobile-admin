@@ -1,0 +1,86 @@
+/**
+ * Palette for the Clubwiz platform console.
+ *
+ * Scoped to .sa-root rather than :root on purpose — the club-owner console at
+ * /bz/business uses the existing --clubviz-* tokens and must not shift.
+ */
+
+.sa-root {
+  --sa-bg: #05111c;
+  --sa-surface: #0c1724;
+  --sa-card: #101d2b;
+  --sa-raised: #132231;
+  --sa-inset: #10222f;
+
+  --sa-border: rgba(255, 255, 255, 0.06);
+  --sa-border-strong: rgba(255, 255, 255, 0.1);
+
+  --sa-text: #eaf2ee;
+  --sa-text-dim: rgba(234, 242, 238, 0.6);
+  --sa-text-faint: rgba(234, 242, 238, 0.38);
+
+  --sa-accent: #38bdf8;
+  --sa-accent-ink: #041e2f;
+  --sa-accent-soft: rgba(56, 189, 248, 0.14);
+
+  --sa-green: #3ddc84;
+  --sa-amber: #fbbf24;
+  --sa-red: #f87171;
+  --sa-blue: #38bdf8;
+  --sa-pink: #e879f9;
+
+  --sa-display: 'Manrope', system-ui, sans-serif;
+  --sa-body: 'Manrope', system-ui, sans-serif;
+
+  background: var(--sa-bg);
+  color: var(--sa-text);
+  font-family: var(--sa-body);
+
+  /*
+   * The root layout wraps every page in `<main class="max-w-md mx-auto">`, a
+   * mobile shell for the club-owner/user app. The desktop console must not be
+   * boxed into that 448px column, so it breaks out to fill the viewport.
+   * Fixed positioning ignores the constrained ancestor entirely; the console
+   * scrolls internally. This is scoped to .sa-root, so the club-owner side is
+   * untouched.
+   */
+  position: fixed;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.sa-root ::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+.sa-root ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.09);
+  border-radius: 9px;
+}
+.sa-root ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sa-root input::placeholder,
+.sa-root textarea::placeholder {
+  color: rgba(234, 242, 238, 0.32);
+}
+
+/* Display face for numerals and headings, matching the design. */
+.sa-display {
+  font-family: var(--sa-display);
+  letter-spacing: -0.3px;
+}
+
+.sa-label {
+  font-family: var(--sa-display);
+  font-weight: 700;
+  font-size: 10.5px;
+  letter-spacing: 1px;
+  color: var(--sa-text-faint);
+}
+
+.sa-row-hover:hover {
+  background: rgba(255, 255, 255, 0.02);
+}

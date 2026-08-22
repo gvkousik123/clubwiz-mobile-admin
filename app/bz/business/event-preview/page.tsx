@@ -642,6 +642,7 @@ function EventPreviewContent() {
                                 <input
                                     type="datetime-local"
                                     value={editData.startDateTime}
+                                    min={new Date().toISOString().slice(0, 16)}
                                     onChange={(e) => handleInputChange('startDateTime', e.target.value)}
                                     className="bg-transparent text-white font-['Manrope'] outline-none w-full"
                                 />
@@ -873,6 +874,7 @@ function EventPreviewContent() {
                                     <input
                                         type="datetime-local"
                                         value={editData.endDateTime}
+                                        min={new Date().toISOString().slice(0, 16)}
                                         onChange={(e) => handleInputChange('endDateTime', e.target.value)}
                                         className="flex-1 bg-transparent text-white font-['Manrope'] outline-none"
                                     />
@@ -1084,21 +1086,30 @@ function EventPreviewContent() {
                             <label className="text-[#14FFEC] text-sm font-semibold">Ticket Types</label>
                             {(editData.ticketTypes && editData.ticketTypes.length > 0) || (eventData?.ticketTypes && eventData.ticketTypes.length > 0) ? (
                                 <div className="space-y-2">
-                                    {(editData.ticketTypes || eventData?.ticketTypes || []).map((ticket: any, index: number) => (
-                                        <div key={index} className="bg-[#021313] rounded-lg p-3 flex justify-between items-center">
-                                            <div>
-                                                <p className="text-white font-semibold">{ticket.name}</p>
-                                                <p className="text-white/60 text-sm">{ticket.currency} {ticket.price} • Qty: {ticket.quantity}</p>
+                                    {(editData.ticketTypes || eventData?.ticketTypes || []).map((ticket: any, index: number) => {
+                                        const coverAmount = ticket.redeemCover || ticket.fee || ticket.coverCharge || 0;
+                                        const isGeneral = ticket.name?.toLowerCase().includes('general');
+                                        return (
+                                            <div key={index} className="bg-[#021313] rounded-lg p-3 flex justify-between items-center">
+                                                <div>
+                                                    <p className="text-white font-semibold">{ticket.name}</p>
+                                                    <p className="text-white/60 text-sm">
+                                                        {ticket.currency} {ticket.price} • Qty: {ticket.quantity}
+                                                        {coverAmount > 0 && !isGeneral ? (
+                                                            <span> • Cover: {ticket.currency} {coverAmount}</span>
+                                                        ) : null}
+                                                    </p>
+                                                </div>
+                                                {isEditing && (
+                                                    <button 
+                                                        onClick={() => handleDeleteTicket(index)}
+                                                        className="text-red-400 hover:text-red-500">
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                )}
                                             </div>
-                                            {isEditing && (
-                                                <button 
-                                                    onClick={() => handleDeleteTicket(index)}
-                                                    className="text-red-400 hover:text-red-500">
-                                                    <Trash2 size={16} />
-                                                </button>
-                                            )}
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                     {isEditing && (
                                         <button 
                                             onClick={() => setIsAddingTicket(true)}

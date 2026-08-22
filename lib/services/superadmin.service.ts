@@ -107,8 +107,8 @@ export class SuperAdminService {
   // ============================================================================
 
   /**
-   * Get admin dashboard statistics
-   * GET /admin/stats
+  * Get admin dashboard statistics
+  * GET /admin/stats
    */
   static async getAdminStats(): Promise<AdminStats> {
     try {
@@ -128,8 +128,8 @@ export class SuperAdminService {
   // ============================================================================
 
   /**
-   * Get all users with pagination
-   * GET /admin/users
+  * Get all users with pagination
+  * GET /clubs/admin/users
    */
   static async getAllUsers(page: number = 0, size: number = 10): Promise<{
     users: SuperAdminUser[];
@@ -141,7 +141,7 @@ export class SuperAdminService {
     };
   }> {
     try {
-      const response = await api.get<ApiResponse<SuperAdminUser[]> | SuperAdminUser[]>('/admin/users', {
+      const response = await api.get<ApiResponse<SuperAdminUser[]> | SuperAdminUser[]>('/clubs/admin/users', {
         params: { page, size }
       });
       const result = handleApiResponse(response);
@@ -165,12 +165,12 @@ export class SuperAdminService {
   }
 
   /**
-   * Get user by username
-   * GET /admin/users/{username}
+  * Get user by username
+  * GET /clubs/admin/users/{username}
    */
   static async getUserByUsername(username: string): Promise<SuperAdminUser> {
     try {
-      const response = await api.get<ApiResponse<SuperAdminUser> | SuperAdminUser>(`/admin/users/${username}`);
+    const response = await api.get<ApiResponse<SuperAdminUser> | SuperAdminUser>(`/clubs/admin/users/${username}`);
       const result = handleApiResponse(response);
       // Handle both wrapped and unwrapped responses
       const data = (result as any).data || result;
@@ -182,12 +182,12 @@ export class SuperAdminService {
   }
 
   /**
-   * Delete user
-   * DELETE /admin/users/{username}
+  * Delete user
+  * DELETE /clubs/admin/users/{username}
    */
   static async deleteUser(username: string): Promise<{ message: string }> {
     try {
-      const response = await api.delete<ApiResponse<{ message: string }> | { message: string }>(`/admin/users/${username}`);
+    const response = await api.delete<ApiResponse<{ message: string }> | { message: string }>(`/clubs/admin/users/${username}`);
       const result = handleApiResponse(response);
       // Handle both wrapped and unwrapped responses
       const data = (result as any).data || result;
@@ -204,12 +204,12 @@ export class SuperAdminService {
 
   /**
    * Activate user
-   * POST /admin/users/{username}/activate
+   * POST /clubs/admin/users/{username}/activate
    */
   static async activateUser(username: string): Promise<{ message: string }> {
     try {
       const response = await api.post<ApiResponse<{ message: string }> | { message: string }>(
-        `/admin/users/${username}/activate`
+        `/clubs/admin/users/${username}/activate`
       );
       const result = handleApiResponse(response);
       // Handle both wrapped and unwrapped responses
@@ -223,12 +223,12 @@ export class SuperAdminService {
 
   /**
    * Deactivate user
-   * POST /admin/users/{username}/deactivate
+   * POST /clubs/admin/users/{username}/deactivate
    */
   static async deactivateUser(username: string): Promise<{ message: string }> {
     try {
       const response = await api.post<ApiResponse<{ message: string }> | { message: string }>(
-        `/admin/users/${username}/deactivate`
+        `/clubs/admin/users/${username}/deactivate`
       );
       const result = handleApiResponse(response);
       // Handle both wrapped and unwrapped responses
@@ -245,12 +245,12 @@ export class SuperAdminService {
   // ============================================================================
 
   /**
-   * Get user roles
-   * GET /admin/users/{username}/roles
+  * Get user roles
+  * GET /clubs/admin/users/{username}/roles
    */
   static async getUserRoles(username: string): Promise<string[]> {
     try {
-      const response = await api.get<ApiResponse<string[]> | string[]>(`/admin/users/${username}/roles`);
+    const response = await api.get<ApiResponse<string[]> | string[]>(`/clubs/admin/users/${username}/roles`);
       const result = handleApiResponse(response);
       // Handle both wrapped and unwrapped responses
       const data = Array.isArray(result) ? result : (result as any).data || [];
@@ -263,12 +263,12 @@ export class SuperAdminService {
 
   /**
    * Add role to user
-   * POST /admin/users/{username}/roles/{role}
+   * POST /clubs/admin/users/{username}/roles/{role}
    */
   static async addRoleToUser(username: string, role: string): Promise<{ message: string }> {
     try {
       const response = await api.post<ApiResponse<{ message: string }> | { message: string }>(
-        `/admin/users/${username}/roles/${role}`
+        `/clubs/admin/users/${username}/roles/${role}`
       );
       const result = handleApiResponse(response);
       // Handle both wrapped and unwrapped responses
@@ -282,12 +282,12 @@ export class SuperAdminService {
 
   /**
    * Remove role from user
-   * DELETE /admin/users/{username}/roles/{role}
+   * DELETE /clubs/admin/users/{username}/roles/{role}
    */
   static async removeRoleFromUser(username: string, role: string): Promise<{ message: string }> {
     try {
       const response = await api.delete<ApiResponse<{ message: string }> | { message: string }>(
-        `/admin/users/${username}/roles/${role}`
+        `/clubs/admin/users/${username}/roles/${role}`
       );
       const result = handleApiResponse(response);
       // Handle both wrapped and unwrapped responses

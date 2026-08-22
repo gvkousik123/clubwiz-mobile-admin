@@ -36,6 +36,28 @@ function LiveMusicContent() {
         return now >= endTime;
     };
 
+    const resetLiveMusicState = () => {
+        setIsEnabled(false);
+        setSelectedGenres([]);
+        setEndTiming('');
+        setSoundLevel('');
+    };
+
+    const expireLiveMusic = async () => {
+        resetLiveMusicState();
+        if (!clubId) return;
+        try {
+            await ClubService.updateLiveMusic(clubId, {
+                isEnabled: false,
+                genres: [],
+                endTiming: null,
+                soundLevel: null,
+            });
+        } catch (error) {
+            console.error('Failed to auto-disable live music after end time:', error);
+        }
+    };
+
     useEffect(() => {
         const cid = getClubId(searchParams);
         if (cid) {
@@ -60,18 +82,22 @@ function LiveMusicContent() {
                 const data = await ClubService.getLiveMusic(clubId);
                 if (data) {
                     const endTimingValue = data.endTiming || '';
-                    const isExpired = data.isEnabled && isEndTimingPassed(endTimingValue);
+                    const shouldExpire = endTimingValue && isEndTimingPassed(endTimingValue);
 
-                    setIsEnabled(isExpired ? false : data.isEnabled || false);
-                    if (data.genres) {
-                        setSelectedGenres(data.genres.map(g => ({
-                            id: g.toLowerCase().replace(/\s+/g, '-'),
-                            label: g,
-                            active: true
-                        })));
+                    if (shouldExpire) {
+                        await expireLiveMusic();
+                    } else {
+                        setIsEnabled(data.isEnabled || false);
+                        if (data.genres) {
+                            setSelectedGenres(data.genres.map(g => ({
+                                id: g.toLowerCase().replace(/\s+/g, '-'),
+                                label: g,
+                                active: true
+                            })));
+                        }
+                        setEndTiming(endTimingValue);
+                        setSoundLevel(data.soundLevel || '');
                     }
-                    setEndTiming(endTimingValue);
-                    setSoundLevel(data.soundLevel || '');
                 }
             } catch (error) {
                 console.error('Failed to load live music configuration:', error);
@@ -88,17 +114,40 @@ function LiveMusicContent() {
         loadLiveMusic();
     }, [clubId, toast]);
 
+    // Auto-expire live music when end time passes
     useEffect(() => {
         if (!isEnabled || !endTiming) return;
 
+        // Check immediately on mount
+        if (isEndTimingPassed(endTiming)) {
+            expireLiveMusic();
+            return;
+        }
+
+        // Check every 5 seconds for more responsive expiry
         const interval = setInterval(() => {
             if (isEndTimingPassed(endTiming)) {
-                setIsEnabled(false);
+                expireLiveMusic();
+                clearInterval(interval);
             }
-        }, 30000);
+        }, 5000);
 
-        return () => clearInterval(interval);
-    }, [isEnabled, endTiming]);
+        // Also check when page comes back into focus (user returns after being away)
+        const handleVisibilityChange = async () => {
+            if (document.visibilityState === 'visible') {
+                if (isEndTimingPassed(endTiming)) {
+                    await expireLiveMusic();
+                }
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            clearInterval(interval);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [clubId, endTiming, isEnabled]);
 
     const handleGoBack = () => {
         router.back();

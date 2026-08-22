@@ -541,6 +541,7 @@ export default function RunningAdsPage() {
                                     <input
                                         type="datetime-local"
                                         value={formData.startDateTime.slice(0, 16)}
+                                        min={new Date().toISOString().slice(0, 16)}
                                         onChange={(e) => setFormData({ ...formData, startDateTime: new Date(e.target.value).toISOString() })}
                                         className="w-full bg-[#021313] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-purple-500/50 outline-none"
                                     />
@@ -550,6 +551,7 @@ export default function RunningAdsPage() {
                                     <input
                                         type="datetime-local"
                                         value={formData.endDateTime.slice(0, 16)}
+                                        min={new Date().toISOString().slice(0, 16)}
                                         onChange={(e) => setFormData({ ...formData, endDateTime: new Date(e.target.value).toISOString() })}
                                         className="w-full bg-[#021313] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-purple-500/50 outline-none"
                                     />

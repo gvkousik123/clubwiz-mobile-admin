@@ -17,8 +17,8 @@ export class AdminService {
   // ============================================================================
 
   /**
-   * Get all users (Admin only)
-   * GET /admin/users
+  * Get all users (Admin only)
+  * GET /clubs/admin/users
    * 
    * @param page - Page number (default: 0)
    * @param size - Page size (default: 10)
@@ -26,7 +26,7 @@ export class AdminService {
   static async getAllUsers(page: number = 0, size: number = 10): Promise<ApiResponse<User[]>> {
     try {
       const response = await api.get<ApiResponse<User[]>>(
-        `/admin/users`,
+        `/clubs/admin/users`,
         { params: { page, size } }
       );
       return handleApiResponse(response);
@@ -36,15 +36,15 @@ export class AdminService {
   }
 
   /**
-   * Get user by username (Admin only)
-   * GET /admin/users/{username}
+  * Get user by username (Admin only)
+  * GET /clubs/admin/users/{username}
    * 
    * @param username - Username to get
    */
   static async getUserByUsername(username: string): Promise<ApiResponse<User>> {
     try {
       const response = await api.get<ApiResponse<User>>(
-        `/admin/users/${username}`
+        `/clubs/admin/users/${username}`
       );
       return handleApiResponse(response);
     } catch (error) {
@@ -53,15 +53,15 @@ export class AdminService {
   }
 
   /**
-   * Delete user (Admin only)
-   * DELETE /admin/users/{username}
+  * Delete user (Admin only)
+  * DELETE /clubs/admin/users/{username}
    * 
    * @param username - Username to delete
    */
   static async deleteUser(username: string): Promise<ApiResponse<{ message: string }>> {
     try {
       const response = await api.delete<ApiResponse<{ message: string }>>(
-        `/admin/users/${username}`
+        `/clubs/admin/users/${username}`
       );
       return handleApiResponse(response);
     } catch (error) {
@@ -70,15 +70,15 @@ export class AdminService {
   }
 
   /**
-   * Activate user (Admin only)
-   * POST /admin/users/{username}/activate
+  * Activate user (Admin only)
+  * POST /clubs/admin/users/{username}/activate
    * 
    * @param username - Username to activate
    */
   static async activateUser(username: string): Promise<ApiResponse<{ message: string }>> {
     try {
       const response = await api.post<ApiResponse<{ message: string }>>(
-        `/admin/users/${username}/activate`
+        `/clubs/admin/users/${username}/activate`
       );
       return handleApiResponse(response);
     } catch (error) {
@@ -87,15 +87,15 @@ export class AdminService {
   }
 
   /**
-   * Deactivate user (Admin only)
-   * POST /admin/users/{username}/deactivate
+  * Deactivate user (Admin only)
+  * POST /clubs/admin/users/{username}/deactivate
    * 
    * @param username - Username to deactivate
    */
   static async deactivateUser(username: string): Promise<ApiResponse<{ message: string }>> {
     try {
       const response = await api.post<ApiResponse<{ message: string }>>(
-        `/admin/users/${username}/deactivate`
+        `/clubs/admin/users/${username}/deactivate`
       );
       return handleApiResponse(response);
     } catch (error) {
@@ -108,15 +108,15 @@ export class AdminService {
   // ============================================================================
 
   /**
-   * Get user roles (Admin only)
-   * GET /admin/users/{username}/roles
+  * Get user roles (Admin only)
+  * GET /clubs/admin/users/{username}/roles
    * 
    * @param username - Username to get roles for
    */
   static async getUserRoles(username: string): Promise<ApiResponse<string[]>> {
     try {
       const response = await api.get<ApiResponse<string[]>>(
-        `/admin/users/${username}/roles`
+        `/clubs/admin/users/${username}/roles`
       );
       return handleApiResponse(response);
     } catch (error) {
@@ -125,8 +125,8 @@ export class AdminService {
   }
 
   /**
-   * Add role to user (Admin only)
-   * POST /admin/users/{username}/roles/{role}
+  * Add role to user (Admin only)
+  * POST /clubs/admin/users/{username}/roles/{role}
    * 
    * @param username - Username to add role to
    * @param role - Role to add (USER, ADMIN, SUPERADMIN)
@@ -134,7 +134,7 @@ export class AdminService {
   static async addUserRole(username: string, role: string): Promise<ApiResponse<{ message: string }>> {
     try {
       const response = await api.post<ApiResponse<{ message: string }>>(
-        `/admin/users/${username}/roles/${role}`
+        `/clubs/admin/users/${username}/roles/${role}`
       );
       return handleApiResponse(response);
     } catch (error) {
@@ -143,8 +143,8 @@ export class AdminService {
   }
 
   /**
-   * Remove role from user (Admin only)
-   * DELETE /admin/users/{username}/roles/{role}
+  * Remove role from user (Admin only)
+  * DELETE /clubs/admin/users/{username}/roles/{role}
    * 
    * @param username - Username to remove role from
    * @param role - Role to remove
@@ -152,7 +152,7 @@ export class AdminService {
   static async removeUserRole(username: string, role: string): Promise<ApiResponse<{ message: string }>> {
     try {
       const response = await api.delete<ApiResponse<{ message: string }>>(
-        `/admin/users/${username}/roles/${role}`
+        `/clubs/admin/users/${username}/roles/${role}`
       );
       return handleApiResponse(response);
     } catch (error) {

@@ -1,11 +1,12 @@
 'use client';
 
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Loader2, Upload, Trash2, Plus, ChevronLeft, ChevronRight, Share2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Upload, Trash2, Plus, ChevronLeft, ChevronRight, Share2, MapPin, Edit3 } from 'lucide-react';
 import { useState, useEffect, Suspense, useRef } from 'react';
 import { ClubService } from '@/lib/services/club.service';
 import { useToast } from '@/hooks/use-toast';
 import { fileToBase64 } from '@/lib/image-utils';
+import LocationModal from '@/components/common/location-modal';
 
 // Tag Component for reusability
 const TagComponent = ({ icon, label, iconPath }: { icon?: React.ReactNode, label: string, iconPath?: string }) => (
@@ -31,6 +32,17 @@ function EditClubContent() {
     const [isSaving, setIsSaving] = useState(false);
     const [clubData, setClubData] = useState<any>(null);
     const [editData, setEditData] = useState<any>(null);
+    const [showLocationModal, setShowLocationModal] = useState(false);
+    const [selectedLocation, setSelectedLocation] = useState<any>({
+        address1: '',
+        address2: '',
+        city: '',
+        state: '',
+        country: 'India',
+        pincode: '',
+        lat: null,
+        lng: null
+    });
     const [clubImages, setClubImages] = useState<string[]>([]);
     const [logo, setLogo] = useState<string>('');
     const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -88,17 +100,32 @@ function EditClubContent() {
                 setFoodCuisinesTags(club?.foodCuisines || []);
                 setBarOptionsTags(club?.barOptions || []);
 
+                const loc = {
+                    address1: club?.locationText?.address1 || club?.address1 || '',
+                    address2: club?.locationText?.address2 || club?.address2 || '',
+                    city: club?.locationText?.city || club?.city || '',
+                    state: club?.locationText?.state || club?.state || '',
+                    pincode: club?.locationText?.pincode || club?.pincode || '',
+                    country: club?.locationText?.country || club?.country || 'India',
+                    lat: club?.locationText?.lat || club?.locationText?.latitude || club?.lat || null,
+                    lng: club?.locationText?.lng || club?.locationText?.longitude || club?.lng || null,
+                };
+                setSelectedLocation(loc);
+
                 setEditData({
                     name: club?.name || '',
                     description: club?.description || '',
                     phone: club?.contactPhone || club?.phone || '',
                     email: club?.contactEmail || club?.email || '',
                     maxMembers: club?.maxMembers || '',
-                    address1: club?.locationText?.address1 || '',
-                    address2: club?.locationText?.address2 || '',
-                    city: club?.locationText?.city || '',
-                    state: club?.locationText?.state || '',
-                    pincode: club?.locationText?.pincode || '',
+                    address1: loc.address1,
+                    address2: loc.address2,
+                    city: loc.city,
+                    state: loc.state,
+                    pincode: loc.pincode,
+                    country: loc.country,
+                    lat: loc.lat,
+                    lng: loc.lng,
                 });
             } catch (error) {
                 console.error('Error loading club:', error);
@@ -114,6 +141,22 @@ function EditClubContent() {
 
         if (clubId) loadClubData();
     }, [clubId]);
+
+    const handleLocationSelect = (loc: any) => {
+        console.log('📍 Location selected in Edit Club:', loc);
+        setSelectedLocation(loc);
+        setEditData((prev: any) => ({
+            ...prev,
+            address1: loc.address1 || prev?.address1 || '',
+            address2: loc.address2 || prev?.address2 || '',
+            city: loc.city || prev?.city || '',
+            state: loc.state || prev?.state || '',
+            pincode: loc.pincode || prev?.pincode || '',
+            country: loc.country || prev?.country || 'India',
+            lat: loc.lat || prev?.lat || null,
+            lng: loc.lng || prev?.lng || null,
+        }));
+    };
 
     const handleGoBack = () => router.push('/bz/business');
 
@@ -190,24 +233,21 @@ function EditClubContent() {
         try {
             setIsSaving(true);
 
-            // Handle logo - convert to base64 if new file uploaded
-            let logoData: any;
+            // Handle logo - convert to proper format if new file uploaded
+            let logoData: any = null;
             if (logoFile) {
                 const logoBase64 = await fileToBase64(logoFile);
                 logoData = {
-                    type: 'LOGO',
-                    url: `data:${logoFile.type};base64,${logoBase64}`
+                    name: logoFile.name || "club-logo.jpg",
+                    contentType: logoFile.type || "image/jpeg",
+                    data: logoBase64,
+                    type: "LOGO"
                 };
-            } else if (logo) {
-                // Existing logo URL
+            } else if (logo && !logo.startsWith('data:')) {
+                // Existing logo URL from server - keep as is
                 logoData = {
-                    type: 'LOGO',
-                    url: logo
-                };
-            } else {
-                logoData = {
-                    type: 'LOGO',
-                    url: ''
+                    url: logo,
+                    type: "LOGO"
                 };
             }
 
@@ -218,19 +258,29 @@ function EditClubContent() {
             if (mainImageFile) {
                 const mainImageBase64 = await fileToBase64(mainImageFile);
                 allImages.push({
-                    type: 'MAIN_IMAGE',
-                    url: `data:${mainImageFile.type};base64,${mainImageBase64}`
+                    name: mainImageFile.name || "main-image.jpg",
+                    contentType: mainImageFile.type || "image/jpeg",
+                    data: mainImageBase64,
+                    type: 'MAIN_IMAGE'
                 });
-            } else if (mainImage) {
-                // Existing main image
+            } else if (mainImage && !mainImage.startsWith('data:')) {
+                // Existing main image URL from server
                 allImages.push({ type: 'MAIN_IMAGE', url: mainImage });
             }
 
             // Add club images (keeping existing ones and new ones)
             for (const img of clubImages) {
                 if (img.startsWith('data:')) {
-                    // New image uploaded as base64 data URL
-                    allImages.push({ type: 'AMBIANCE', url: img });
+                    // New image uploaded as base64 data URL - extract base64 part
+                    const base64Match = img.match(/data:([^;]+);base64,(.+)/);
+                    if (base64Match) {
+                        allImages.push({
+                            name: `club-image-${Date.now()}.jpg`,
+                            contentType: base64Match[1] || "image/jpeg",
+                            data: base64Match[2],
+                            type: 'AMBIANCE'
+                        });
+                    }
                 } else {
                     // Existing image URL from the server - preserve its type
                     const originalImage = (clubData?.images || []).find((ci: any) =>
@@ -253,11 +303,16 @@ function EditClubContent() {
                 foodCuisines: foodCuisinesTags,
                 barOptions: barOptionsTags,
                 locationText: {
-                    address1: editData.address1,
-                    address2: editData.address2,
-                    city: editData.city,
-                    state: editData.state,
-                    pincode: editData.pincode,
+                    address1: editData.address1 || selectedLocation.address1 || "",
+                    address2: editData.address2 || selectedLocation.address2 || "",
+                    city: editData.city || selectedLocation.city || undefined,
+                    state: editData.state || selectedLocation.state || undefined,
+                    pincode: editData.pincode || selectedLocation.pincode || undefined,
+                    country: selectedLocation.country || editData.country || undefined,
+                    latitude: selectedLocation.lat || editData.lat || undefined,
+                    longitude: selectedLocation.lng || editData.lng || undefined,
+                    lat: selectedLocation.lat || editData.lat || undefined,
+                    lng: selectedLocation.lng || editData.lng || undefined,
                 },
                 images: allImages,
             };
@@ -507,64 +562,93 @@ function EditClubContent() {
                     </div>
                 </div>
 
-                {/* Address Section */}
+                {/* Location Section */}
                 <div className="border-t border-[#14FFEC]/30 pt-4">
-                    <h3 className="text-white text-lg font-semibold mb-4">Address Details</h3>
-
-                    <div>
-                        <label className="text-white text-sm font-semibold mb-2 block">Address Line 1</label>
-                        <input
-                            type="text"
-                            value={editData.address1}
-                            onChange={(e) => setEditData({ ...editData, address1: e.target.value })}
-                            className="w-full bg-[rgba(40,60,61,0.30)] border border-[#14FFEC]/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-[#14FFEC] mb-3"
-                            placeholder="Street address"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="text-white text-sm font-semibold mb-2 block">Address Line 2</label>
-                        <input
-                            type="text"
-                            value={editData.address2}
-                            onChange={(e) => setEditData({ ...editData, address2: e.target.value })}
-                            className="w-full bg-[rgba(40,60,61,0.30)] border border-[#14FFEC]/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-[#14FFEC] mb-3"
-                            placeholder="Apt, suite, etc."
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 mb-3">
-                        <div>
-                            <label className="text-white text-sm font-semibold mb-2 block">City</label>
-                            <input
-                                type="text"
-                                value={editData.city}
-                                onChange={(e) => setEditData({ ...editData, city: e.target.value })}
-                                className="w-full bg-[rgba(40,60,61,0.30)] border border-[#14FFEC]/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-[#14FFEC]"
-                                placeholder="City"
-                            />
+                    <div className="w-full flex flex-col gap-[11px]">
+                        <div className="flex items-center justify-between">
+                            <label className="text-[#14FFEC] font-semibold text-base">Club Location <span className="text-red-500">*</span></label>
+                            {(selectedLocation.city || editData.city) && (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowLocationModal(true)}
+                                    className="text-[#14FFEC] text-xs font-semibold hover:underline flex items-center gap-1"
+                                >
+                                    <Edit3 size={13} /> Edit Location
+                                </button>
+                            )}
                         </div>
-                        <div>
-                            <label className="text-white text-sm font-semibold mb-2 block">State</label>
-                            <input
-                                type="text"
-                                value={editData.state}
-                                onChange={(e) => setEditData({ ...editData, state: e.target.value })}
-                                className="w-full bg-[rgba(40,60,61,0.30)] border border-[#14FFEC]/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-[#14FFEC]"
-                                placeholder="State"
-                            />
-                        </div>
-                    </div>
 
-                    <div>
-                        <label className="text-white text-sm font-semibold mb-2 block">Pincode</label>
-                        <input
-                            type="text"
-                            value={editData.pincode}
-                            onChange={(e) => setEditData({ ...editData, pincode: e.target.value })}
-                            className="w-full bg-[rgba(40,60,61,0.30)] border border-[#14FFEC]/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-[#14FFEC]"
-                            placeholder="Pincode"
-                        />
+                        {/* Location Display Card or Selector */}
+                        {(selectedLocation.city || editData.city) && (selectedLocation.state || editData.state) ? (
+                            <div
+                                onClick={() => setShowLocationModal(true)}
+                                className="w-full bg-[#0D1F1F] border border-[#0C898B] rounded-[24px] p-5 cursor-pointer hover:border-[#14FFEC] transition-all relative overflow-hidden group"
+                            >
+                                <div className="flex items-start gap-3.5">
+                                    <div className="w-10 h-10 bg-[#14FFEC]/10 border border-[#14FFEC]/30 rounded-2xl flex items-center justify-center text-[#14FFEC] flex-shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
+                                        <MapPin size={20} />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center justify-between">
+                                            <h4 className="text-white font-bold text-base truncate">
+                                                {selectedLocation.city || editData.city}, {selectedLocation.state || editData.state}
+                                            </h4>
+                                            {(selectedLocation.lat || editData.lat) && (selectedLocation.lng || editData.lng) ? (
+                                                <span className="text-[10px] bg-[#14FFEC]/15 text-[#14FFEC] font-mono px-2 py-0.5 rounded-full border border-[#14FFEC]/30">
+                                                    GPS PIN
+                                                </span>
+                                            ) : null}
+                                        </div>
+                                        {(selectedLocation.address1 || editData.address1) && (
+                                            <p className="text-white/80 text-sm mt-1 truncate">
+                                                {selectedLocation.address1 || editData.address1}
+                                                {(selectedLocation.address2 || editData.address2) ? `, ${selectedLocation.address2 || editData.address2}` : ''}
+                                            </p>
+                                        )}
+                                        <p className="text-[#14FFEC]/70 text-xs mt-1.5 font-medium">
+                                            {(selectedLocation.pincode || editData.pincode) ? `Pincode: ${selectedLocation.pincode || editData.pincode} · ` : ''}
+                                            {selectedLocation.country || editData.country || 'India'}
+                                        </p>
+                                    </div>
+                                    <ChevronRight className="text-[#14FFEC]/60 group-hover:text-[#14FFEC] group-hover:translate-x-0.5 transition-all self-center ml-1" size={20} />
+                                </div>
+                            </div>
+                        ) : (
+                            <div
+                                onClick={() => setShowLocationModal(true)}
+                                className="w-full h-[60px] bg-[#0D1F1F] border border-[#0C898B] rounded-[30px] p-[10px] px-5 flex items-center justify-between cursor-pointer hover:border-[#14FFEC] transition-all group"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <MapPin className="text-[#14FFEC]" size={20} />
+                                    <span className="text-white/70 text-base font-medium group-hover:text-white transition-colors">
+                                        Set Club Location (GPS / Search / Manual)
+                                    </span>
+                                </div>
+                                <ChevronRight className="text-[#14FFEC]" size={18} />
+                            </div>
+                        )}
+
+                        {/* Address Line inputs for fine tuning */}
+                        <div className="w-full flex flex-col gap-3 mt-1">
+                            <div className="w-full bg-[#0D1F1F] border border-[#0C898B]/60 rounded-[30px] p-[10px] px-5 focus-within:border-[#14FFEC]/60 transition-colors">
+                                <input
+                                    type="text"
+                                    value={editData.address1 || ''}
+                                    onChange={(e) => setEditData({ ...editData, address1: e.target.value })}
+                                    className="w-full bg-transparent text-white placeholder-[#9D9C9C] outline-none text-base font-semibold"
+                                    placeholder="Address Line 1 (Street/Landmark)"
+                                />
+                            </div>
+                            <div className="w-full bg-[#0D1F1F] border border-[#0C898B]/60 rounded-[30px] p-[10px] px-5 focus-within:border-[#14FFEC]/60 transition-colors">
+                                <input
+                                    type="text"
+                                    value={editData.address2 || ''}
+                                    onChange={(e) => setEditData({ ...editData, address2: e.target.value })}
+                                    className="w-full bg-transparent text-white placeholder-[#9D9C9C] outline-none text-base font-semibold"
+                                    placeholder="Address Line 2 (Area/Locality)"
+                                />
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -586,13 +670,17 @@ function EditClubContent() {
                         onChange={handleLogoUpload}
                         className="hidden"
                     />
-                    {logo ? (
+                    {logo && logo.trim() ? (
                         <div className="relative w-32 h-32">
                             <img
                                 src={logo}
                                 alt="Club Logo"
                                 loading="lazy"
                                 className="w-full h-full object-cover rounded-lg bg-[#0D1F1F]"
+                                onError={(e) => {
+                                    console.error('❌ Logo failed to load:', logo);
+                                    e.currentTarget.style.display = 'none';
+                                }}
                             />
                             <button
                                 onClick={handleRemoveLogo}
@@ -624,13 +712,17 @@ function EditClubContent() {
                         onChange={handleMainImageUpload}
                         className="hidden"
                     />
-                    {mainImage ? (
+                    {mainImage && mainImage.trim() ? (
                         <div className="relative w-full h-48">
                             <img
                                 src={mainImage}
                                 alt="Main Image"
                                 loading="lazy"
                                 className="w-full h-full object-cover rounded-lg bg-[#0D1F1F]"
+                                onError={(e) => {
+                                    console.error('❌ Main image failed to load:', mainImage);
+                                    e.currentTarget.style.display = 'none';
+                                }}
                             />
                             <button
                                 onClick={handleRemoveMainImage}
@@ -667,13 +759,17 @@ function EditClubContent() {
 
                     {clubImages.length > 0 ? (
                         <div className="grid grid-cols-3 gap-3">
-                            {clubImages.map((img, idx) => (
-                                <div key={img} className="relative">
+                            {clubImages.filter(img => img && img.trim()).map((img, idx) => (
+                                <div key={`${img}-${idx}`} className="relative">
                                     <img
                                         src={img}
                                         alt={`Club ${idx + 1}`}
                                         loading="lazy"
                                         className="w-full h-24 object-cover rounded-lg bg-[#0D1F1F]"
+                                        onError={(e) => {
+                                            console.error('❌ Image failed to load:', img);
+                                            e.currentTarget.style.display = 'none';
+                                        }}
                                     />
                                     <button
                                         onClick={() => handleRemoveImage(idx)}
@@ -707,6 +803,14 @@ function EditClubContent() {
                     </button>
                 </div>
             </div>
+
+            {/* Location Selection Modal */}
+            <LocationModal
+                isOpen={showLocationModal}
+                onClose={() => setShowLocationModal(false)}
+                onSelectLocation={handleLocationSelect}
+                initialAddress={(editData && editData.address1) ? `${editData.address1}, ${editData.city || ''}` : ''}
+            />
         </div>
     );
 }

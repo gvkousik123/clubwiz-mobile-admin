@@ -52,6 +52,27 @@ function NewEventPageContent() {
     const [showConfirmDialog, setShowConfirmDialog] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
     const [dialogStage, setDialogStage] = useState<'confirm' | 'creating'>('confirm');
+
+    const normalizeTimeForInput = (time?: string | null): string => {
+        if (!time) return '';
+        const trimmed = time.trim();
+        if (!trimmed) return '';
+
+        if (trimmed.includes('T')) {
+            const date = new Date(trimmed);
+            if (!Number.isNaN(date.getTime())) {
+                return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+            }
+        }
+
+        const [hours, minutes] = trimmed.split(':');
+        if (hours !== undefined && minutes !== undefined) {
+            return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+        }
+
+        return '';
+    };
+
     const [formData, setFormData] = useState({
         eventName: '',
         artistName: '',
@@ -167,15 +188,33 @@ function NewEventPageContent() {
                         eventTime = `${String(dateObj.getHours()).padStart(2, '0')}:${String(dateObj.getMinutes()).padStart(2, '0')}`;
                     }
 
+                    // Resolve early bird pricing from explicit earlyBirdPricing, guestListPricing, or generalPricing.
+                    const earlyBirdSource =
+                        event.earlyBirdPricing ||
+                        ((event.guestListPricing?.cutoffTime ||
+                          event.guestListPricing?.maleStagEntry ||
+                          event.guestListPricing?.femaleStagEntry ||
+                          event.guestListPricing?.coupleEntry ||
+                          event.guestListPricing?.freeMaleStagPerCoupleEnabled !== undefined)
+                            ? event.guestListPricing
+                            : null) ||
+                        event.generalPricing;
+
                     // Set form data
                     const hasEarlyBirdData = Boolean(
                         event.earlyBirdEnabled ||
+                        event.earlyBirdEndTime ||
                         event.earlyBirdMaleStagEntry ||
                         event.earlyBirdPricing?.maleStagEntry ||
-                        event.earlyBirdFemaleStagEntry ||
                         event.earlyBirdPricing?.femaleStagEntry ||
-                        event.earlyBirdCoupleEntry ||
-                        event.earlyBirdPricing?.coupleEntry
+                        event.earlyBirdPricing?.coupleEntry ||
+                        event.guestListPricing?.cutoffTime ||
+                        earlyBirdSource?.cutoffTime ||
+                        earlyBirdSource?.maleStagEntry ||
+                        earlyBirdSource?.femaleStagEntry ||
+                        earlyBirdSource?.coupleEntry ||
+                        event.earlyBirdFreeMaleStagPerCoupleEnabled ||
+                        earlyBirdSource?.freeMaleStagPerCoupleEnabled
                     );
 
                     setFormData({
@@ -207,22 +246,22 @@ function NewEventPageContent() {
                         coupleEnabled: !!(event.coupleEntry || event.generalPricing?.coupleEntry),
                         // Early Bird Pricing
                         earlyBirdEnabled: hasEarlyBirdData,
-                        earlyBirdEndTime: event.earlyBirdEndTime || event.earlyBirdPricing?.cutoffTime || '',
-                        earlyBirdMaleStagEnabled: !!(event.earlyBirdMaleStagEntry || event.earlyBirdPricing?.maleStagEntry),
-                        earlyBirdMaleStagPrice: event.earlyBirdMaleStagEntry?.price?.toString() || event.earlyBirdPricing?.maleStagEntry?.price?.toString() || '',
-                        earlyBirdMaleStagFee: event.earlyBirdMaleStagEntry?.fee?.toString() || event.earlyBirdPricing?.maleStagEntry?.fee?.toString() || '',
-                        earlyBirdMaleStagDesc: event.earlyBirdMaleStagEntry?.description || event.earlyBirdPricing?.maleStagEntry?.description || '',
-                        earlyBirdFemaleStagEnabled: !!(event.earlyBirdFemaleStagEntry || event.earlyBirdPricing?.femaleStagEntry),
-                        earlyBirdFemaleStagPrice: event.earlyBirdFemaleStagEntry?.price?.toString() || event.earlyBirdPricing?.femaleStagEntry?.price?.toString() || '',
-                        earlyBirdFemaleStagFee: event.earlyBirdFemaleStagEntry?.fee?.toString() || event.earlyBirdPricing?.femaleStagEntry?.fee?.toString() || '',
-                        earlyBirdFemaleStagDesc: event.earlyBirdFemaleStagEntry?.description || event.earlyBirdPricing?.femaleStagEntry?.description || '',
-                        earlyBirdCoupleEnabled: !!(event.earlyBirdCoupleEntry || event.earlyBirdPricing?.coupleEntry),
-                        earlyBirdCouplePrice: event.earlyBirdCoupleEntry?.price?.toString() || event.earlyBirdPricing?.coupleEntry?.price?.toString() || '',
-                        earlyBirdCoupleFee: event.earlyBirdCoupleEntry?.fee?.toString() || event.earlyBirdPricing?.coupleEntry?.fee?.toString() || '',
-                        earlyBirdCoupleDesc: event.earlyBirdCoupleEntry?.description || event.earlyBirdPricing?.coupleEntry?.description || '',
+                        earlyBirdEndTime: normalizeTimeForInput(event.earlyBirdEndTime || earlyBirdSource?.cutoffTime || ''),
+                        earlyBirdMaleStagEnabled: !!(event.earlyBirdMaleStagEntry || earlyBirdSource?.maleStagEntry),
+                        earlyBirdMaleStagPrice: event.earlyBirdMaleStagEntry?.price?.toString() || earlyBirdSource?.maleStagEntry?.price?.toString() || '',
+                        earlyBirdMaleStagFee: event.earlyBirdMaleStagEntry?.fee?.toString() || earlyBirdSource?.maleStagEntry?.fee?.toString() || '',
+                        earlyBirdMaleStagDesc: event.earlyBirdMaleStagEntry?.description || earlyBirdSource?.maleStagEntry?.description || '',
+                        earlyBirdFemaleStagEnabled: !!(event.earlyBirdFemaleStagEntry || earlyBirdSource?.femaleStagEntry),
+                        earlyBirdFemaleStagPrice: event.earlyBirdFemaleStagEntry?.price?.toString() || earlyBirdSource?.femaleStagEntry?.price?.toString() || '',
+                        earlyBirdFemaleStagFee: event.earlyBirdFemaleStagEntry?.fee?.toString() || earlyBirdSource?.femaleStagEntry?.fee?.toString() || '',
+                        earlyBirdFemaleStagDesc: event.earlyBirdFemaleStagEntry?.description || earlyBirdSource?.femaleStagEntry?.description || '',
+                        earlyBirdCoupleEnabled: !!(event.earlyBirdCoupleEntry || earlyBirdSource?.coupleEntry),
+                        earlyBirdCouplePrice: event.earlyBirdCoupleEntry?.price?.toString() || earlyBirdSource?.coupleEntry?.price?.toString() || '',
+                        earlyBirdCoupleFee: event.earlyBirdCoupleEntry?.fee?.toString() || earlyBirdSource?.coupleEntry?.fee?.toString() || '',
+                        earlyBirdCoupleDesc: event.earlyBirdCoupleEntry?.description || earlyBirdSource?.coupleEntry?.description || '',
                         // Promo toggles
                         freeMaleStagPerCoupleEnabled: event.freeMaleStagPerCoupleEnabled || event.generalPricing?.freeMaleStagPerCoupleEnabled || false,
-                        earlyBirdFreeMaleStagPerCoupleEnabled: event.earlyBirdFreeMaleStagPerCoupleEnabled || event.earlyBirdPricing?.freeMaleStagPerCoupleEnabled || false,
+                        earlyBirdFreeMaleStagPerCoupleEnabled: event.earlyBirdFreeMaleStagPerCoupleEnabled || earlyBirdSource?.freeMaleStagPerCoupleEnabled || false,
                     });
 
                     // Set club ID
@@ -583,7 +622,8 @@ function NewEventPageContent() {
                 eventData.earlyBirdEnabled = true;
                 // Ensure HH:mm:ss format
                 const rawTime = formData.earlyBirdEndTime;
-                eventData.earlyBirdEndTime = rawTime.length === 5 ? `${rawTime}:00` : rawTime;
+                const formattedEarlyBirdTime = rawTime.length === 5 ? `${rawTime}:00` : rawTime;
+                eventData.earlyBirdEndTime = formattedEarlyBirdTime;
                 eventData.earlyBirdFreeMaleStagPerCoupleEnabled = !!formData.earlyBirdFreeMaleStagPerCoupleEnabled;
 
                 if (formData.maleStagEnabled && formData.earlyBirdMaleStagEnabled && formData.earlyBirdMaleStagPrice) {
@@ -607,6 +647,15 @@ function NewEventPageContent() {
                         ...(formData.earlyBirdCoupleDesc ? { description: formData.earlyBirdCoupleDesc } : {})
                     };
                 }
+
+                eventData.earlyBirdPricing = {
+                    enabled: true,
+                    cutoffTime: formattedEarlyBirdTime,
+                    maleStagEntry: eventData.earlyBirdMaleStagEntry || null,
+                    femaleStagEntry: eventData.earlyBirdFemaleStagEntry || null,
+                    coupleEntry: eventData.earlyBirdCoupleEntry || null,
+                    earlyBirdFreeMaleStagPerCoupleEnabled: !!formData.earlyBirdFreeMaleStagPerCoupleEnabled
+                };
             }
 
             let response: any;

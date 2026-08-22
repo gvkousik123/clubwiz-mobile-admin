@@ -528,6 +528,7 @@ export default function ManageOffersPage() {
                                     <input
                                         type="datetime-local"
                                         value={formData.endDate}
+                                        min={new Date().toISOString().slice(0, 16)}
                                         onChange={(e) => handleInputChange('endDate', e.target.value)}
                                         className="w-full bg-[#021313] text-white rounded-lg px-3 py-2 text-sm border border-[#14FFEC]/30 focus:border-[#14FFEC] outline-none"
                                     />

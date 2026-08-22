@@ -1,11 +1,10 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useRef } from 'react';
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ChevronLeft, Trash2, Edit, Loader2, Plus } from 'lucide-react';
-import { StoryService, StoryStats } from '@/lib/services/story.service';
-import { Story } from '@/lib/api-types';
+import { ChevronLeft, Trash2, Edit, Loader2, Plus, ChevronRight } from 'lucide-react';
+import { StoryService } from '@/lib/services/story.service';
 import { useToast } from '@/hooks/use-toast';
 import { getClubId } from '@/lib/utils/get-club-id';
 import {
@@ -21,14 +20,16 @@ function MyStoriesContent() {
     const searchParams = useSearchParams();
     const { toast } = useToast();
 
-    const [clubId, setClubId] = useState<string | null>(null);
+    const [clubId, setClubId] = useState(null);
 
-    const [myStories, setMyStories] = useState<Story[]>([]);
-    const [stats, setStats] = useState<StoryStats | null>(null);
+    const [myStories, setMyStories] = useState([]);
+    const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [currentStoryIndex, setCurrentStoryIndex] = useState(0);
+    const carouselRef = useRef(null);
     const [editDialogOpen, setEditDialogOpen] = useState(false);
-    const [selectedStory, setSelectedStory] = useState<Story | null>(null);
+    const [selectedStory, setSelectedStory] = useState(null);
     const [editCaption, setEditCaption] = useState('');
     const [isDeleting, setIsDeleting] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
@@ -55,23 +56,24 @@ function MyStoriesContent() {
             console.log('My Stories Response:', storiesResponse);
 
             // Handle different response formats
-            let storiesData: Story[] = [];
-            if (Array.isArray(storiesResponse)) {
-                storiesData = storiesResponse;
-            } else if (storiesResponse.success && storiesResponse.data) {
-                storiesData = Array.isArray(storiesResponse.data)
-                    ? storiesResponse.data
-                    : (storiesResponse.data as any).content || [];
-            } else if ((storiesResponse as any).content) {
-                storiesData = (storiesResponse as any).content;
+            let storiesData = [];
+            const anyStoriesResponse = storiesResponse as any;
+            if (Array.isArray(anyStoriesResponse)) {
+                storiesData = anyStoriesResponse;
+            } else if (anyStoriesResponse?.success && anyStoriesResponse.data) {
+                const data = anyStoriesResponse.data;
+                storiesData = Array.isArray(data) ? data : data?.content || [];
+            } else if (anyStoriesResponse?.content) {
+                storiesData = anyStoriesResponse.content;
             }
 
             setMyStories(storiesData);
+            setCurrentStoryIndex(0);
 
             // Fetch stats
             const statsResponse = await StoryService.getStoryStats();
             console.log('Stats Response:', statsResponse);
-            setStats(statsResponse as any);
+            setStats(statsResponse);
         } catch (error) {
             console.error('Error loading stories:', error);
             toast({
@@ -84,15 +86,34 @@ function MyStoriesContent() {
         }
     };
 
-    const handleDeleteClick = (story: Story) => {
+    const handleDeleteClick = (story) => {
         setSelectedStory(story);
         setDeleteDialogOpen(true);
     };
 
-    const handleEditClick = (story: Story) => {
+    const handleEditClick = (story) => {
         setSelectedStory(story);
         setEditCaption(story.caption || '');
         setEditDialogOpen(true);
+    };
+
+    const scrollToStory = (index) => {
+        if (!carouselRef.current || index < 0 || index >= myStories.length) return;
+        const container = carouselRef.current;
+        const child = container.children[index];
+        if (!child) return;
+
+        const offset = child.offsetLeft - ((container.clientWidth - child.clientWidth) / 2);
+        container.scrollTo({ left: offset, behavior: 'smooth' });
+        setCurrentStoryIndex(index);
+    };
+
+    const handlePrevStory = () => {
+        scrollToStory(Math.max(0, currentStoryIndex - 1));
+    };
+
+    const handleNextStory = () => {
+        scrollToStory(Math.min(myStories.length - 1, currentStoryIndex + 1));
     };
 
     const handleConfirmDelete = async () => {
@@ -102,7 +123,7 @@ function MyStoriesContent() {
             setIsDeleting(true);
 
             // Get the correct ID field
-            const storyId = (selectedStory as any).storyId || selectedStory.id;
+            const storyId = selectedStory.storyId || selectedStory.id;
             console.log('Deleting story with ID:', storyId);
 
             const response = await StoryService.deleteStory(storyId);
@@ -116,16 +137,16 @@ function MyStoriesContent() {
             });
 
             // Remove from UI
-            setMyStories(prev => prev.filter(s => ((s as any).storyId || s.id) !== storyId));
+            setMyStories(prev => prev.filter(s => (s.storyId || s.id) !== storyId));
             setDeleteDialogOpen(false);
             setSelectedStory(null);
 
             // Reload stats
             const statsResponse = await StoryService.getStoryStats();
             console.log('Stats response:', statsResponse);
-            setStats(statsResponse as any);
+            setStats(statsResponse);
 
-        } catch (error: any) {
+        } catch (error) {
             console.error('Error deleting story:', error);
             toast({
                 title: 'Error',
@@ -144,7 +165,7 @@ function MyStoriesContent() {
             setIsUpdating(true);
 
             // Get the correct ID field
-            const storyId = (selectedStory as any).storyId || selectedStory.id;
+            const storyId = selectedStory.storyId || selectedStory.id;
             console.log('Updating story with ID:', storyId, 'Caption:', editCaption);
 
             const response = await StoryService.updateStory(storyId, {
@@ -162,7 +183,7 @@ function MyStoriesContent() {
             // Update in UI
             setMyStories(prev =>
                 prev.map(s =>
-                    ((s as any).storyId || s.id) === storyId
+                    (s.storyId || s.id) === storyId
                         ? { ...s, caption: editCaption }
                         : s
                 )
@@ -171,7 +192,7 @@ function MyStoriesContent() {
             setSelectedStory(null);
             setEditCaption('');
 
-        } catch (error: any) {
+        } catch (error) {
             console.error('Error updating story:', error);
             toast({
                 title: 'Error',
@@ -207,9 +228,9 @@ function MyStoriesContent() {
             </div>
 
             {/* Content */}
-            <div className="px-0 relative mt-[100px] z-40">
+            <div className="px-0 relative mt-[140px] z-10">
                 <div className="w-full bg-[#021313] rounded-t-[40px] flex flex-col">
-                    <div className="px-6 py-6">
+                    <div className="max-w-4xl mx-auto w-full px-6 py-6">
                         {loading ? (
                             <div className="flex items-center justify-center py-20">
                                 <Loader2 className="w-8 h-8 text-[#14FFEC] animate-spin" />
@@ -241,99 +262,120 @@ function MyStoriesContent() {
                                     </div>
                                 )}
 
-                                {/* Stories Grid - 2 cards per row */}
+                                {/* Stories Carousel */}
                                 <div className="mb-6">
                                     {myStories.length === 0 ? (
                                         <div className="text-center py-12 text-gray-400">
                                             <p>No stories found</p>
                                         </div>
                                     ) : (
-                                        <div className="grid grid-cols-2 gap-4">
-                                            {myStories.map((story) => {
-                                                const mediaUrl = story.mediaUrl || story.mediaBase64 || '';
-                                                return (
-                                                    <div
-                                                        key={story.id}
-                                                        className="bg-[#0D1F1F] rounded-[15px] overflow-hidden border border-[#14FFEC]/20"
-                                                    >
-                                                        {/* Story Media - Taller height */}
-                                                        <div className="relative h-72 bg-gray-800 flex items-center justify-center overflow-hidden">
-                                                            {mediaUrl && (
-                                                                story.mediaType === 'video' || mediaUrl.endsWith('.mp4') ? (
-                                                                    <video
-                                                                        src={mediaUrl}
-                                                                        className="max-w-full max-h-full object-contain"
-                                                                        controls
-                                                                        controlsList="nodownload"
-                                                                        onDoubleClick={(e) => {
-                                                                            if (e.currentTarget.requestFullscreen) {
-                                                                                e.currentTarget.requestFullscreen();
-                                                                            }
-                                                                        }}
-                                                                    />
-                                                                ) : story.mediaType === 'audio' || mediaUrl.endsWith('.mp3') || mediaUrl.endsWith('.wav') ? (
-                                                                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#005D5C] to-[#14FFEC]">
-                                                                        <audio
+                                        <div className="relative">
+                                            <div className="absolute inset-y-0 left-0 flex items-center px-2 pointer-events-none sm:pointer-events-auto">
+                                                <button
+                                                    type="button"
+                                                    onClick={handlePrevStory}
+                                                    disabled={currentStoryIndex === 0}
+                                                    className="w-10 h-10 rounded-full bg-black/60 text-white disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
+                                                >
+                                                    <ChevronLeft className="w-5 h-5" />
+                                                </button>
+                                            </div>
+                                            <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none sm:pointer-events-auto">
+                                                <button
+                                                    type="button"
+                                                    onClick={handleNextStory}
+                                                    disabled={currentStoryIndex === myStories.length - 1}
+                                                    className="w-10 h-10 rounded-full bg-black/60 text-white disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
+                                                >
+                                                    <ChevronRight className="w-5 h-5" />
+                                                </button>
+                                            </div>
+                                            <div
+                                                ref={carouselRef}
+                                                className="flex gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory px-8 py-4 scrollbar-hide"
+                                            >
+                                                {myStories.map((story) => {
+                                                    const mediaUrl = story.mediaUrl || story.mediaBase64 || '';
+                                                    return (
+                                                        <div
+                                                            key={story.id}
+                                                            className="snap-center shrink-0 min-w-[85%] md:min-w-[65%] lg:min-w-[52%] xl:min-w-[45%] bg-[#0D1F1F] rounded-[20px] overflow-hidden border border-[#14FFEC]/20"
+                                                        >
+                                                            {/* Story Media - Taller height */}
+                                                            <div className="relative h-72 bg-gray-800 flex items-center justify-center overflow-hidden">
+                                                                {mediaUrl && (
+                                                                    story.mediaType === 'video' || mediaUrl.endsWith('.mp4') ? (
+                                                                        <video
                                                                             src={mediaUrl}
+                                                                            className="max-w-full max-h-full object-contain"
                                                                             controls
-                                                                            className="w-[90%]"
+                                                                            controlsList="nodownload"
+                                                                            onDoubleClick={(e) => {
+                                                                                if (e.currentTarget.requestFullscreen) {
+                                                                                    e.currentTarget.requestFullscreen();
+                                                                                }
+                                                                            }}
                                                                         />
-                                                                    </div>
-                                                                ) : (
-                                                                    <img
-                                                                        src={mediaUrl}
-                                                                        alt={story.caption || 'Story'}
-                                                                        className="max-w-full max-h-full object-contain cursor-pointer"
-                                                                        onDoubleClick={(e) => {
-                                                                            if (e.currentTarget.requestFullscreen) {
-                                                                                e.currentTarget.requestFullscreen();
-                                                                            }
-                                                                        }}
-                                                                    />
-                                                                )
-                                                            )}
-                                                            {/* View Count Badge - Highlighted */}
-                                                            <div className="absolute top-2 right-2 bg-[#14FFEC]/80 backdrop-blur-sm px-3 py-2 rounded-full border border-[#14FFEC]">
-                                                                <p className="text-sm font-bold text-black">{story.viewCount} views</p>
-                                                            </div>
-                                                            {/* Fullscreen hint for video/image */}
-                                                            {(story.mediaType === 'video' || story.mediaType === 'image' || mediaUrl.endsWith('.mp4') || mediaUrl.match(/\.(jpg|jpeg|png|gif)$/i)) && (
-                                                                <div className="absolute bottom-2 left-2 bg-black/50 backdrop-blur-sm px-2 py-1 rounded text-xs text-white">
-                                                                    Double-click for fullscreen
+                                                                    ) : story.mediaType === 'audio' || mediaUrl.endsWith('.mp3') || mediaUrl.endsWith('.wav') ? (
+                                                                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#005D5C] to-[#14FFEC]">
+                                                                            <audio
+                                                                                src={mediaUrl}
+                                                                                controls
+                                                                                className="w-[90%]"
+                                                                            />
+                                                                        </div>
+                                                                    ) : (
+                                                                        <img
+                                                                            src={mediaUrl}
+                                                                            alt={story.caption || 'Story'}
+                                                                            className="max-w-full max-h-full object-contain cursor-pointer"
+                                                                            onDoubleClick={(e) => {
+                                                                                if (e.currentTarget.requestFullscreen) {
+                                                                                    e.currentTarget.requestFullscreen();
+                                                                                }
+                                                                            }}
+                                                                        />
+                                                                    )
+                                                                )}
+                                                                <div className="absolute top-2 right-2 bg-[#14FFEC]/80 backdrop-blur-sm px-3 py-2 rounded-full border border-[#14FFEC]">
+                                                                    <p className="text-sm font-bold text-black">{story.viewCount} views</p>
                                                                 </div>
-                                                            )}
-                                                        </div>
+                                                                {(story.mediaType === 'video' || story.mediaType === 'image' || mediaUrl.endsWith('.mp4') || mediaUrl.match(/\.(jpg|jpeg|png|gif)$/i)) && (
+                                                                    <div className="absolute bottom-2 left-2 bg-black/50 backdrop-blur-sm px-2 py-1 rounded text-xs text-white">
+                                                                        Double-click for fullscreen
+                                                                    </div>
+                                                                )}
+                                                            </div>
 
-                                                        {/* Story Info */}
-                                                        <div className="p-3">
-                                                            <p className="text-sm text-gray-300 mb-2 line-clamp-2">
-                                                                {story.caption || 'No caption'}
-                                                            </p>
-                                                            <p className="text-xs text-gray-500 mb-3">
-                                                                {new Date(story.createdAt).toLocaleDateString()}
-                                                            </p>
+                                                            <div className="p-3">
+                                                                <p className="text-sm text-gray-300 mb-2 line-clamp-2">
+                                                                    {story.caption || 'No caption'}
+                                                                </p>
+                                                                <p className="text-xs text-gray-500 mb-3">
+                                                                    {new Date(story.createdAt).toLocaleDateString()}
+                                                                </p>
 
-                                                            {/* Action Buttons - Icons only */}
-                                                            <div className="flex gap-2">
-                                                                <button
-                                                                    onClick={() => handleEditClick(story)}
-                                                                    className="flex-1 bg-[#14FFEC]/20 hover:bg-[#14FFEC]/30 text-[#14FFEC] py-2 px-3 rounded-lg flex items-center justify-center transition-colors"
-                                                                    title="Edit story"
-                                                                >
-                                                                    <Edit className="w-5 h-5" />
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => handleDeleteClick(story)}
-                                                                    className="flex-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 py-2 px-3 rounded-lg flex items-center justify-center transition-colors"
-                                                                    title="Delete story"
-                                                                >
-                                                                    <Trash2 className="w-5 h-5" />
-                                                                </button>
+                                                                <div className="flex gap-2">
+                                                                    <button
+                                                                        onClick={() => handleEditClick(story)}
+                                                                        className="flex-1 bg-[#14FFEC]/20 hover:bg-[#14FFEC]/30 text-[#14FFEC] py-2 px-3 rounded-lg flex items-center justify-center transition-colors"
+                                                                        title="Edit story"
+                                                                    >
+                                                                        <Edit className="w-5 h-5" />
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => handleDeleteClick(story)}
+                                                                        className="flex-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 py-2 px-3 rounded-lg flex items-center justify-center transition-colors"
+                                                                        title="Delete story"
+                                                                    >
+                                                                        <Trash2 className="w-5 h-5" />
+                                                                    </button>
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                );
-                                            })}
+                                                    );
+                                                })}
+                                            </div>
                                         </div>
                                     )}
                                 </div>
@@ -455,4 +497,3 @@ export default function MyStoriesPage() {
         </Suspense>
     );
 }
-

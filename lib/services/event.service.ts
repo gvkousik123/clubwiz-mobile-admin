@@ -715,9 +715,46 @@ export class EventService {
   /**
    * Get featured events
    */
+  static async getPublicFeaturedEvents(limit: number = 10): Promise<ApiResponse<Event[]>> {
+    try {
+      const response = await api.get<ApiResponse<Event[]>>(`/event-management/events/public/featured?limit=${limit}`);
+      return handleApiResponse(response);
+    } catch (error) {
+      throw new Error(handleApiError(error));
+    }
+  }
+
   static async getFeaturedEvents(limit: number = 10): Promise<ApiResponse<Event[]>> {
     try {
       const response = await api.get<ApiResponse<Event[]>>(`/event-management/events/featured?limit=${limit}`);
+      return handleApiResponse(response);
+    } catch (error) {
+      throw new Error(handleApiError(error));
+    }
+  }
+
+  static async getPublicEvents(
+    page: number = 0,
+    size: number = 10,
+    sortBy: string = 'startDateTime',
+    sortDirection: 'asc' | 'desc' = 'asc',
+  ): Promise<ApiResponse<EventListResponse>> {
+    try {
+      const response = await api.get<ApiResponse<EventListResponse>>(
+        `/event-management/events/public/list`,
+        {
+          params: { page, size, sortBy, sortDirection },
+        },
+      );
+      return handleApiResponse(response);
+    } catch (error) {
+      throw new Error(handleApiError(error));
+    }
+  }
+
+  static async getPublicEventById(eventId: string): Promise<ApiResponse<Event>> {
+    try {
+      const response = await api.get<ApiResponse<Event>>(`/event-management/events/public/${eventId}`);
       return handleApiResponse(response);
     } catch (error) {
       throw new Error(handleApiError(error));

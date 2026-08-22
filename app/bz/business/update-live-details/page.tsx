@@ -2,8 +2,9 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Plus } from 'lucide-react';
-import { useState, useRef, useEffect, Suspense } from 'react';
-import { EventService, EventDetailsResponse } from '@/lib/services/event.service';
+import { useState, useEffect, Suspense } from 'react';
+import { EventService } from '@/lib/services/event.service';
+import { Event } from '@/lib/api-types';
 import '../new-event/styles.css';
 
 function UpdateLiveDetailsPageContent() {
@@ -12,7 +13,7 @@ function UpdateLiveDetailsPageContent() {
     const eventId = searchParams.get('eventId');
 
     const [isEditing, setIsEditing] = useState(false);
-    const [eventData, setEventData] = useState<EventDetailsResponse | null>(null);
+    const [eventData, setEventData] = useState<Event | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -62,9 +63,9 @@ function UpdateLiveDetailsPageContent() {
             setError(null);
             const response = await EventService.getEventDetails(eventId!);
 
-            if (response.success && response.data) {
-                const data = response.data;
-                setEventData(data);
+                if (response.success && response.data) {
+                    const data = response.data;
+                    setEventData(data);
 
                 // Populate form with existing data
                 setFormData(prev => ({
@@ -242,9 +243,9 @@ function UpdateLiveDetailsPageContent() {
                 console.log('Saving live details:', formData);
                 router.back();
             }
-        } catch (err: any) {
+        } catch (err) {
             console.error('Error saving:', err);
-            setError(err.message || 'Error saving details');
+            setError(err instanceof Error ? err.message : 'Error saving details');
         } finally {
             setIsSaving(false);
         }
@@ -361,6 +362,7 @@ function UpdateLiveDetailsPageContent() {
                                             <input
                                                 type="datetime-local"
                                                 value={formatDateTimeForInput(formData.startDateTime)}
+                                                min={new Date().toISOString().slice(0, 16)}
                                                 onChange={(e) => handleInputChange('startDateTime', e.target.value)}
                                                 className="w-full bg-transparent text-white placeholder-[#9D9C9C] outline-none text-base font-semibold"
                                             />
@@ -379,6 +381,7 @@ function UpdateLiveDetailsPageContent() {
                                             <input
                                                 type="datetime-local"
                                                 value={formatDateTimeForInput(formData.endDateTime)}
+                                                min={new Date().toISOString().slice(0, 16)}
                                                 onChange={(e) => handleInputChange('endDateTime', e.target.value)}
                                                 className="w-full bg-transparent text-white placeholder-[#9D9C9C] outline-none text-base font-semibold"
                                             />

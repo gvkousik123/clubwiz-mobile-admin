@@ -14,6 +14,8 @@ export { PricingOfferService } from './pricing-offer.service';
 export { MobileAuthService } from './mobile-auth.service';
 export { TicketService } from './ticket.service';
 export { ContactService } from './contact.service';
+export { CarouselService } from './carousel.service';
+export { FinanceService } from './finance.service';
 
 
 // Export API client and utilities

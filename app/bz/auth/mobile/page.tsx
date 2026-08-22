@@ -9,6 +9,7 @@ import { ArrowLeft } from "lucide-react";
 import { MobileAuthService } from '@/lib/services/mobile-auth.service';
 import { useToast } from "@/hooks/use-toast";
 import { STORAGE_KEYS } from "@/lib/constants/storage";
+import { AuthBackground } from "@/components/auth/auth-background";
 
 export default function MobileVerificationScreen() {
     const router = useRouter();
@@ -19,16 +20,6 @@ export default function MobileVerificationScreen() {
     const [error, setError] = useState<string | null>(null);
 
     // No client-side reCAPTCHA when using backend OTP endpoints
-
-    const formatIndianPhone = (digits: string) => {
-        const clean = digits.replace(/\D/g, '');
-        const normalized = clean.startsWith('91') ? clean.substring(2) : clean;
-        const trimmed = normalized.slice(0, 10);
-
-        if (!trimmed) return '';
-        if (trimmed.length <= 5) return `+91 ${trimmed}`;
-        return `+91 ${trimmed.slice(0, 5)} ${trimmed.slice(5)}`;
-    };
 
     const handlePhoneNumberChange = (nextValue: string) => {
         let digits = nextValue.replace(/\D/g, '');
@@ -144,154 +135,111 @@ export default function MobileVerificationScreen() {
     const canSubmit = phoneNumber.length === 10 && email.trim().length > 0 && !isLoading;
 
     return (
-        <div className="min-h-screen bg-[#031313] relative">
-            {/* Background blur effects - subtle accents */}
-            <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute top-[12vh] left-1/2 -translate-x-1/2 w-[20rem] h-[20rem] bg-teal-500/10 rounded-full blur-3xl"></div>
-                <div className="absolute bottom-[12vh] left-1/3 w-[15rem] h-[15rem] bg-cyan-500/10 rounded-full blur-3xl"></div>
-                <div className="absolute top-1/3 right-1/4 w-[10rem] h-[10rem] bg-teal-500/10 rounded-full blur-2xl"></div>
-            </div>
+        <div className="min-h-screen bg-[#031313] relative flex flex-col font-sans items-center md:py-8">
+            <div className="relative w-full max-w-md min-h-screen md:min-h-0 md:h-[850px] flex flex-col bg-[#031313] overflow-hidden md:rounded-[2.5rem] md:border border-white/10 shadow-2xl">
+                <AuthBackground />
 
-            {/* Content */}
-            <div className="relative z-10 min-h-screen flex flex-col">
-                {/* Header with Back and Skip */}
-                <div className="flex items-center justify-between p-[1rem] pt-[1.5rem] flex-shrink-0">
-                    <Link
-                        href="/auth/intro"
-                        className="w-[2.5rem] h-[2.5rem] flex items-center justify-center rounded-full border border-teal-400/30 text-teal-300 hover:bg-teal-500/10 transition-colors"
-                    >
-                        <ArrowLeft className="w-[1.25rem] h-[1.25rem]" />
-                    </Link>
-                </div>
-
-                {/* White Card Container - Sticks to bottom and takes remaining space */}
-                <div className="flex-1 flex flex-col">
-                    {/* Logo Area - Now positioned just above the form with increased spacing */}
-                    <div className="flex-1 flex flex-col items-center justify-end px-6 pb-8">
-                        <ClubwizLogo size="lg" variant="full" />
+                <div className="relative z-10 flex flex-col flex-1">
+                    {/* Header Navigation */}
+                    <div className="flex items-center justify-between px-6 pt-8 pb-4 flex-shrink-0 animate-in fade-in slide-in-from-top-4 duration-700">
+                        <Link href="/bz/auth/intro" className="w-11 h-11 flex items-center justify-center rounded-full border border-white/10 text-white bg-black/20 backdrop-blur-md hover:bg-white/10 hover:border-white/30 transition-all">
+                            <ArrowLeft className="w-5 h-5" />
+                        </Link>
                     </div>
 
-                    <div className="bg-white rounded-t-3xl w-full px-[1.5rem] pt-[2rem] pb-[2rem] overflow-y-auto flex flex-col">
-                        {/* Header */}
-                        <div className="mb-[1.5rem]">
-                            <h1 className="text-[1.5rem] font-semibold text-[#2C1945] mb-[0.5rem] text-center">Enter Your Details</h1>
+                    {/* Logo Zone */}
+                    <div className="flex-1 flex flex-col items-center justify-center px-6 py-6 animate-in fade-in zoom-in-95 duration-700 delay-150">
+                        <div className="relative mb-4 drop-shadow-[0_0_25px_rgba(20,255,236,0.4)]">
+                            <ClubwizLogo size="lg" variant="full" />
                         </div>
+                    </div>
 
-                        {/* Email input field */}
-                        <div className="mb-[1.5rem]">
-                            <label className="block text-[#2C1945] text-[0.9375rem] font-medium mb-[0.5rem]">
-                                Email Address
-                            </label>
+                    {/* Glass card */}
+                    <div className="bg-[#031313]/70 backdrop-blur-2xl border-t border-x border-[#14FFEC]/10 rounded-t-[2.5rem] w-full px-7 pt-10 pb-10 flex flex-col shadow-[0_-20px_50px_rgba(0,0,0,0.8)] relative animate-in fade-in slide-in-from-bottom-12 duration-700 delay-300">
+
+                        {/* Inner glowing accent */}
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-1 bg-gradient-to-r from-transparent via-[#14FFEC]/50 to-transparent"></div>
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-[#14FFEC]/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                        <h1
+                            className="text-center font-['Anton_SC',system-ui] text-[2rem] leading-none tracking-wide mb-1"
+                            style={{
+                                background: "linear-gradient(180deg, #7FF9FF 0%, #FFF 102.94%)",
+                                WebkitBackgroundClip: "text",
+                                backgroundClip: "text",
+                                WebkitTextFillColor: "transparent",
+                                WebkitTextStrokeWidth: "0.5px",
+                                WebkitTextStrokeColor: "#029694",
+                                textShadow: "0 0 10px rgba(127, 249, 255, 0.3)"
+                            }}
+                        >
+                            ENTER DETAILS
+                        </h1>
+                        <p className="text-[#14FFEC]/60 text-[13px] font-medium text-center uppercase tracking-widest mb-8">
+                            We&apos;ll send you a verification code
+                        </p>
+
+                        {/* Email */}
+                        <div className="mb-5">
+                            <label className="block text-white/50 text-[11px] font-bold mb-2 ml-2 uppercase tracking-widest">Email Address</label>
                             <input
                                 type="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 placeholder="Enter your email"
-                                className="w-full px-[1rem] py-[0.875rem] border-2 border-[#0C898B] rounded-[3.25rem] bg-[#EFEFEF] text-[#2C1945] placeholder:text-[#999999] focus:outline-none focus:border-[#0A5A5D]"
+                                className="w-full bg-white/5 border border-white/10 text-white rounded-2xl px-5 py-4 outline-none focus:border-[#14FFEC]/50 focus:bg-white/10 transition-all font-medium placeholder:text-white/20"
                             />
                         </div>
 
-                        {/* Phone number display */}
-                        <div className="mb-[1.5rem]">
-                            <label className="block text-[#2C1945] text-[0.9375rem] font-medium mb-[0.5rem]">
-                                Mobile Number
-                            </label>
-                            <input
-                                type="tel"
-                                value={formatIndianPhone(phoneNumber)}
-                                onChange={(e) => handlePhoneNumberChange(e.target.value)}
-                                inputMode="tel"
-                                maxLength={17}
-                                placeholder="+91 xxxxx xxxxx"
-                                className="w-full px-[1rem] py-[0.875rem] border-2 border-[#0C898B] rounded-[3.25rem] bg-[#EFEFEF] text-[#2C1945] font-mono text-center placeholder:text-[#999999] focus:outline-none focus:border-[#0A5A5D]"
-                            />
-                        </div>
-
-                        <div className="mb-[1rem] text-[#2C1945] text-[0.875rem] text-center">
-                            Enter a 10-digit Indian mobile number. OTP will be sent to this number.
-                        </div>
-
-                        {/* Confirmation text */}
-                        <div className="mb-[2rem] text-center">
-                            <p className="text-[#2C1945] text-[0.9375rem] font-medium">We will send you a confirmation code</p>
-                        </div>
-
-                        {/* Get Verification Code Button */}
-                        <div className="mb-[1.5rem]">
-                            <button
-                                onClick={handleSubmit}
-                                disabled={!canSubmit}
-                                className="w-full py-[1rem] bg-[#0D7377] text-white rounded-[3.25rem] font-semibold text-[1.125rem] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#0A5A5D] transition-colors shadow-lg shadow-[#0D7377]/20"
-                            >
-                                Get Verification Code
-                            </button>
-                        </div>
-
-                        {/* reCAPTCHA Container - Visible for user interaction */}
-                        <div className="flex justify-center mb-[1.5rem]">
-                            <div id="recaptcha-container"></div>
-                        </div>
-
-                        {/* Error Display */}
-                        {error && (
-                            <div className="text-center mb-4">
-                                <p className="text-red-500 text-sm">{error}</p>
+                        {/* Phone input */}
+                        <div className="mb-6">
+                            <label className="block text-white/50 text-[11px] font-bold mb-2 ml-2 uppercase tracking-widest">Mobile Number</label>
+                            <div className="relative flex items-center group">
+                                <span className="absolute left-5 text-white/50 font-mono tracking-[0.2em] font-bold text-[17px]">+91</span>
+                                <input
+                                    type="tel"
+                                    pattern="[0-9]*"
+                                    inputMode="numeric"
+                                    value={phoneNumber}
+                                    onChange={(e) => handlePhoneNumberChange(e.target.value)}
+                                    placeholder="Enter mobile number"
+                                    className="w-full bg-white/5 border border-white/10 text-white rounded-2xl pl-16 pr-5 py-4 outline-none focus:border-[#14FFEC]/50 focus:bg-white/10 transition-all font-mono tracking-[0.2em] font-bold text-[17px] placeholder:text-white/20 placeholder:font-sans placeholder:tracking-normal placeholder:font-medium"
+                                />
                             </div>
-                        )}
-
-                        {/* Display the phone number status somewhere */}
-                        <div className="hidden">
-                            Current number: {phoneNumber}
                         </div>
 
-                        {/* Login with Password Option */}
-                        <div className="text-center py-2">
-                            <p className="text-[#6A6A6A] text-[0.875rem] mb-2">
-                                Already have an account?
+                        {/* Error */}
+                        {error && <p className="text-red-400 text-sm text-center mb-4 font-medium p-3 bg-red-500/10 border border-red-500/20 rounded-xl animate-pulse">{error}</p>}
+
+                        {/* CTA */}
+                        <button onClick={handleSubmit} disabled={!canSubmit} className="w-full bg-gradient-to-r from-[#14FFEC] to-[#00867D] text-[#031313] font-black text-[15px] uppercase tracking-[0.2em] rounded-2xl py-4 shadow-[0_0_20px_rgba(20,255,236,0.2)] hover:shadow-[0_0_30px_rgba(20,255,236,0.4)] transition-all transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:grayscale disabled:hover:translate-y-0 disabled:cursor-not-allowed">
+                            {isLoading ? 'Sending...' : 'Get Verification Code'}
+                        </button>
+
+                        <div id="recaptcha-container" className="flex justify-center mt-4"></div>
+
+                        {/* Links */}
+                        <div className="mt-8 text-center space-y-3">
+                            <p className="text-white/60 text-sm font-medium">
+                                Already have an account?{' '}
+                                <Link href="/bz/auth/login" className="text-[#14FFEC] font-bold hover:underline">Login</Link>
                             </p>
-                            <Link
-                                href="/auth/login"
-                                className="text-[#0D7377] font-semibold text-[0.9375rem] hover:underline"
-                            >
-                                Login with Password
-                            </Link>
-                        </div>
-
-                        {/* Sign Up Option */}
-                        <div className="text-center py-2">
-                            <p className="text-[#6A6A6A] text-[0.875rem] mb-2">
-                                Don't have an account?
+                            <p className="text-white/60 text-sm font-medium">
+                                Don&apos;t have an account?{' '}
+                                <Link href="/bz/auth/signup" className="text-[#14FFEC] font-bold hover:underline">Sign Up</Link>
                             </p>
-                            <Link
-                                href="/auth/signup"
-                                className="text-[#0D7377] font-semibold text-[0.9375rem] hover:underline"
-                            >
-                                Sign Up
-                            </Link>
-                        </div>
-
-                        {/* Forgot Password Link */}
-                        <div className="text-center py-2">
-                            <AuthLink
-                                href="/auth/forgot-password"
-                                className="text-[#0095FF] font-medium text-[14px] underline"
-                            >
+                            <AuthLink href="/bz/auth/forgot-password" className="block text-[#14FFEC]/70 text-[11px] font-bold uppercase tracking-wider hover:text-[#14FFEC] transition-colors">
                                 Forgot Password?
                             </AuthLink>
                         </div>
 
-                        {/* Terms and Conditions */}
-                        <div className="mt-auto pt-4">
-                            <div className="text-center">
-                                <p className="text-black font-semibold text-[14px]">
-                                    By login you are agreeing to
-                                </p>
-                                <p className="text-[14px] font-semibold mt-1">
-                                    <AuthLink href="/terms" className="text-[#0095FF] font-semibold underline">Terms & Condition</AuthLink>
-                                    <span className="text-black"> and </span>
-                                    <AuthLink href="/privacy" className="text-[#0095FF] font-semibold underline">Privacy Policy</AuthLink>
-                                </p>
-                            </div>
+                        <div className="mt-6 text-center">
+                            <p className="text-white/30 text-[10px] font-medium tracking-wide">
+                                By continuing you agree to our{' '}
+                                <AuthLink href="/terms" className="text-white/50 hover:text-white underline">Terms</AuthLink>
+                                {' & '}
+                                <AuthLink href="/privacy" className="text-white/50 hover:text-white underline">Privacy Policy</AuthLink>
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -299,6 +247,3 @@ export default function MobileVerificationScreen() {
         </div>
     );
 }
-
-
-

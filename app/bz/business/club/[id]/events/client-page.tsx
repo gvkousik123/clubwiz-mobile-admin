@@ -91,12 +91,12 @@ export default function ClubEventsPage() {
     }, [events]);
 
     const handleCreateEvent = () => {
-        router.push(`/bz/business/new-event?clubId=${clubId}`); // FIXED: Extra — Navigate to business route, not admin
+        router.push(`/business/new-event?clubId=${clubId}`); // FIXED: Extra — Navigate to business route, not admin
     };
 
     const handleEditEvent = (eventId: string) => {
-        // Navigate to edit event page with clubId
-        router.push(`/bz/business/edit-event/_?id=${eventId}&clubId=${clubId}`); // FIXED: Extra — Navigate to business route, not admin
+        // Navigate to new-event page in edit mode with eventId
+        router.push(`/bz/business/new-event?eventId=${eventId}`);
     };
 
     const handleDeleteEvent = async (eventId: string) => {
@@ -136,7 +136,7 @@ export default function ClubEventsPage() {
                     variant: "destructive",
                 });
                 localStorage.clear();
-                router.push('/bz/auth/login');
+                router.push('/auth/login');
                 return;
             }
 

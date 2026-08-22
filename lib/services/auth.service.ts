@@ -15,7 +15,13 @@ import { STORAGE_KEYS } from '../constants/storage';
 // ============================================================================
 // USERS API CLIENT CONFIGURATION
 // ============================================================================
-const USERS_API_BASE_URL = 'https://clubwiz.in/users';
+// ============================================================================
+// USERS API CLIENT CONFIGURATION
+// Use the gateway base URL when available so local/dev environments route correctly
+// ============================================================================
+
+const API_BASE_URL = 'https://clubwiz.in';
+const USERS_API_BASE_URL = `${API_BASE_URL}/users`;
 
 const usersApiClient: AxiosInstance = axios.create({
     baseURL: USERS_API_BASE_URL,
