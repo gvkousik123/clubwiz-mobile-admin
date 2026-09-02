@@ -24,6 +24,12 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSCameraUsageDescription</key>
+	<string>ClubWiz Admin uses the camera to scan guests' ticket QR codes at your venue entrance, so staff can verify and check in a booking on the spot.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>ClubWiz Admin needs access to your photos so you can upload club and event images, post stories, and scan a ticket QR code from a saved screenshot.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>ClubWiz Admin uses your location to pin your club or event on the map, so guests searching nearby can find the correct venue address.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

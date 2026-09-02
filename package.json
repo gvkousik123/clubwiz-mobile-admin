@@ -11,6 +11,7 @@
     "start": "next start",
     "cap:sync": "npx cap sync android",
     "cap:open": "npx cap open android",
+    "ios:bump": "node scripts/bump-ios-build.js",
     "validate-design": "node scripts/validate-design-system.js",
     "design-check": "npm run validate-design"
   },
