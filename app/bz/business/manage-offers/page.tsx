@@ -73,21 +73,39 @@ export default function ManageOffersPage() {
         fetchClubAndOffers();
     }, [toast, router]);
 
-    /** Whether the offer is inside its live window right now (display only). */
-    const isOfferCurrentlyActive = (offer: ClubOffer): boolean => {
-        if (!offer.isActive) return false;
-        if (!offer.startDate || !offer.endDate) return true;
+    /**
+     * Where the offer sits relative to its window right now (display only).
+     * 'draft' means the offer is switched off, regardless of its dates.
+     */
+    type OfferStatus = 'live' | 'scheduled' | 'expired' | 'draft';
+
+    const getOfferStatus = (offer: ClubOffer): OfferStatus => {
+        if (!offer.isActive) return 'draft';
+        if (!offer.startDate || !offer.endDate) return 'live';
 
         const now = new Date();
         const startDate = new Date(offer.startDate);
         const endDate = new Date(offer.endDate);
 
-        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-            return offer.isActive;
-        }
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return 'live';
 
-        return now >= startDate && now <= endDate;
+        if (now > endDate) return 'expired';
+        if (now < startDate) return 'scheduled';
+        return 'live';
     };
+
+    // Live first, then scheduled, then expired, then drafts.
+    const STATUS_ORDER: Record<OfferStatus, number> = { live: 0, scheduled: 1, expired: 2, draft: 3 };
+
+    const sortedOffers = [...offers].sort((a, b) => {
+        const rank = STATUS_ORDER[getOfferStatus(a)] - STATUS_ORDER[getOfferStatus(b)];
+        if (rank !== 0) return rank;
+        // Within a group: soonest start first, so the next thing to go live is on top.
+        const aStart = a.startDate ? new Date(a.startDate).getTime() : 0;
+        const bStart = b.startDate ? new Date(b.startDate).getTime() : 0;
+        if (isNaN(aStart) || isNaN(bStart)) return 0;
+        return aStart - bStart;
+    });
 
     const buildPayload = (values: OfferFormValues) => ({
         title: values.title.trim(),
@@ -259,25 +277,35 @@ export default function ManageOffersPage() {
                         </div>
                     ) : (
                         <div className="space-y-4">
-                            {offers.map(offer => (
+                            {sortedOffers.map(offer => (
                                 <div key={offer.id} className="bg-[#0D1F1F] rounded-[15px] p-4 border border-[#14FFEC]/20">
                                     <div className="flex items-start justify-between mb-3">
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 mb-1 flex-wrap">
                                                 <h3 className="text-white font-semibold text-lg">{offer.title}</h3>
-                                                {isOfferCurrentlyActive(offer) ? (
-                                                    <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded-full">
-                                                        Live now
-                                                    </span>
-                                                ) : offer.isActive ? (
-                                                    <span className="px-2 py-1 bg-[#14FFEC]/15 text-[#14FFEC] text-xs rounded-full">
-                                                        Scheduled
-                                                    </span>
-                                                ) : (
-                                                    <span className="px-2 py-1 bg-gray-500/20 text-gray-400 text-xs rounded-full">
-                                                        Draft
-                                                    </span>
-                                                )}
+                                                {(() => {
+                                                    const status = getOfferStatus(offer);
+                                                    if (status === 'live') return (
+                                                        <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded-full">
+                                                            Live now
+                                                        </span>
+                                                    );
+                                                    if (status === 'scheduled') return (
+                                                        <span className="px-2 py-1 bg-[#14FFEC]/15 text-[#14FFEC] text-xs rounded-full">
+                                                            Scheduled
+                                                        </span>
+                                                    );
+                                                    if (status === 'expired') return (
+                                                        <span className="px-2 py-1 bg-orange-500/15 text-orange-400 text-xs rounded-full">
+                                                            Expired
+                                                        </span>
+                                                    );
+                                                    return (
+                                                        <span className="px-2 py-1 bg-gray-500/20 text-gray-400 text-xs rounded-full">
+                                                            Draft
+                                                        </span>
+                                                    );
+                                                })()}
                                             </div>
                                             <p className="text-white/70 text-sm">{offer.description}</p>
                                         </div>

@@ -9,6 +9,21 @@ export default function RootPage() {
 
   useEffect(() => {
     const redirectUser = () => {
+      // Landed here because a request 401'd and the forced logout redirect was
+      // rewritten to index.html. Send them to login, not the first-run intro.
+      let sessionExpired = false;
+      try {
+        sessionExpired = sessionStorage.getItem('clubwiz.sessionExpired') === '1';
+        if (sessionExpired) sessionStorage.removeItem('clubwiz.sessionExpired');
+      } catch {
+        /* storage unavailable - treat as a normal start */
+      }
+
+      if (sessionExpired) {
+        router.replace('/bz/auth/login');
+        return;
+      }
+
       // Check if user is logged in
       if (!ProfileService.isLoggedIn()) {
         // Not logged in, go to intro screen

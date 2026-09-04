@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { DateTimeWheelPicker } from '@/components/ui/datetime-wheel-picker';
 
 export interface OfferFormValues {
@@ -22,7 +22,7 @@ export interface OfferFormValues {
 export const EMPTY_OFFER: OfferFormValues = {
     title: '',
     description: '',
-    offerType: 'PERCENTAGE_DISCOUNT',
+    offerType: 'BUY_ONE_GET_ONE',
     discountPercentage: '',
     discountAmount: '',
     promoCode: '',
@@ -34,14 +34,6 @@ export const EMPTY_OFFER: OfferFormValues = {
 };
 
 const TITLE_LIMIT = 32;
-
-const OFFER_TYPES = [
-    { value: 'PERCENTAGE_DISCOUNT', label: 'Percentage discount' },
-    { value: 'FIXED_DISCOUNT', label: 'Fixed discount' },
-    { value: 'BUY_ONE_GET_ONE', label: 'Buy 1 get 1' },
-    { value: 'FREE_ENTRY', label: 'Free entry' },
-    { value: 'OTHER', label: 'Other' },
-];
 
 const TITLE_PRESETS = ['Ladies’ night', 'Happy hours', 'Weekend warm-up'];
 
@@ -94,7 +86,6 @@ export function OfferComposer({
 }: OfferComposerProps) {
     const [values, setValues] = useState<OfferFormValues>(initialValues ?? EMPTY_OFFER);
     const [picking, setPicking] = useState<'start' | 'end' | null>(null);
-    const [showAdvanced, setShowAdvanced] = useState(false);
     const [error, setError] = useState('');
 
     useEffect(() => {
@@ -103,10 +94,6 @@ export function OfferComposer({
         setValues(seed);
         setError('');
         setPicking(null);
-        // Open the advanced block when the offer already carries any of those values.
-        setShowAdvanced(
-            Boolean(seed.discountPercentage || seed.discountAmount || seed.promoCode || seed.minimumAmount || seed.usageLimit)
-        );
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, initialValues]);
 
@@ -120,8 +107,6 @@ export function OfferComposer({
     const startLabel = formatStamp(values.startDate);
     const endLabel = formatStamp(values.endDate);
 
-    const needsPercentage = values.offerType === 'PERCENTAGE_DISCOUNT';
-    const needsAmount = values.offerType === 'FIXED_DISCOUNT';
 
     const windowHint = useMemo(() => {
         if (error) return { text: error, danger: true };
@@ -141,14 +126,6 @@ export function OfferComposer({
         if (!values.startDate || !values.endDate) return setError('Set both a start and an end time.');
         if (!startDate || !endDate) return setError('Those dates are not valid.');
         if (endDate.getTime() <= startDate.getTime()) return setError('End time must be after the start.');
-        if (needsPercentage && !values.discountPercentage) {
-            setShowAdvanced(true);
-            return setError('Add the discount percentage, or change the offer type.');
-        }
-        if (needsAmount && !values.discountAmount) {
-            setShowAdvanced(true);
-            return setError('Add the discount amount, or change the offer type.');
-        }
         onSubmit(values);
     };
 
@@ -270,100 +247,6 @@ export function OfferComposer({
                                 >
                                     {windowHint.text}
                                 </div>
-                            </div>
-
-                            {/* ADVANCED */}
-                            <div className="rounded-[14px] border border-white/[.07]">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowAdvanced(v => !v)}
-                                    className="flex w-full items-center justify-between px-[15px] py-3 text-left"
-                                >
-                                    <span className="text-[10px] font-bold tracking-[1.4px] text-white/[.45]">
-                                        DISCOUNT &amp; LIMITS (OPTIONAL)
-                                    </span>
-                                    <ChevronDown
-                                        className={`h-4 w-4 text-white/40 transition-transform ${showAdvanced ? 'rotate-180' : ''}`}
-                                    />
-                                </button>
-
-                                {showAdvanced && (
-                                    <div className="flex flex-col gap-3.5 border-t border-white/[.07] px-[15px] py-4">
-                                        <div>
-                                            <div className="mb-1.5 text-[9.5px] font-bold tracking-[1.2px] text-white/[.38]">OFFER TYPE</div>
-                                            <select
-                                                value={values.offerType}
-                                                onChange={e => set('offerType', e.target.value)}
-                                                className={`${fieldBase} h-11 px-3 text-[12.5px] font-semibold`}
-                                            >
-                                                {OFFER_TYPES.map(t => (
-                                                    <option key={t.value} value={t.value} className="bg-[#0D1F1F]">
-                                                        {t.label}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-
-                                        {/* Only the field the chosen type actually uses */}
-                                        {needsPercentage && (
-                                            <div>
-                                                <div className="mb-1.5 text-[9.5px] font-bold tracking-[1.2px] text-white/[.38]">DISCOUNT %</div>
-                                                <input
-                                                    inputMode="numeric"
-                                                    value={values.discountPercentage}
-                                                    onChange={e => set('discountPercentage', numericField(e.target.value, 100))}
-                                                    placeholder="40"
-                                                    className={`${fieldBase} h-11 px-3 text-[12.5px] font-semibold placeholder:text-white/[.28]`}
-                                                />
-                                            </div>
-                                        )}
-                                        {needsAmount && (
-                                            <div>
-                                                <div className="mb-1.5 text-[9.5px] font-bold tracking-[1.2px] text-white/[.38]">DISCOUNT &#8377;</div>
-                                                <input
-                                                    inputMode="numeric"
-                                                    value={values.discountAmount}
-                                                    onChange={e => set('discountAmount', numericField(e.target.value))}
-                                                    placeholder="500"
-                                                    className={`${fieldBase} h-11 px-3 text-[12.5px] font-semibold placeholder:text-white/[.28]`}
-                                                />
-                                            </div>
-                                        )}
-
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div>
-                                                <div className="mb-1.5 text-[9.5px] font-bold tracking-[1.2px] text-white/[.38]">PROMO CODE</div>
-                                                <input
-                                                    value={values.promoCode}
-                                                    onChange={e => set('promoCode', e.target.value.toUpperCase().replace(/\s/g, ''))}
-                                                    placeholder="HAPPY50"
-                                                    className={`${fieldBase} h-11 px-3 text-[12.5px] font-semibold placeholder:text-white/[.28]`}
-                                                />
-                                            </div>
-                                            <div>
-                                                <div className="mb-1.5 text-[9.5px] font-bold tracking-[1.2px] text-white/[.38]">MIN BILL &#8377;</div>
-                                                <input
-                                                    inputMode="numeric"
-                                                    value={values.minimumAmount}
-                                                    onChange={e => set('minimumAmount', numericField(e.target.value))}
-                                                    placeholder="0"
-                                                    className={`${fieldBase} h-11 px-3 text-[12.5px] font-semibold placeholder:text-white/[.28]`}
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <div className="mb-1.5 text-[9.5px] font-bold tracking-[1.2px] text-white/[.38]">USAGE LIMIT</div>
-                                            <input
-                                                inputMode="numeric"
-                                                value={values.usageLimit}
-                                                onChange={e => set('usageLimit', numericField(e.target.value))}
-                                                placeholder="Leave empty for unlimited"
-                                                className={`${fieldBase} h-11 px-3 text-[12.5px] font-semibold placeholder:text-white/[.28]`}
-                                            />
-                                        </div>
-                                    </div>
-                                )}
                             </div>
                         </div>
 

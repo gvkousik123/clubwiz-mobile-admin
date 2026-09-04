@@ -1,21 +1,49 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { CircleF, GoogleMap, useJsApiLoader } from '@react-google-maps/api';
-import { Loader2, MapPin } from 'lucide-react';
+import { Loader2, MapPin, Maximize2, Minimize2, Search, X } from 'lucide-react';
 
 // Static libraries array to prevent LoadScript reload warning
-const GOOGLE_LIBRARIES: Array<'marker'> = ['marker'];
+const GOOGLE_LIBRARIES: ('marker' | 'places')[] = ['marker', 'places'];
 
-// Google Maps API Key - from environment variable (NEXT_PUBLIC_ prefix required for browser access)
+// Google Maps API Key - from environment variable
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
+
+// Dark theme map styles for Google Maps
+const DARK_MAP_STYLES: google.maps.MapTypeStyle[] = [
+    { elementType: 'geometry', stylers: [{ color: '#1a2e35' }] },
+    { elementType: 'labels.text.fill', stylers: [{ color: '#8ec3b9' }] },
+    { elementType: 'labels.text.stroke', stylers: [{ color: '#1a2e35' }, { weight: 2 }] },
+    { featureType: 'administrative', elementType: 'geometry.stroke', stylers: [{ color: '#2d4a4a' }] },
+    { featureType: 'administrative.land_parcel', elementType: 'labels.text.fill', stylers: [{ color: '#64a89a' }] },
+    { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#14FFEC' }] },
+    { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#243f3f' }] },
+    { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#6b9a8d' }] },
+    { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#1e3d34' }] },
+    { featureType: 'poi.park', elementType: 'labels.text.fill', stylers: [{ color: '#4a8b6e' }] },
+    { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#2d4a4a' }] },
+    { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#1a3535' }] },
+    { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#9ca5ab' }] },
+    { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#3a5858' }] },
+    { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#2d4545' }] },
+    { featureType: 'road.highway', elementType: 'labels.text.fill', stylers: [{ color: '#b0d5cc' }] },
+    { featureType: 'road.arterial', elementType: 'geometry', stylers: [{ color: '#344f4f' }] },
+    { featureType: 'transit', elementType: 'geometry', stylers: [{ color: '#2d4545' }] },
+    { featureType: 'transit.station', elementType: 'labels.text.fill', stylers: [{ color: '#14FFEC' }] },
+    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0e2628' }] },
+    { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#4a7a7a' }] },
+];
 
 interface GoogleMapPickerProps {
     center: { lat: number; lng: number };
+    currentLocation?: { lat: number; lng: number } | null;
+    selectedLocation?: { lat: number; lng: number } | null;
     radius?: number;
     onSelect: (coords: { lat: number; lng: number }) => void;
     apiKey?: string;
     height?: number | string;
+    showFullscreenButton?: boolean;
 }
 
 const baseContainerStyle: React.CSSProperties = {
@@ -28,25 +56,109 @@ const resolveHeight = (height?: number | string): string => {
     if (typeof height === 'number') {
         return `${height}px`;
     }
-    return height || '420px';
+    return height || '450px';
 };
 
-export function GoogleMapPicker({ center, radius = 5000, onSelect, apiKey, height }: GoogleMapPickerProps) {
-    const mapRef = useRef<google.maps.Map | null>(null);
-    const markerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
-    const legacyMarkerRef = useRef<google.maps.Marker | null>(null);
+// OpenStreetMap dark interactive map component used when Google Maps fails or is unauthenticated
+function OSMMapPicker({
+    center,
+    selectedLocation,
+    onSelect,
+    height
+}: {
+    center: { lat: number; lng: number };
+    selectedLocation?: { lat: number; lng: number } | null;
+    onSelect: (coords: { lat: number; lng: number }) => void;
+    height?: number | string;
+}) {
+    const activeCoords = selectedLocation || center;
+    const delta = 0.025;
+    const bbox = `${activeCoords.lng - delta}%2C${activeCoords.lat - delta}%2C${activeCoords.lng + delta}%2C${activeCoords.lat + delta}`;
 
-    // Debug: Log environment variable
+    return (
+        <div
+            style={{ width: '100%', height: resolveHeight(height) }}
+            className="relative rounded-2xl overflow-hidden border border-[#14FFEC]/30 bg-[#021313] shadow-2xl flex flex-col group"
+        >
+            <div className="relative flex-1 w-full h-full overflow-hidden">
+                <iframe
+                    title="Interactive Map"
+                    width="100%"
+                    height="100%"
+                    frameBorder="0"
+                    scrolling="no"
+                    src={`https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${activeCoords.lat}%2C${activeCoords.lng}`}
+                    className="w-full h-full filter invert-[0.92] hue-rotate-180 brightness-[0.85] contrast-[1.2] transition-opacity duration-300"
+                />
+            </div>
+            <div className="flex items-center justify-between bg-[#082A2B]/90 backdrop-blur-md px-4 py-2.5 text-xs border-t border-[#14FFEC]/20">
+                <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-full bg-[#14FFEC] animate-pulse" />
+                    <span className="text-[#14FFEC] font-bold">Interactive Map</span>
+                </div>
+                <div className="flex items-center gap-2 text-white/70 text-[11px] font-mono">
+                    <MapPin className="w-3 h-3 text-[#14FFEC]" />
+                    <span>{activeCoords.lat.toFixed(4)}, {activeCoords.lng.toFixed(4)}</span>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+export function GoogleMapPicker({ center, currentLocation, selectedLocation, radius = 5000, onSelect, apiKey, height, showFullscreenButton = true }: GoogleMapPickerProps) {
+    const mapRef = useRef<google.maps.Map | null>(null);
+    const searchInputRef = useRef<HTMLInputElement | null>(null);
+    const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+    const currentMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
+    const currentLegacyMarkerRef = useRef<google.maps.Marker | null>(null);
+    const selectedMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
+    const selectedLegacyMarkerRef = useRef<google.maps.Marker | null>(null);
+    const containerRef = useRef<HTMLDivElement | null>(null);
+    
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [searchValue, setSearchValue] = useState('');
+    const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(null);
+    const [hasAuthFailure, setHasAuthFailure] = useState(false);
+
+    // Capture global Google Maps authentication / key failure
     useEffect(() => {
-        const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-        console.log('🔍 Google Maps API Key check:', {
-            hasKey: !!key,
-            keyPreview: key ? `${key.substring(0, 10)}...${key.substring(key.length - 10)}` : 'MISSING',
-            envVarName: 'NEXT_PUBLIC_GOOGLE_MAPS_API_KEY'
-        });
+        if (typeof window !== 'undefined') {
+            (window as any).gm_authFailure = () => {
+                console.warn('⚠️ Google Maps API Key rejected. Automatically switching to OpenStreetMap interactive map.');
+                setHasAuthFailure(true);
+            };
+        }
+
+        const style = document.createElement('style');
+        style.id = 'gm-style-override';
+        style.innerHTML = `
+            .gm-err-container, .gm-err-content, .gm-err-title, .gm-err-message,
+            .dismissButton, .gm-style-cc, div[role="dialog"] {
+                display: none !important;
+            }
+        `;
+        if (!document.getElementById('gm-style-override')) {
+            document.head.appendChild(style);
+        }
+
+        return () => {
+            document.getElementById('gm-style-override')?.remove();
+        };
     }, []);
 
-    // Use hardcoded key or fallback to prop, then to env var
+    const toggleFullscreen = async () => {
+        if (!containerRef.current) return;
+        try {
+            if (!document.fullscreenElement) {
+                await containerRef.current.requestFullscreen();
+            } else {
+                await document.exitFullscreen();
+            }
+        } catch (err) {
+            console.log('Fullscreen not supported:', err);
+        }
+    };
+
     const finalApiKey = apiKey || GOOGLE_MAPS_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
     const mapContainerStyle = {
@@ -54,7 +166,6 @@ export function GoogleMapPicker({ center, radius = 5000, onSelect, apiKey, heigh
         height: resolveHeight(height),
     } as React.CSSProperties;
 
-    // Call hooks before any conditional returns
     const { isLoaded, loadError } = useJsApiLoader({
         id: 'clubviz-map-picker',
         googleMapsApiKey: finalApiKey,
@@ -62,41 +173,69 @@ export function GoogleMapPicker({ center, radius = 5000, onSelect, apiKey, heigh
         preventGoogleFontsLoading: true,
     });
 
-    // Setup advanced marker when map loads (hook must run every render to satisfy React rules)
+    // Current location marker setup
     useEffect(() => {
-        if (!isLoaded || !mapRef.current) return;
-
-        // Remove old marker if it exists
-        if (markerRef.current) {
-            markerRef.current.map = null;
-            markerRef.current = null;
-        }
-
-        if (legacyMarkerRef.current) {
-            legacyMarkerRef.current.setMap(null);
-            legacyMarkerRef.current = null;
-        }
+        if (!isLoaded || !mapRef.current || !currentLocation || hasAuthFailure) return;
 
         const mapInstance = mapRef.current;
-        if (!mapInstance) return;
-
-        // Create new advanced marker when supported, fallback to default Marker otherwise
-        if (window.google?.maps?.marker?.AdvancedMarkerElement) {
-            const marker = new window.google.maps.marker.AdvancedMarkerElement({
-                map: mapInstance,
-                position: center,
-                title: 'Current Location',
-            });
-            markerRef.current = marker;
-        } else if (window.google?.maps?.Marker) {
-            const classicMarker = new window.google.maps.Marker({
-                map: mapInstance,
-                position: center,
-                title: 'Current Location',
-            });
-            legacyMarkerRef.current = classicMarker;
+        try {
+            if (currentLegacyMarkerRef.current) {
+                currentLegacyMarkerRef.current.setMap(null);
+            }
+            if (window.google?.maps?.Marker) {
+                const marker = new window.google.maps.Marker({
+                    map: mapInstance,
+                    position: currentLocation,
+                    title: 'Saved Location',
+                    icon: {
+                        path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
+                        fillColor: '#3B82F6',
+                        fillOpacity: 1,
+                        strokeColor: '#ffffff',
+                        strokeWeight: 2,
+                        scale: 1.5,
+                        anchor: new window.google.maps.Point(12, 22),
+                    },
+                    zIndex: 100,
+                });
+                currentLegacyMarkerRef.current = marker;
+            }
+        } catch (error) {
+            console.log('Error creating current location marker:', error);
         }
-    }, [isLoaded, center]);
+    }, [isLoaded, currentLocation, hasAuthFailure]);
+
+    // Selected location marker setup
+    useEffect(() => {
+        if (!isLoaded || !mapRef.current || !selectedLocation || hasAuthFailure) return;
+
+        const mapInstance = mapRef.current;
+        try {
+            if (selectedLegacyMarkerRef.current) {
+                selectedLegacyMarkerRef.current.setMap(null);
+            }
+            if (window.google?.maps?.Marker) {
+                const marker = new window.google.maps.Marker({
+                    map: mapInstance,
+                    position: selectedLocation,
+                    title: 'Selected Location',
+                    icon: {
+                        path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
+                        fillColor: '#14FFEC',
+                        fillOpacity: 1,
+                        strokeColor: '#ffffff',
+                        strokeWeight: 2.5,
+                        scale: 2,
+                        anchor: new window.google.maps.Point(12, 22),
+                    },
+                    zIndex: 200,
+                });
+                selectedLegacyMarkerRef.current = marker;
+            }
+        } catch (error) {
+            console.log('Error creating selected location marker:', error);
+        }
+    }, [isLoaded, selectedLocation, hasAuthFailure]);
 
     const handleMapLoad = useCallback((map: google.maps.Map) => {
         mapRef.current = map;
@@ -104,101 +243,68 @@ export function GoogleMapPicker({ center, radius = 5000, onSelect, apiKey, heigh
 
     const handleMapUnmount = useCallback(() => {
         mapRef.current = null;
-        if (markerRef.current) {
-            markerRef.current.map = null;
-            markerRef.current = null;
-        }
-        if (legacyMarkerRef.current) {
-            legacyMarkerRef.current.setMap(null);
-            legacyMarkerRef.current = null;
-        }
     }, []);
 
-    // Now safe to have early returns (hooks already declared)
-    if (!finalApiKey) {
-        console.error('❌ Google Maps API key missing! Please check:');
-        console.error('   - Env var: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY');
-        console.error('   - File: .env.local');
-        console.error('   - Restart dev server after changes');
+    // Return OpenStreetMap interactive fallback if key missing, invalid, or API failed
+    if (!finalApiKey || loadError || hasAuthFailure) {
         return (
-            <div className="rounded-2xl border border-dashed border-yellow-500/50 bg-yellow-500/10 p-4 text-center text-sm text-yellow-100">
-                <p className="font-semibold">⚠️ Google Maps API Key Missing</p>
-                <p className="mt-2 text-xs text-yellow-200">
-                    Add to .env.local:<br />
-                    <code className="block bg-yellow-900/50 px-2 py-1 mt-1 rounded font-mono">
-                        NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyDW9KJ9rak_A4DNRAFT203Z_40bmVMi4IM
-                    </code>
-                </p>
-                <p className="mt-2 text-xs text-yellow-200">Then restart: <code className="bg-yellow-900/50 px-1 rounded">npm run dev</code></p>
-            </div>
-        );
-    }
-
-    if (loadError) {
-        console.error('Google Maps JavaScript API failed to load:', loadError);
-        const origin = typeof window !== 'undefined' ? window.location.origin : 'this site';
-        return (
-            <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100">
-                <p className="font-semibold mb-2">⚠️ Google Maps failed to load</p>
-                <p className="text-xs mb-2">Error: <code className="bg-red-900/50 px-1 rounded">{loadError.message || 'Unknown error'}</code></p>
-                <div className="text-xs space-y-1 text-red-200">
-                    <p><strong>Fix: Add authorized referrers</strong></p>
-                    <ol className="ml-3 space-y-1">
-                        <li>1. Open <a href="https://console.cloud.google.com/google/maps-apis/credentials" target="_blank" rel="noopener noreferrer" className="underline hover:text-red-100">Google Cloud Console</a></li>
-                        <li>2. Find your API key and click Edit</li>
-                        <li>3. Go to "Application restrictions" → "HTTP referrers"</li>
-                        <li>4. Add both lines:</li>
-                        <li className="ml-4 font-mono bg-red-900/30 px-2 py-1 rounded">http://localhost:3001/*</li>
-                        <li className="ml-4 font-mono bg-red-900/30 px-2 py-1 rounded">https://localhost:3001/*</li>
-                        <li>5. Save, then restart: <code className="bg-red-900/50 px-1 rounded">pnpm dev</code></li>
-                    </ol>
-                </div>
-            </div>
+            <OSMMapPicker
+                center={mapCenter || center}
+                selectedLocation={selectedLocation}
+                onSelect={onSelect}
+                height={height}
+            />
         );
     }
 
     if (!isLoaded) {
         return (
-            <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 p-6 text-white/70">
+            <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 p-6 text-white/70 min-h-[250px]">
                 <Loader2 className="h-5 w-5 animate-spin text-[#14FFEC]" />
-                Loading map...
+                <span>Loading map...</span>
             </div>
         );
     }
 
     return (
-        <div style={mapContainerStyle}>
+        <div
+            ref={containerRef}
+            style={isFullscreen ? { width: '100%', height: '100vh', borderRadius: 0 } : mapContainerStyle}
+            className="relative"
+        >
             <GoogleMap
                 onLoad={handleMapLoad}
                 onUnmount={handleMapUnmount}
-                center={center}
+                center={mapCenter || center}
                 zoom={13}
                 mapContainerStyle={{ width: '100%', height: '100%' }}
                 options={{
                     disableDefaultUI: true,
                     zoomControl: true,
-                    suppressInfoWindows: true,
+                    fullscreenControl: false,
+                    mapTypeControl: false,
+                    streetViewControl: false,
                     gestureHandling: 'greedy',
-                    styles: [
-                        {
-                            elementType: 'geometry',
-                            stylers: [{ color: '#0b2526' }],
-                        },
-                        {
-                            elementType: 'labels.text.fill',
-                            stylers: [{ color: '#f0fdfa' }],
-                        },
-                    ],
-                }}
-                onError={(error) => {
-                    // Suppress error messages from showing
-                    console.log('Map event:', error);
+                    styles: DARK_MAP_STYLES,
+                    backgroundColor: '#1a2e35',
+                    clickableIcons: false,
                 }}
                 onClick={(event) => {
-                    if (!event.latLng) return;
-                    const lat = event.latLng.lat();
-                    const lng = event.latLng.lng();
-                    onSelect({ lat, lng });
+                    try {
+                        if (!event || !event.latLng) return;
+                        const lat = event.latLng.lat();
+                        const lng = event.latLng.lng();
+                        if (typeof lat === 'number' && typeof lng === 'number' && !isNaN(lat) && !isNaN(lng)) {
+                            setMapCenter({ lat, lng });
+                            onSelect({ lat, lng });
+                            if (mapRef.current) {
+                                mapRef.current.setCenter({ lat, lng });
+                                mapRef.current.panTo({ lat, lng });
+                            }
+                        }
+                    } catch (error) {
+                        console.log('Error handling map click:', error);
+                    }
                 }}
             >
                 <CircleF
@@ -212,11 +318,16 @@ export function GoogleMapPicker({ center, radius = 5000, onSelect, apiKey, heigh
                     }}
                 />
             </GoogleMap>
-            <div className="flex items-center justify-between bg-[#021010]/80 px-4 py-2 text-xs text-white/70">
-                <span className="flex items-center gap-2 font-semibold uppercase tracking-wide">
-                    <MapPin className="h-3.5 w-3.5" /> Tap anywhere to pin
-                </span>
-            </div>
+
+            {showFullscreenButton && (
+                <button
+                    onClick={toggleFullscreen}
+                    className="absolute top-3 right-3 z-10 p-2 rounded-lg bg-[#0a3a3a]/90 border border-[#14FFEC]/30 text-[#14FFEC] hover:bg-[#0a4a4a] transition-colors shadow-lg"
+                    title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+                >
+                    {isFullscreen ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
+                </button>
+            )}
         </div>
     );
 }

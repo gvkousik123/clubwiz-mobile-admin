@@ -145,16 +145,19 @@ function EditClubContent() {
     const handleLocationSelect = (loc: any) => {
         console.log('📍 Location selected in Edit Club:', loc);
         setSelectedLocation(loc);
+        // A newly picked location REPLACES the old address outright. Falling back to
+        // prev?.* here let fields the geocoder didn't return (commonly pincode and
+        // address2) keep the previous club's values, saving a mix of two addresses.
         setEditData((prev: any) => ({
             ...prev,
-            address1: loc.address1 || prev?.address1 || '',
-            address2: loc.address2 || prev?.address2 || '',
-            city: loc.city || prev?.city || '',
-            state: loc.state || prev?.state || '',
-            pincode: loc.pincode || prev?.pincode || '',
-            country: loc.country || prev?.country || 'India',
-            lat: loc.lat || prev?.lat || null,
-            lng: loc.lng || prev?.lng || null,
+            address1: loc.address1 || '',
+            address2: loc.address2 || '',
+            city: loc.city || '',
+            state: loc.state || '',
+            pincode: loc.pincode || '',
+            country: loc.country || 'India',
+            lat: loc.lat ?? null,
+            lng: loc.lng ?? null,
         }));
     };
 
@@ -308,11 +311,11 @@ function EditClubContent() {
                     city: editData.city || selectedLocation.city || undefined,
                     state: editData.state || selectedLocation.state || undefined,
                     pincode: editData.pincode || selectedLocation.pincode || undefined,
-                    country: selectedLocation.country || editData.country || undefined,
-                    latitude: selectedLocation.lat || editData.lat || undefined,
-                    longitude: selectedLocation.lng || editData.lng || undefined,
-                    lat: selectedLocation.lat || editData.lat || undefined,
-                    lng: selectedLocation.lng || editData.lng || undefined,
+                    country: editData.country || selectedLocation.country || undefined,
+                    latitude: editData.lat || selectedLocation.lat || undefined,
+                    longitude: editData.lng || selectedLocation.lng || undefined,
+                    lat: editData.lat || selectedLocation.lat || undefined,
+                    lng: editData.lng || selectedLocation.lng || undefined,
                 },
                 images: allImages,
             };

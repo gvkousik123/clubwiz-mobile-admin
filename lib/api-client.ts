@@ -84,6 +84,16 @@ const handleForcedLogout = () => {
     localStorage.removeItem(STORAGE_KEYS.clubSelectedMusicGenres);
     localStorage.removeItem(STORAGE_KEYS.ownedClubId);
 
+    // Mark this as an expiry, not a cold start. The Capacitor build serves index.html
+    // for any extensionless path (WebViewLocalServer html5mode), so this hard redirect
+    // lands on the root page instead of the login route; the flag tells the root page
+    // to forward to login rather than the first-run intro screen.
+    try {
+      sessionStorage.setItem('clubwiz.sessionExpired', '1');
+    } catch {
+      /* storage unavailable - fall through to the normal redirect */
+    }
+
     // Silently redirect to login - NO TOAST
     window.location.replace('/bz/auth/login');
   }
