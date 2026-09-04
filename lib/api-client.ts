@@ -1,5 +1,12 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { STORAGE_KEYS } from './constants/storage';
+import {
+  SESSION_EXPIRED_EVENT,
+  SESSION_EXPIRED_FLAG,
+  SESSION_GATE_FLAG,
+  messageSaysExpired,
+  storedTokenIsExpired,
+} from './auth/session-expiry';
 import { ApiResponse } from './api-types';
 
 // API Configuration
@@ -84,17 +91,23 @@ const handleForcedLogout = () => {
     localStorage.removeItem(STORAGE_KEYS.clubSelectedMusicGenres);
     localStorage.removeItem(STORAGE_KEYS.ownedClubId);
 
-    // Mark this as an expiry, not a cold start. The Capacitor build serves index.html
-    // for any extensionless path (WebViewLocalServer html5mode), so this hard redirect
-    // lands on the root page instead of the login route; the flag tells the root page
-    // to forward to login rather than the first-run intro screen.
+    // Survives a hard reload: the root page reads this and forwards to login rather
+    // than the first-run intro screen.
     try {
-      sessionStorage.setItem('clubwiz.sessionExpired', '1');
+      sessionStorage.setItem(SESSION_EXPIRED_FLAG, '1');
     } catch {
-      /* storage unavailable - fall through to the normal redirect */
+      /* storage unavailable - the event below still drives the UI */
     }
 
-    // Silently redirect to login - NO TOAST
+    // Let the mounted gate show "Session expired" with a Login button. It navigates
+    // in-app, which matters on Capacitor: WebViewLocalServer serves index.html for
+    // any extensionless path, so a hard redirect to /bz/auth/login never lands there.
+    if ((window as any)[SESSION_GATE_FLAG]) {
+      window.dispatchEvent(new CustomEvent(SESSION_EXPIRED_EVENT));
+      return;
+    }
+
+    // No gate mounted (shouldn't happen - it lives in the root layout). Fall back.
     window.location.replace('/bz/auth/login');
   }
 };
@@ -117,29 +130,37 @@ apiClient.interceptors.response.use(
       message: error.message,
     });
 
-    // Handle 401 (Unauthorized) - force logout silently
-    // Note: 403 (Forbidden) is NOT auto-logout - it means you don't have permission for that resource
-    if (error.response?.status === 401) {
-      console.warn(`Authentication failed (401 Unauthorized): Forcing logout...`);
+    const status = error.response?.status;
+    const errorMessage = error.response?.data?.error || error.response?.data?.message || '';
+
+    // 401 always means the session is gone.
+    if (status === 401) {
+      console.warn(`Authentication failed (401 Unauthorized): session expired`);
       handleForcedLogout();
       return Promise.reject(error);
     }
 
-    // Log 403 but don't auto-logout - let the calling code handle it
-    if (error.response?.status === 403) {
-      console.warn(`Access forbidden (403): You may not have permission for this resource`);
-      // Just reject the error, don't logout
+    // The backend returns 403 for BOTH an expired JWT and a genuine role/ownership
+    // denial (see EVENT-CREATE-EDIT-FRONTEND-GUIDE.md). Only treat it as an expiry
+    // when the body says so, or the stored token is actually past its `exp` claim -
+    // otherwise a business admin poking at another club's resource would be logged out.
+    if (status === 403) {
+      const token = typeof window !== 'undefined'
+        ? localStorage.getItem(STORAGE_KEYS.accessToken)
+        : null;
+
+      if (messageSaysExpired(errorMessage) || storedTokenIsExpired(token)) {
+        console.warn(`Access forbidden (403): token expired, session over`);
+        handleForcedLogout();
+        return Promise.reject(error);
+      }
+
+      console.warn(`Access forbidden (403): you may not have permission for this resource`);
       return Promise.reject(error);
     }
 
-    // Check for JWT token expiration in response
-    const errorMessage = error.response?.data?.error || error.response?.data?.message || '';
-    if (
-      errorMessage.toLowerCase().includes('jwt token is expired') ||
-      errorMessage.toLowerCase().includes('jwt token expired') ||
-      errorMessage.toLowerCase().includes('token is expired') ||
-      errorMessage.toLowerCase().includes('invalid token')
-    ) {
+    // Any other status whose body still reports a dead token.
+    if (messageSaysExpired(errorMessage)) {
       handleForcedLogout();
       return Promise.reject(error);
     }

@@ -6,6 +6,7 @@ import { AuthProvider } from "@/components/auth/auth-provider"
 import { DirectLoginWrapper } from "@/components/auth/direct-login-wrapper"
 import { ToastProvider } from "@/components/ui/toast"
 import { Toaster } from "@/components/ui/toaster"
+import { SessionExpiredGate } from "@/components/auth/session-expired-gate"
 
 export const metadata: Metadata = {
   title: "Clubwiz Admin - Club & Event Management Platform",
@@ -49,6 +50,7 @@ export default function RootLayout({
             </AuthProvider>
           </ThemeProvider>
           <Toaster />
+          <SessionExpiredGate />
         </ToastProvider>
       </body>
     </html>

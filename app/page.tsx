@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ProfileService } from '@/lib/services/profile.service';
+import { SESSION_EXPIRED_FLAG } from '@/lib/auth/session-expiry';
 
 export default function RootPage() {
   const router = useRouter();
@@ -13,8 +14,8 @@ export default function RootPage() {
       // rewritten to index.html. Send them to login, not the first-run intro.
       let sessionExpired = false;
       try {
-        sessionExpired = sessionStorage.getItem('clubwiz.sessionExpired') === '1';
-        if (sessionExpired) sessionStorage.removeItem('clubwiz.sessionExpired');
+        sessionExpired = sessionStorage.getItem(SESSION_EXPIRED_FLAG) === '1';
+        if (sessionExpired) sessionStorage.removeItem(SESSION_EXPIRED_FLAG);
       } catch {
         /* storage unavailable - treat as a normal start */
       }
