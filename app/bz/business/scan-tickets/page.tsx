@@ -20,7 +20,7 @@ function ScanTicketsContent() {
     const handleScanSuccess = (bookingId: string, data: any) => {
         setTicketError(null);
         setShowScanner(false);
-        router.push(`/bz/business/ticket-details/${bookingId}`);
+        router.push(`/bz/business/ticket-details/_?id=${bookingId}`);
     };
 
     const handleScanError = (error: string) => {
@@ -139,7 +139,7 @@ function ScanTicketsContent() {
                                 {tickets.map((ticket) => (
                                     <button
                                         key={ticket.ticketId}
-                                        onClick={() => router.push(`/bz/business/ticket-details/${ticket.ticketNumber}`)}
+                                        onClick={() => router.push(`/bz/business/ticket-details/_?id=${ticket.ticketNumber}`)}
                                         className="w-full text-left bg-[#0D1F1F]/80 border border-white/10 rounded-3xl p-5 transition-all hover:border-[#14FFEC]/30 hover:bg-[#122626] cursor-pointer"
                                     >
                                         <div className="flex items-center justify-between gap-3 mb-3">

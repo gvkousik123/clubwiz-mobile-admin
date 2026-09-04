@@ -91,27 +91,40 @@ export function DateTimeWheelPicker({
     onCancel,
     onConfirm,
 }: DateTimeWheelPickerProps) {
+    // Primitive dep: minDate is rebuilt on every parent render, so keying the
+    // memos off the object itself would recompute the wheels each time.
+    const minDayTs = minDate ? new Date(minDate).setHours(0, 0, 0, 0) : null;
+
     const days = useMemo(() => {
         const base = new Date();
         base.setHours(0, 0, 0, 0);
+        // Start the wheel at the earliest selectable day rather than always at today,
+        // so a day that is already ruled out (e.g. before the chosen start) is never
+        // offered and then rejected on confirm.
+        if (minDayTs !== null && minDayTs > base.getTime()) base.setTime(minDayTs);
+
         return Array.from({ length: DAY_COUNT }, (_, i) => {
             const d = new Date(base);
             d.setDate(d.getDate() + i);
             return d;
         });
-    }, []);
+    }, [minDayTs]);
 
-    const dayLabels = useMemo(
-        () =>
-            days.map((d, i) =>
-                i === 0
-                    ? 'Today'
-                    : i === 1
-                        ? 'Tomorrow'
-                        : d.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short' })
-            ),
-        [days]
-    );
+    const dayLabels = useMemo(() => {
+        // Labelled against the real today, not the first row, since the wheel may
+        // now begin on a later day.
+        const today = new Date().setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        return days.map(d =>
+            d.getTime() === today
+                ? 'Today'
+                : d.getTime() === tomorrow.getTime()
+                    ? 'Tomorrow'
+                    : d.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short' })
+        );
+    }, [days]);
 
     const hours = useMemo(() => Array.from({ length: 12 }, (_, i) => String(i + 1)), []);
     const minutes = useMemo(

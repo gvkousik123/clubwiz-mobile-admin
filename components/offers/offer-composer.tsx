@@ -116,7 +116,7 @@ export function OfferComposer({
         if (startLabel && endLabel) {
             return { text: `Live from ${startLabel} to ${endLabel}`, danger: false };
         }
-        return { text: 'Set exact start and end — offers expire to the minute', danger: false };
+        return { text: 'Set exact start and end. Offers expire to the minute.', danger: false };
     }, [error, startDate, endDate, startLabel, endLabel]);
 
     const handleSubmit = () => {
@@ -137,9 +137,9 @@ export function OfferComposer({
     return (
         <>
             <div className="fixed inset-0 z-40 overflow-y-auto bg-black/70 backdrop-blur-[2px]">
-                <div className="mx-auto flex max-w-[900px] flex-wrap items-start gap-[22px] px-5 pb-20 pt-7">
+                <div className="mx-auto flex w-full max-w-md flex-col items-stretch gap-[22px] px-5 pb-20 pt-7">
                     {/* ============ FORM ============ */}
-                    <div className="min-w-[300px] flex-[1_1_440px] overflow-hidden rounded-[24px] border border-white/[.07] bg-[#0D1F1F] shadow-[0_30px_70px_-30px_rgba(0,0,0,.7)]">
+                    <div className="w-full overflow-hidden rounded-[24px] border border-white/[.07] bg-[#0D1F1F] shadow-[0_30px_70px_-30px_rgba(0,0,0,.7)]">
                         <div className="flex items-start gap-3.5 border-b border-white/[.06] px-6 pb-[18px] pt-[22px]">
                             <div className="min-w-0 flex-1">
                                 <div className="text-[19px] font-bold leading-tight tracking-[-.4px] text-white">
@@ -198,7 +198,7 @@ export function OfferComposer({
                             <div>
                                 <span className="text-[10px] font-bold tracking-[1.4px] text-white/[.45]">WHAT&apos;S ON OFFER</span>
                                 <div className="mb-[9px] mt-1 text-[10.5px] font-medium text-white/[.34]">
-                                    Plain words — whatever it says here is what the guest shows at the venue.
+                                    Plain words. Whatever it says here is what the guest shows at the venue.
                                 </div>
                                 <textarea
                                     value={values.description}
@@ -291,7 +291,7 @@ export function OfferComposer({
                     </div>
 
                     {/* ============ PREVIEW ============ */}
-                    <div className="min-w-[280px] flex-[0_1_320px] rounded-[24px] border border-white/[.07] bg-[#0D1F1F] p-5">
+                    <div className="w-full rounded-[24px] border border-white/[.07] bg-[#0D1F1F] p-5">
                         <div className="mb-3.5 flex items-center gap-2">
                             <span className="h-1.5 w-1.5 rounded-full bg-[#14FFEC]" />
                             <span className="text-[10px] font-bold tracking-[1.5px] text-white/[.45]">LIVE GUEST PREVIEW</span>
@@ -306,7 +306,7 @@ export function OfferComposer({
                                     {values.description || 'Upto 40% off on food and bev'}
                                 </div>
                                 <div className="mt-[9px] text-[9px] font-bold tracking-[1.1px] text-white/40">
-                                    OFFER VALID TILL: {endLabel ? endLabel.toUpperCase() : '—'}
+                                    OFFER VALID TILL: {endLabel ? endLabel.toUpperCase() : 'NOT SET'}
                                 </div>
                             </div>
                             <span className="grid h-[46px] w-[46px] flex-shrink-0 place-items-center rounded-[13px] bg-[#14FFEC]/[.16] text-[19px]">

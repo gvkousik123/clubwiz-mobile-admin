@@ -97,7 +97,7 @@ function ClubPreviewContent() {
     };
 
     const handleEdit = () => {
-        router.push(`/bz/business/edit-club/${clubId}`);
+        router.push(`/bz/business/edit-club/_?id=${clubId}`);
     };
 
     const handleShare = async () => {

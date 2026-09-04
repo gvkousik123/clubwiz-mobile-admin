@@ -639,7 +639,7 @@ export default function AdminPage() {
 
   const handleScanSuccess = (bookingId: string, data: any) => {
     setShowQRScanner(false);
-    router.push(`/bz/admin/ticket-details/${bookingId}`);
+    router.push(`/bz/admin/ticket-details/_?id=${bookingId}`);
   };
 
   return (

@@ -30,7 +30,7 @@ export default function ScanTicketsPage() {
         setScanHistory(prev => [newScan, ...prev]);
         
         // Redirect to ticket details page
-        router.push(`/bz/admin/ticket-details/${bookingId}`);
+        router.push(`/bz/admin/ticket-details/_?id=${bookingId}`);
     };
 
     const handleScanError = (error: string) => {

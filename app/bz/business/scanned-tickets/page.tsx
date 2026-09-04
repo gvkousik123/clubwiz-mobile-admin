@@ -116,7 +116,7 @@ function ScannedTicketsContent() {
                             {tickets.map((ticket) => (
                                 <button
                                     key={ticket.ticketId}
-                                    onClick={() => router.push(`/bz/business/ticket-details/${ticket.ticketNumber}`)}
+                                    onClick={() => router.push(`/bz/business/ticket-details/_?id=${ticket.ticketNumber}`)}
                                     className="w-full text-left bg-[#0D1F1F]/80 border border-white/10 rounded-[28px] p-5 transition-all hover:border-[#14FFEC]/30 hover:bg-[#122626]"
                                 >
                                     <div className="flex items-center justify-between gap-4 mb-3">

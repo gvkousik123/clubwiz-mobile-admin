@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { ArrowLeft, CheckCircle2, XCircle, Users, Calendar, Clock, MapPin, User, Ticket, Download } from 'lucide-react';
 import { TicketScanService } from '@/lib/services/ticket-scan.service';
@@ -40,7 +40,10 @@ interface TicketDetails {
 export default function TicketDetailsPage() {
     const router = useRouter();
     const params = useParams();
-    const bookingId = params.bookingId as string;
+    const searchParams = useSearchParams();
+    const bookingId = params.bookingId === '_'
+        ? (searchParams.get('id') || '')
+        : (params.bookingId as string);
     
     const [loading, setLoading] = useState(true);
     const [ticketDetails, setTicketDetails] = useState<TicketDetails | null>(null);

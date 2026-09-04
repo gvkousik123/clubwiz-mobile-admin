@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { ArrowLeft, User, Mail, Phone, Calendar, Clock, Users, Ticket, CheckCircle2, XCircle, MapPin, DollarSign, Tag, Download } from 'lucide-react';
 import { TicketScanService, TicketScanResponse } from '@/lib/services/ticket-scan.service';
 import { TicketService } from '@/lib/services/ticket.service';
@@ -13,8 +13,11 @@ import Image from 'next/image';
 export default function TicketDetailsPage() {
     const router = useRouter();
     const params = useParams();
+    const searchParams = useSearchParams();
     const { toast } = useToast();
-    const ticketNumber = params.ticketNumber as string;
+    const ticketNumber = params.ticketNumber === '_'
+        ? (searchParams.get('id') || '')
+        : (params.ticketNumber as string);
     
     const [ticket, setTicket] = useState<TicketScanResponse | null>(null);
     const [isLoading, setIsLoading] = useState(true);

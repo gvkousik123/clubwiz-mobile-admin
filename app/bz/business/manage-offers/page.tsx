@@ -236,7 +236,7 @@ export default function ManageOffersPage() {
             usageLimit: offer.usageLimit?.toString() || '',
             startDate: start && !isNaN(start.getTime()) ? toLocalInput(start) : '',
             endDate: end && !isNaN(end.getTime()) ? toLocalInput(end) : '',
-            // The stored flag — NOT whether the window happens to be open right now.
+            // The stored flag, NOT whether the window happens to be open right now.
             isActive: offer.isActive ?? true,
         });
         setComposerMode('edit');
@@ -252,7 +252,7 @@ export default function ManageOffersPage() {
         const end = new Date(offer.endDate);
         if (isNaN(start.getTime()) || isNaN(end.getTime())) return 'No schedule set';
         const opts: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short', hour: 'numeric', minute: '2-digit' };
-        return `${start.toLocaleString('en-IN', opts)} — ${end.toLocaleString('en-IN', opts)}`;
+        return `${start.toLocaleString('en-IN', opts)} to ${end.toLocaleString('en-IN', opts)}`;
     };
 
     if (isLoading) {
