@@ -14,7 +14,7 @@ export default function ClubPendingPage() {
 
         // If no club added, redirect to new-club
         if (!clubStatus.hasClub) {
-            router.replace('/business/new-club');
+            router.replace('/bz/business/new-club');
             return;
         }
 

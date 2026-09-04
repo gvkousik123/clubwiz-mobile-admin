@@ -402,7 +402,7 @@ function EventPreviewContent() {
                 });
                 // Navigate to all organized events after a short delay
                 setTimeout(() => {
-                    router.push('/business/all-organized-events');
+                    router.push('/bz/business/all-organized-events');
                 }, 1000);
             }
         } catch (error) {

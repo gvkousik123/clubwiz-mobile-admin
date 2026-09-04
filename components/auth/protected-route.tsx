@@ -56,7 +56,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
                 <AccessDenied
                     title="Login Required"
                     message={`Please log in to access the ${requiredRole} area.`}
-                    redirectTo="/auth/intro"
+                    redirectTo="/bz/auth/intro"
                 />
             );
         }
@@ -67,8 +67,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
                 message={`You don't have permission to access the ${requiredRole} area. You will be redirected to your dashboard.`}
                 redirectTo={
                     requiredRole === 'admin' || requiredRole === 'superadmin'
-                        ? '/admin'
-                        : '/auth/intro'
+                        ? '/bz/admin'
+                        : '/bz/auth/intro'
                 }
             />
         );

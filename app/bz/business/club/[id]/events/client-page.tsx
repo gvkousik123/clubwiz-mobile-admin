@@ -136,7 +136,7 @@ export default function ClubEventsPage() {
                     variant: "destructive",
                 });
                 localStorage.clear();
-                router.push('/auth/login');
+                router.push('/bz/auth/login');
                 return;
             }
 

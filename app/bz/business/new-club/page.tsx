@@ -106,7 +106,7 @@ export default function NewClubPage() {
                         description: "Your club is under review. Please wait for approval.",
                         variant: "default",
                     });
-                    router.push('/business/club-pending');
+                    router.push('/bz/business/club-pending');
                 }
                 return;
             }
@@ -821,7 +821,7 @@ export default function NewClubPage() {
 
             // Redirect to club pending page
             setTimeout(() => {
-                router.push('/business/club-pending');
+                router.push('/bz/business/club-pending');
             }, 1000);
 
         } catch (error: any) {

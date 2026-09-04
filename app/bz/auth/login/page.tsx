@@ -71,7 +71,7 @@ export default function LoginPage() {
                 console.log("✅ isActive:", isActive);
 
                 // Check if user has admin/superadmin/business admin role
-                let redirectPath = '/auth/intro';
+                let redirectPath = '/bz/auth/intro';
                 if (roles.includes('ROLE_SUPERADMIN')) {
                     redirectPath = '/bz/superadmin';
                 } else if (roles.includes('ROLE_ADMIN')) {

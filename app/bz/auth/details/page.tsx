@@ -185,7 +185,7 @@ export default function DetailsPage() {
             });
 
             // Determine redirect route based on role
-            let redirectRoute = '/auth/intro'; // Default for ROLE_USER
+            let redirectRoute = '/bz/auth/intro'; // Default for ROLE_USER
 
             try {
                 // Get user data from localStorage to check roles
@@ -195,11 +195,11 @@ export default function DetailsPage() {
                     const userRoles = userData.roles || [];
 
                     if (userRoles.includes('ROLE_SUPERADMIN')) {
-                        redirectRoute = '/superadmin';
+                        redirectRoute = '/bz/superadmin';
                     } else if (userRoles.includes('ROLE_ADMIN')) {
-                        redirectRoute = '/admin';
+                        redirectRoute = '/bz/admin';
                     } else if (userRoles.includes('ROLE_USER')) {
-                        redirectRoute = '/auth/intro';
+                        redirectRoute = '/bz/auth/intro';
                     } else {
                         console.log("ℹ️ No specific role found, defaulting to /auth/intro");
                     }
@@ -207,12 +207,12 @@ export default function DetailsPage() {
             } catch (error) {
                 console.error("Error getting user roles:", error);
                 // Default to auth intro if error
-                redirectRoute = '/auth/intro';
+                redirectRoute = '/bz/auth/intro';
             }
 
             // Navigate to appropriate dashboard based on role
             setTimeout(() => {
-                if (redirectRoute === '/auth/intro') {
+                if (redirectRoute === '/bz/auth/intro') {
                     router.push('/bz/auth/intro');
                 } else {
                     router.push(redirectRoute);

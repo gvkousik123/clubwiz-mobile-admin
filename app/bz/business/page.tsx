@@ -565,7 +565,7 @@ export default function AdminDashboard() {
 
                                     {/* Manage Offers */}
                                     <div
-                                        onClick={() => handleNavigation('/business/manage-offers')}
+                                        onClick={() => handleNavigation('/bz/business/manage-offers')}
                                         className="bg-[#0C1C1C] rounded-[20px] p-4 flex flex-col gap-3 cursor-pointer border border-white/[0.07] shadow-[0_8px_32px_rgba(0,0,0,0.4)] hover:border-orange-500/30 transition-all active:scale-[0.98]"
                                     >
                                         <div className="w-12 h-12 bg-orange-500/10 rounded-xl flex items-center justify-center border border-orange-500/20">
@@ -579,7 +579,7 @@ export default function AdminDashboard() {
 
                                     {/* Contact & Support */}
                                     <div
-                                        onClick={() => handleNavigation('/business/contact')}
+                                        onClick={() => handleNavigation('/bz/business/contact')}
                                         className="bg-[#0C1C1C] rounded-[20px] p-4 flex flex-col gap-3 cursor-pointer border border-white/[0.07] shadow-[0_8px_32px_rgba(0,0,0,0.4)] hover:border-green-500/30 transition-all active:scale-[0.98]"
                                     >
                                         <div className="w-12 h-12 bg-green-500/10 rounded-xl flex items-center justify-center border border-green-500/20">
@@ -626,7 +626,7 @@ export default function AdminDashboard() {
                                         </span>
                                     </div>
                                     <button
-                                        onClick={() => handleNavigation('/business/all-organized-events')}
+                                        onClick={() => handleNavigation('/bz/business/all-organized-events')}
                                         className="text-[#14FFEC] text-sm font-black hover:text-[#14FFEC]/80 transition-colors"
                                     >
                                         View All
