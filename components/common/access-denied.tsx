@@ -16,7 +16,7 @@ export const AccessDenied = ({
     title = "Access Denied",
     message = "You don't have permission to access this page.",
     requiredRole,
-    redirectTo = '/auth/intro',
+    redirectTo = '/bz/auth/intro',
     redirectDelay = 3000
 }: AccessDeniedProps) => {
     const router = useRouter();

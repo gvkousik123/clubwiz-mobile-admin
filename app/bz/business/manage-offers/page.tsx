@@ -1,12 +1,18 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Plus, Edit3, Trash2, Tag, Calendar, Percent, DollarSign } from 'lucide-react';
+import { ArrowLeft, Plus, Edit3, Trash2, Tag, Calendar, Percent, IndianRupee } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { OffersService, ClubOffer } from '@/lib/services/offers.service';
 import { ClubService } from '@/lib/services/club.service';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogOverlay } from '@/components/ui/dialog';
+import {
+    OfferComposer,
+    OfferFormValues,
+    EMPTY_OFFER,
+    toLocalInput,
+} from '@/components/offers/offer-composer';
 
 export default function ManageOffersPage() {
     const router = useRouter();
@@ -14,32 +20,17 @@ export default function ManageOffersPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [offers, setOffers] = useState<ClubOffer[]>([]);
     const [clubId, setClubId] = useState<string>('');
-    const [showAddDialog, setShowAddDialog] = useState(false);
-    const [showEditDialog, setShowEditDialog] = useState(false);
+    const [composerMode, setComposerMode] = useState<'create' | 'edit' | null>(null);
+    const [composerValues, setComposerValues] = useState<OfferFormValues>(EMPTY_OFFER);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [selectedOffer, setSelectedOffer] = useState<ClubOffer | null>(null);
     const [isSaving, setIsSaving] = useState(false);
-
-    const [formData, setFormData] = useState({
-        title: '',
-        description: '',
-        offerType: 'PERCENTAGE_DISCOUNT',
-        discountPercentage: '',
-        discountAmount: '',
-        promoCode: '',
-        minimumAmount: '',
-        usageLimit: '',
-        startDate: '',
-        endDate: '',
-        isActive: true
-    });
 
     // Fetch club ID and offers on mount
     useEffect(() => {
         const fetchClubAndOffers = async () => {
             try {
                 setIsLoading(true);
-                // FIXED: #2 — Use getMyClubs (user-scoped) instead of getAllClubsAdmin (admin-only)
                 const rawClubsResponse = await ClubService.getMyClubs();
                 let clubsData: any[] = [];
                 if (Array.isArray(rawClubsResponse)) {
@@ -52,29 +43,27 @@ export default function ManageOffersPage() {
                     const club = clubsData[0];
                     setClubId(club.id);
 
-                    // Fetch offers for this club
                     const offersResponse = await OffersService.getClubOffers(club.id);
                     if (offersResponse.success) {
                         setOffers(offersResponse.data || []);
-                        console.log('✅ Offers loaded:', offersResponse.data);
                     } else {
                         console.warn('⚠️ Failed to load offers, but continuing');
                         setOffers([]);
                     }
                 } else {
                     toast({
-                        title: "No Club Found",
-                        description: "Please create a club first before managing offers.",
-                        variant: "destructive",
+                        title: 'No Club Found',
+                        description: 'Please create a club first before managing offers.',
+                        variant: 'destructive',
                     });
                     router.push('/bz/business');
                 }
             } catch (error) {
                 console.error('❌ Error fetching data:', error);
                 toast({
-                    title: "Error",
-                    description: "Failed to load club information",
-                    variant: "destructive",
+                    title: 'Error',
+                    description: 'Failed to load club information',
+                    variant: 'destructive',
                 });
             } finally {
                 setIsLoading(false);
@@ -84,29 +73,7 @@ export default function ManageOffersPage() {
         fetchClubAndOffers();
     }, [toast, router]);
 
-    const handleInputChange = (field: string, value: any) => {
-        setFormData(prev => ({
-            ...prev,
-            [field]: value
-        }));
-    };
-
-    const resetForm = () => {
-        setFormData({
-            title: '',
-            description: '',
-            offerType: 'PERCENTAGE_DISCOUNT',
-            discountPercentage: '',
-            discountAmount: '',
-            promoCode: '',
-            minimumAmount: '',
-            usageLimit: '',
-            startDate: '',
-            endDate: '',
-            isActive: true
-        });
-    };
-
+    /** Whether the offer is inside its live window right now (display only). */
     const isOfferCurrentlyActive = (offer: ClubOffer): boolean => {
         if (!offer.isActive) return false;
         if (!offer.startDate || !offer.endDate) return true;
@@ -122,162 +89,132 @@ export default function ManageOffersPage() {
         return now >= startDate && now <= endDate;
     };
 
-    const handleAddOffer = async () => {
-        if (!formData.title.trim() || !formData.description.trim()) {
-            toast({
-                title: "Error",
-                description: "Title and description are required",
-                variant: "destructive",
-            });
-            return;
-        }
+    const buildPayload = (values: OfferFormValues) => ({
+        title: values.title.trim(),
+        description: values.description.trim(),
+        offerType: values.offerType,
+        discountPercentage: values.discountPercentage ? Number(values.discountPercentage) : undefined,
+        discountAmount: values.discountAmount ? Number(values.discountAmount) : undefined,
+        promoCode: values.promoCode.trim() || undefined,
+        minimumAmount: values.minimumAmount ? Number(values.minimumAmount) : undefined,
+        usageLimit: values.usageLimit ? Number(values.usageLimit) : undefined,
+        startDate: values.startDate,
+        endDate: values.endDate,
+        isActive: values.isActive,
+    });
 
-        setIsSaving(true);
-        try {
-            const offerData = {
-                title: formData.title,
-                description: formData.description,
-                offerType: formData.offerType,
-                discountPercentage: formData.discountPercentage ? Number(formData.discountPercentage) : undefined,
-                discountAmount: formData.discountAmount ? Number(formData.discountAmount) : undefined,
-                promoCode: formData.promoCode || undefined,
-                minimumAmount: formData.minimumAmount ? Number(formData.minimumAmount) : undefined,
-                usageLimit: formData.usageLimit ? Number(formData.usageLimit) : undefined,
-                startDate: formData.startDate,
-                endDate: formData.endDate,
-                isActive: formData.isActive
-            };
-
-            const response = await OffersService.createOffer(clubId, offerData);
-            if (response.success && response.data) {
-                setOffers(prev => [...prev, response.data]);
-                setShowAddDialog(false);
-                resetForm();
-                toast({
-                    title: "Success",
-                    description: "Offer created successfully!",
-                });
-            } else {
-                toast({
-                    title: "Error",
-                    description: response.error || "Failed to create offer",
-                    variant: "destructive",
-                });
-            }
-        } catch (error) {
-            console.error('❌ Error creating offer:', error);
-            toast({
-                title: "Error",
-                description: "Failed to create offer",
-                variant: "destructive",
-            });
-        } finally {
-            setIsSaving(false);
-        }
+    const closeComposer = () => {
+        setComposerMode(null);
+        setSelectedOffer(null);
+        setComposerValues(EMPTY_OFFER);
     };
 
-    const handleUpdateOffer = async () => {
-        if (!selectedOffer) return;
-
+    const handleComposerSubmit = async (values: OfferFormValues) => {
         setIsSaving(true);
         try {
-            const offerData = {
-                title: formData.title,
-                description: formData.description,
-                offerType: formData.offerType,
-                discountPercentage: formData.discountPercentage ? Number(formData.discountPercentage) : undefined,
-                discountAmount: formData.discountAmount ? Number(formData.discountAmount) : undefined,
-                promoCode: formData.promoCode || undefined,
-                minimumAmount: formData.minimumAmount ? Number(formData.minimumAmount) : undefined,
-                usageLimit: formData.usageLimit ? Number(formData.usageLimit) : undefined,
-                startDate: formData.startDate,
-                endDate: formData.endDate,
-                isActive: formData.isActive
-            };
+            const payload = buildPayload(values);
 
-            const response = await OffersService.updateOffer(clubId, selectedOffer.id!, offerData);
-            if (response.success && response.data) {
-                setOffers(prev => prev.map(o => o.id === selectedOffer.id ? response.data : o));
-                setShowEditDialog(false);
-                setSelectedOffer(null);
-                resetForm();
-                toast({
-                    title: "Success",
-                    description: "Offer updated successfully!",
-                });
-            } else {
-                toast({
-                    title: "Error",
-                    description: response.error || "Failed to update offer",
-                    variant: "destructive",
-                });
+            if (composerMode === 'create') {
+                const response = await OffersService.createOffer(clubId, payload);
+                if (response.success && response.data) {
+                    setOffers(prev => [...prev, response.data as ClubOffer]);
+                    closeComposer();
+                    toast({ title: 'Success', description: 'Offer created successfully!' });
+                } else {
+                    toast({
+                        title: 'Error',
+                        description: response.error || 'Failed to create offer',
+                        variant: 'destructive',
+                    });
+                }
+            } else if (composerMode === 'edit' && selectedOffer?.id) {
+                const response = await OffersService.updateOffer(clubId, selectedOffer.id, payload);
+                if (response.success && response.data) {
+                    const updated = response.data as ClubOffer;
+                    setOffers(prev => prev.map(o => (o.id === selectedOffer.id ? updated : o)));
+                    closeComposer();
+                    toast({ title: 'Success', description: 'Offer updated successfully!' });
+                } else {
+                    toast({
+                        title: 'Error',
+                        description: response.error || 'Failed to update offer',
+                        variant: 'destructive',
+                    });
+                }
             }
         } catch (error) {
-            console.error('❌ Error updating offer:', error);
-            toast({
-                title: "Error",
-                description: "Failed to update offer",
-                variant: "destructive",
-            });
+            console.error('❌ Error saving offer:', error);
+            toast({ title: 'Error', description: 'Failed to save offer', variant: 'destructive' });
         } finally {
             setIsSaving(false);
         }
     };
 
     const handleDeleteOffer = async () => {
-        if (!selectedOffer) return;
+        if (!selectedOffer?.id) return;
 
         setIsSaving(true);
         try {
-            const response = await OffersService.deleteOffer(clubId, selectedOffer.id!);
+            const response = await OffersService.deleteOffer(clubId, selectedOffer.id);
             if (response.success) {
                 setOffers(prev => prev.filter(o => o.id !== selectedOffer.id));
                 setShowDeleteDialog(false);
                 setSelectedOffer(null);
-                toast({
-                    title: "Success",
-                    description: "Offer deleted successfully!",
-                });
+                toast({ title: 'Success', description: 'Offer deleted successfully!' });
             } else {
                 toast({
-                    title: "Error",
-                    description: response.error || "Failed to delete offer",
-                    variant: "destructive",
+                    title: 'Error',
+                    description: response.error || 'Failed to delete offer',
+                    variant: 'destructive',
                 });
             }
         } catch (error) {
             console.error('❌ Error deleting offer:', error);
-            toast({
-                title: "Error",
-                description: "Failed to delete offer",
-                variant: "destructive",
-            });
+            toast({ title: 'Error', description: 'Failed to delete offer', variant: 'destructive' });
         } finally {
             setIsSaving(false);
         }
     };
 
-    const openEditDialog = (offer: ClubOffer) => {
+    const openCreate = () => {
+        setSelectedOffer(null);
+        setComposerValues(EMPTY_OFFER);
+        setComposerMode('create');
+    };
+
+    const openEdit = (offer: ClubOffer) => {
+        const start = offer.startDate ? new Date(offer.startDate) : null;
+        const end = offer.endDate ? new Date(offer.endDate) : null;
+
         setSelectedOffer(offer);
-        setFormData({
-            title: offer.title,
-            description: offer.description,
-            offerType: offer.offerType,
+        setComposerValues({
+            title: offer.title || '',
+            description: offer.description || '',
+            offerType: offer.offerType || 'PERCENTAGE_DISCOUNT',
             discountPercentage: offer.discountPercentage?.toString() || '',
             discountAmount: offer.discountAmount?.toString() || '',
             promoCode: offer.promoCode || '',
             minimumAmount: offer.minimumAmount?.toString() || '',
             usageLimit: offer.usageLimit?.toString() || '',
-            startDate: offer.startDate,
-            endDate: offer.endDate,
-            isActive: isOfferCurrentlyActive(offer)
+            startDate: start && !isNaN(start.getTime()) ? toLocalInput(start) : '',
+            endDate: end && !isNaN(end.getTime()) ? toLocalInput(end) : '',
+            // The stored flag — NOT whether the window happens to be open right now.
+            isActive: offer.isActive ?? true,
         });
-        setShowEditDialog(true);
+        setComposerMode('edit');
     };
 
     const openDeleteDialog = (offer: ClubOffer) => {
         setSelectedOffer(offer);
         setShowDeleteDialog(true);
+    };
+
+    const formatRange = (offer: ClubOffer) => {
+        const start = new Date(offer.startDate);
+        const end = new Date(offer.endDate);
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) return 'No schedule set';
+        const opts: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short', hour: 'numeric', minute: '2-digit' };
+        return `${start.toLocaleString('en-IN', opts)} — ${end.toLocaleString('en-IN', opts)}`;
     };
 
     if (isLoading) {
@@ -301,7 +238,7 @@ export default function ManageOffersPage() {
                             <h2 className="text-lg font-medium">Manage Offers</h2>
                         </div>
                         <button
-                            onClick={() => { resetForm(); setShowAddDialog(true); }}
+                            onClick={openCreate}
                             className="bg-[#14FFEC] text-black px-4 py-2 rounded-full font-bold text-sm flex items-center gap-2"
                         >
                             <Plus size={16} />
@@ -313,276 +250,125 @@ export default function ManageOffersPage() {
 
             {/* Content */}
             <div className="pt-[160px] px-6 pb-6">
-                {offers.length === 0 ? (
-                    <div className="text-center py-12">
-                        <Tag className="w-16 h-16 text-[#14FFEC] mx-auto mb-4" />
-                        <p className="text-white/60">No offers yet</p>
-                        <p className="text-white/40 text-sm mt-2">Create your first offer to attract customers</p>
-                    </div>
-                ) : (
-                    <div className="space-y-4">
-                        {offers.map((offer) => (
-                            <div
-                                key={offer.id}
-                                className="bg-[#0D1F1F] rounded-[15px] p-4 border border-[#14FFEC]/20"
-                            >
-                                <div className="flex items-start justify-between mb-3">
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <h3 className="text-white font-semibold text-lg">{offer.title}</h3>
-                                            {isOfferCurrentlyActive(offer) ? (
-                                                <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded-full">Active</span>
-                                            ) : (
-                                                <span className="px-2 py-1 bg-gray-500/20 text-gray-400 text-xs rounded-full">Inactive</span>
-                                            )}
+                <div className="max-w-4xl mx-auto w-full">
+                    {offers.length === 0 ? (
+                        <div className="text-center py-12">
+                            <Tag className="w-16 h-16 text-[#14FFEC] mx-auto mb-4" />
+                            <p className="text-white/60">No offers yet</p>
+                            <p className="text-white/40 text-sm mt-2">Create your first offer to attract customers</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {offers.map(offer => (
+                                <div key={offer.id} className="bg-[#0D1F1F] rounded-[15px] p-4 border border-[#14FFEC]/20">
+                                    <div className="flex items-start justify-between mb-3">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                                <h3 className="text-white font-semibold text-lg">{offer.title}</h3>
+                                                {isOfferCurrentlyActive(offer) ? (
+                                                    <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded-full">
+                                                        Live now
+                                                    </span>
+                                                ) : offer.isActive ? (
+                                                    <span className="px-2 py-1 bg-[#14FFEC]/15 text-[#14FFEC] text-xs rounded-full">
+                                                        Scheduled
+                                                    </span>
+                                                ) : (
+                                                    <span className="px-2 py-1 bg-gray-500/20 text-gray-400 text-xs rounded-full">
+                                                        Draft
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="text-white/70 text-sm">{offer.description}</p>
                                         </div>
-                                        <p className="text-white/70 text-sm">{offer.description}</p>
+                                        <div className="flex items-center gap-2 flex-shrink-0">
+                                            <button
+                                                onClick={() => openEdit(offer)}
+                                                aria-label="Edit offer"
+                                                className="p-2 bg-[#005D5C] rounded-full hover:bg-[#007875] transition-colors"
+                                            >
+                                                <Edit3 size={16} className="text-[#14FFEC]" />
+                                            </button>
+                                            <button
+                                                onClick={() => openDeleteDialog(offer)}
+                                                aria-label="Delete offer"
+                                                className="p-2 bg-red-600/60 rounded-full hover:bg-red-600/80 transition-colors"
+                                            >
+                                                <Trash2 size={16} className="text-red-300" />
+                                            </button>
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            onClick={() => openEditDialog(offer)}
-                                            className="p-2 bg-[#005D5C] rounded-full hover:bg-[#007875] transition-colors"
-                                        >
-                                            <Edit3 size={16} className="text-[#14FFEC]" />
-                                        </button>
-                                        <button
-                                            onClick={() => openDeleteDialog(offer)}
-                                            className="p-2 bg-red-600/60 rounded-full hover:bg-red-600/80 transition-colors"
-                                        >
-                                            <Trash2 size={16} className="text-red-300" />
-                                        </button>
+
+                                    <div className="flex flex-wrap gap-x-5 gap-y-2 mt-3">
+                                        {offer.offerType === 'PERCENTAGE_DISCOUNT' && !!offer.discountPercentage && (
+                                            <div className="flex items-center gap-2 text-sm">
+                                                <Percent size={14} className="text-[#14FFEC]" />
+                                                <span className="text-white/80">{offer.discountPercentage}% off</span>
+                                            </div>
+                                        )}
+                                        {offer.offerType === 'FIXED_DISCOUNT' && !!offer.discountAmount && (
+                                            <div className="flex items-center gap-2 text-sm">
+                                                <IndianRupee size={14} className="text-[#14FFEC]" />
+                                                <span className="text-white/80">{offer.discountAmount} off</span>
+                                            </div>
+                                        )}
+                                        {!!offer.promoCode && (
+                                            <div className="flex items-center gap-2 text-sm">
+                                                <Tag size={14} className="text-[#14FFEC]" />
+                                                <span className="text-white/80">{offer.promoCode}</span>
+                                            </div>
+                                        )}
+                                        {!!offer.minimumAmount && (
+                                            <div className="flex items-center gap-2 text-sm">
+                                                <IndianRupee size={14} className="text-[#14FFEC]" />
+                                                <span className="text-white/80">Min: {offer.minimumAmount}</span>
+                                            </div>
+                                        )}
+                                        {!!offer.usageLimit && (
+                                            <div className="flex items-center gap-2 text-sm">
+                                                <Tag size={14} className="text-[#14FFEC]" />
+                                                <span className="text-white/80">Limit: {offer.usageLimit}</span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="flex items-center gap-2 mt-3 text-xs text-white/60">
+                                        <Calendar size={12} />
+                                        <span>{formatRange(offer)}</span>
                                     </div>
                                 </div>
-
-                                <div className="grid grid-cols-2 gap-3 mt-3">
-                                    {offer.offerType === 'PERCENTAGE_DISCOUNT' && offer.discountPercentage && (
-                                        <div className="flex items-center gap-2 text-sm">
-                                            <Percent size={14} className="text-[#14FFEC]" />
-                                            <span className="text-white/80">{offer.discountPercentage}% off</span>
-                                        </div>
-                                    )}
-                                    {offer.discountAmount && (
-                                        <div className="flex items-center gap-2 text-sm">
-                                            <DollarSign size={14} className="text-[#14FFEC]" />
-                                            <span className="text-white/80">₹{offer.discountAmount} off</span>
-                                        </div>
-                                    )}
-                                    {offer.promoCode && (
-                                        <div className="flex items-center gap-2 text-sm">
-                                            <Tag size={14} className="text-[#14FFEC]" />
-                                            <span className="text-white/80">{offer.promoCode}</span>
-                                        </div>
-                                    )}
-                                    {offer.minimumAmount && (
-                                        <div className="flex items-center gap-2 text-sm">
-                                            <DollarSign size={14} className="text-[#14FFEC]" />
-                                            <span className="text-white/80">Min: ₹{offer.minimumAmount}</span>
-                                        </div>
-                                    )}
-                                    {offer.usageLimit && (
-                                        <div className="flex items-center gap-2 text-sm">
-                                            <Tag size={14} className="text-[#14FFEC]" />
-                                            <span className="text-white/80">Limit: {offer.usageLimit}</span>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="flex items-center gap-2 mt-3 text-xs text-white/60">
-                                    <Calendar size={12} />
-                                    <span>{new Date(offer.startDate).toLocaleDateString()} - {new Date(offer.endDate).toLocaleDateString()}</span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
+                            ))}
+                        </div>
+                    )}
+                </div>
             </div>
 
-            {/* Add/Edit Offer Dialog */}
-            {(showAddDialog || showEditDialog) && (
-                <Dialog open={showAddDialog || showEditDialog} onOpenChange={(open) => {
-                    if (!open) {
-                        setShowAddDialog(false);
-                        setShowEditDialog(false);
-                        setSelectedOffer(null);
-                        resetForm();
-                    }
-                }}>
-                    <DialogOverlay className="bg-black/80" />
-                    <DialogContent className="bg-[#0D1F1F] border border-[#14FFEC]/20 text-white max-w-md max-h-[90vh] overflow-y-auto">
-                        <h3 className="text-xl font-bold mb-4">{showAddDialog ? 'Add New Offer' : 'Edit Offer'}</h3>
-
-                        <div className="space-y-4">
-                            <div>
-                                <label className="text-sm text-[#14FFEC] mb-1 block">Title *</label>
-                                <input
-                                    type="text"
-                                    value={formData.title}
-                                    onChange={(e) => handleInputChange('title', e.target.value)}
-                                    className="w-full bg-[#021313] text-white rounded-lg px-3 py-2 text-sm border border-[#14FFEC]/30 focus:border-[#14FFEC] outline-none"
-                                    placeholder="e.g., Happy Hour Special"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="text-sm text-[#14FFEC] mb-1 block">Description *</label>
-                                <textarea
-                                    value={formData.description}
-                                    onChange={(e) => handleInputChange('description', e.target.value)}
-                                    className="w-full bg-[#021313] text-white rounded-lg px-3 py-2 text-sm border border-[#14FFEC]/30 focus:border-[#14FFEC] outline-none min-h-[60px]"
-                                    placeholder="Describe the offer..."
-                                />
-                            </div>
-
-                            <div>
-                                <label className="text-sm text-[#14FFEC] mb-1 block">Offer Type</label>
-                                <select
-                                    value={formData.offerType}
-                                    onChange={(e) => handleInputChange('offerType', e.target.value)}
-                                    className="w-full bg-[#021313] text-white rounded-lg px-3 py-2 text-sm border border-[#14FFEC]/30 focus:border-[#14FFEC] outline-none"
-                                >
-                                    <option value="PERCENTAGE_DISCOUNT">Percentage Discount</option>
-                                    <option value="FIXED_DISCOUNT">Fixed Discount</option>
-                                    <option value="BUY_ONE_GET_ONE">Buy 1 Get 1</option>
-                                    <option value="FREE_ENTRY">Free Entry</option>
-                                    <option value="OTHER">Other</option>
-                                </select>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="text-sm text-[#14FFEC] mb-1 block">Discount %</label>
-                                    <input
-                                        type="number"
-                                        min={0}
-                                        value={formData.discountPercentage}
-                                        onChange={(e) => handleInputChange('discountPercentage', Math.max(0, parseInt(e.target.value) || 0).toString())}
-                                        className="w-full bg-[#021313] text-white rounded-lg px-3 py-2 text-sm border border-[#14FFEC]/30 focus:border-[#14FFEC] outline-none"
-                                        placeholder="0"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-sm text-[#14FFEC] mb-1 block">Discount ₹</label>
-                                    <input
-                                        type="number"
-                                        min={0}
-                                        value={formData.discountAmount}
-                                        onChange={(e) => handleInputChange('discountAmount', Math.max(0, parseInt(e.target.value) || 0).toString())}
-                                        className="w-full bg-[#021313] text-white rounded-lg px-3 py-2 text-sm border border-[#14FFEC]/30 focus:border-[#14FFEC] outline-none"
-                                        placeholder="0"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="text-sm text-[#14FFEC] mb-1 block">Promo Code</label>
-                                    <input
-                                        type="text"
-                                        value={formData.promoCode}
-                                        onChange={(e) => handleInputChange('promoCode', e.target.value)}
-                                        className="w-full bg-[#021313] text-white rounded-lg px-3 py-2 text-sm border border-[#14FFEC]/30 focus:border-[#14FFEC] outline-none"
-                                        placeholder="HAPPY50"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-sm text-[#14FFEC] mb-1 block">Min Amount ₹</label>
-                                    <input
-                                        type="number"
-                                        min={0}
-                                        value={formData.minimumAmount}
-                                        onChange={(e) => handleInputChange('minimumAmount', Math.max(0, parseInt(e.target.value) || 0).toString())}
-                                        className="w-full bg-[#021313] text-white rounded-lg px-3 py-2 text-sm border border-[#14FFEC]/30 focus:border-[#14FFEC] outline-none"
-                                        placeholder="0"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="text-sm text-[#14FFEC] mb-1 block">Usage Limit</label>
-                                    <input
-                                        type="number"
-                                        min={1}
-                                        value={formData.usageLimit}
-                                        onChange={(e) => handleInputChange('usageLimit', Math.max(1, parseInt(e.target.value) || 1).toString())}
-                                        className="w-full bg-[#021313] text-white rounded-lg px-3 py-2 text-sm border border-[#14FFEC]/30 focus:border-[#14FFEC] outline-none"
-                                        placeholder="1"
-                                    />
-                                </div>
-                                <div></div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="text-sm text-[#14FFEC] mb-1 block">Start Date</label>
-                                    <input
-                                        type="datetime-local"
-                                        value={formData.startDate}
-                                        min={new Date().toISOString().slice(0, 16)}
-                                        onChange={(e) => handleInputChange('startDate', e.target.value)}
-                                        className="w-full bg-[#021313] text-white rounded-lg px-3 py-2 text-sm border border-[#14FFEC]/30 focus:border-[#14FFEC] outline-none"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-sm text-[#14FFEC] mb-1 block">End Date</label>
-                                    <input
-                                        type="datetime-local"
-                                        value={formData.endDate}
-                                        min={new Date().toISOString().slice(0, 16)}
-                                        onChange={(e) => handleInputChange('endDate', e.target.value)}
-                                        className="w-full bg-[#021313] text-white rounded-lg px-3 py-2 text-sm border border-[#14FFEC]/30 focus:border-[#14FFEC] outline-none"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="flex items-center justify-between">
-                                <label className="text-sm text-white">Active</label>
-                                <div
-                                    onClick={() => handleInputChange('isActive', !formData.isActive)}
-                                    className={`w-12 h-6 rounded-full flex items-center p-1 cursor-pointer transition-colors ${formData.isActive ? 'bg-[#14FFEC]' : 'bg-gray-600'}`}
-                                >
-                                    <div className={`w-4 h-4 bg-black rounded-full transition-transform ${formData.isActive ? 'translate-x-6' : 'translate-x-0'}`} />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="flex gap-3 mt-6">
-                            <button
-                                onClick={() => {
-                                    setShowAddDialog(false);
-                                    setShowEditDialog(false);
-                                    setSelectedOffer(null);
-                                    resetForm();
-                                }}
-                                className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-full font-bold hover:bg-gray-700 transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={showAddDialog ? handleAddOffer : handleUpdateOffer}
-                                disabled={isSaving}
-                                className="flex-1 px-4 py-2 bg-[#14FFEC] text-black rounded-full font-bold hover:bg-[#10d4c4] transition-colors disabled:opacity-50"
-                            >
-                                {isSaving ? 'Saving...' : (showAddDialog ? 'Create Offer' : 'Update Offer')}
-                            </button>
-                        </div>
-                    </DialogContent>
-                </Dialog>
-            )}
+            {/* Create / Edit composer */}
+            <OfferComposer
+                open={composerMode !== null}
+                mode={composerMode ?? 'create'}
+                initialValues={composerValues}
+                isSaving={isSaving}
+                onCancel={closeComposer}
+                onSubmit={handleComposerSubmit}
+            />
 
             {/* Delete Confirmation Dialog */}
             {showDeleteDialog && (
-                <Dialog open={showDeleteDialog} onOpenChange={(open) => {
-                    if (!open) {
-                        setShowDeleteDialog(false);
-                        setSelectedOffer(null);
-                    }
-                }}>
+                <Dialog
+                    open={showDeleteDialog}
+                    onOpenChange={open => {
+                        if (!open) {
+                            setShowDeleteDialog(false);
+                            setSelectedOffer(null);
+                        }
+                    }}
+                >
                     <DialogOverlay className="bg-black/80" />
                     <DialogContent className="bg-[#0D1F1F] border border-[#14FFEC]/20 text-white max-w-md">
                         <h3 className="text-xl font-bold mb-4">Delete Offer</h3>
                         <p className="text-white/80 mb-6">
-                            Are you sure you want to delete "{selectedOffer?.title}"? This action cannot be undone.
+                            Are you sure you want to delete &quot;{selectedOffer?.title}&quot;? This action cannot be undone.
                         </p>
                         <div className="flex gap-3">
                             <button
@@ -608,6 +394,3 @@ export default function ManageOffersPage() {
         </div>
     );
 }
-
-
-

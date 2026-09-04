@@ -22,7 +22,7 @@ export default function PageHeader({ title, onBack }: PageHeaderProps) {
     return (
         <>
             {/* Fixed Header */}
-            <div className="fixed top-0 left-0 w-full h-[16vh] bg-gradient-to-t from-[#11B9AB] to-[#222831] rounded-b-[30px] z-40 flex flex-col justify-between">
+            <div className="fixed top-0 left-0 w-full h-[140px] bg-gradient-to-t from-[#11B9AB] to-[#222831] rounded-b-[30px] z-40 flex flex-col justify-between">
                 {/* Header Content */}
                 <div className="flex items-center justify-between px-6 pt-4">
                     <button

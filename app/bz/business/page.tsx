@@ -74,13 +74,13 @@ export default function AdminDashboard() {
         if (isAdmin() && !isSuperAdmin()) {
             if (!clubStatus.hasClub) {
                 // No club added - redirect to new-club
-                router.replace('/business/new-club');
+                router.replace('/bz/business/new-club');
                 return;
             }
 
             if (!clubStatus.isActive) {
                 // Club added but not active - redirect to pending page
-                router.replace('/business/club-pending');
+                router.replace('/bz/business/club-pending');
                 return;
             }
         }
@@ -271,20 +271,20 @@ export default function AdminDashboard() {
     // Handle club operations
 
     const handleEditClub = (clubId: string) => {
-        router.push(`/business/club-preview?clubId=${clubId}&edit=true`);
+        router.push(`/bz/business/club-preview?clubId=${clubId}&edit=true`);
     };
 
 
 
     const handleCreateClub = () => {
-        handleNavigation('/business/new-club');
+        handleNavigation('/bz/business/new-club');
     };
 
     // Handle event operations
     const handleCreateEvent = () => {
         setShowCreateModal('event');
         // Navigate to new event creation page
-        handleNavigation('/business/new-event');
+        handleNavigation('/bz/business/new-event');
     };
 
     const handleEditEvent = (eventId: string) => {
@@ -392,7 +392,7 @@ export default function AdminDashboard() {
                                 <div className="flex items-center gap-3">
                                     {/* Story Circle */}
                                     <div
-                                        onClick={() => router.push(`/business/upload-story?clubId=${ownedClubs[0]?.id}`)}
+                                        onClick={() => router.push(`/bz/business/upload-story?clubId=${ownedClubs[0]?.id}`)}
                                         className="w-16 h-16 bg-black rounded-full border-2 border-[#14FFEC] flex items-center justify-center relative cursor-pointer hover:border-[#14FFEC] hover:bg-[#14FFEC]/10 transition-colors"
                                     >
                                         <div className="relative w-14 h-14 flex items-center justify-center text-xs text-center text-[#14FFEC]">
@@ -499,7 +499,7 @@ export default function AdminDashboard() {
                                 {/* Manage Live Music - Only show if club exists */}
                                 {ownedClubs && ownedClubs.length > 0 && (
                                     <div
-                                        onClick={() => router.push(`/business/live-music?clubId=${ownedClubs[0].id}`)}
+                                        onClick={() => router.push(`/bz/business/live-music?clubId=${ownedClubs[0].id}`)}
                                         className="bg-[#0C1C1C] rounded-[20px] p-4 flex flex-col gap-3 cursor-pointer border border-white/[0.07] shadow-[0_8px_32px_rgba(0,0,0,0.4)] hover:border-[#14FFEC]/30 transition-all active:scale-[0.98]"
                                     >
                                         <div className="w-12 h-12 bg-[#14FFEC]/10 rounded-xl flex items-center justify-center border border-[#14FFEC]/20">
@@ -534,7 +534,7 @@ export default function AdminDashboard() {
                                 <div className="grid grid-cols-2 gap-3">
                                     {/* My Stories */}
                                     <div
-                                        onClick={() => router.push(`/business/my-stories?clubId=${ownedClubs[0].id}`)}
+                                        onClick={() => router.push(`/bz/business/my-stories?clubId=${ownedClubs[0].id}`)}
                                         className="bg-[#0C1C1C] rounded-[20px] p-4 flex flex-col gap-3 cursor-pointer border border-white/[0.07] shadow-[0_8px_32px_rgba(0,0,0,0.4)] hover:border-pink-500/30 transition-all active:scale-[0.98]"
                                     >
                                         <div className="w-12 h-12 bg-pink-500/10 rounded-xl flex items-center justify-center border border-pink-500/20">

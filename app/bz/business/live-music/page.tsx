@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Clock, Coffee, Zap, Flame } from 'lucide-react';
 import { ClubWizInlineLoader } from '@/components/ui/clubwiz-loader';
@@ -10,6 +10,44 @@ import { MusicGenreAutocomplete, MusicGenre } from '@/components/ui/music-genre-
 import { ClubService } from '@/lib/services/club.service';
 
 export const dynamic = 'force-dynamic';
+
+/**
+ * Club nights run past midnight. An end time in the small hours belongs to the
+ * NEXT calendar day, not the one that already went by — otherwise setting
+ * "2:00 AM" at 11 PM reads as five hours in the past and expires instantly.
+ */
+const OVERNIGHT_CUTOFF_HOUR = 6;
+
+const resolveEndDate = (time: string, reference: Date = new Date()): Date | null => {
+    if (!time) return null;
+    const [hours, minutes] = time.split(':').map(Number);
+    if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+
+    const end = new Date(reference);
+    end.setHours(hours, minutes, 0, 0);
+
+    if (hours < OVERNIGHT_CUTOFF_HOUR && reference.getHours() >= OVERNIGHT_CUTOFF_HOUR) {
+        end.setDate(end.getDate() + 1);
+    }
+
+    return end;
+};
+
+const isEndTimingPassed = (time: string, reference: Date = new Date()): boolean => {
+    const end = resolveEndDate(time, reference);
+    return end ? reference.getTime() >= end.getTime() : false;
+};
+
+const describeEndTiming = (time: string): string => {
+    const end = resolveEndDate(time);
+    if (!end) return '';
+
+    const label = end.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
+    const today = new Date();
+    const rollsOver = end.toDateString() !== today.toDateString();
+
+    return rollsOver ? `Runs past midnight — ends tomorrow at ${label}` : `Ends today at ${label}`;
+};
 
 function LiveMusicContent() {
     const router = useRouter();
@@ -24,26 +62,25 @@ function LiveMusicContent() {
     const [isSaving, setIsSaving] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
 
-    const isEndTimingPassed = (time: string): boolean => {
-        if (!time) return false;
-        const [hours, minutes] = time.split(':').map(Number);
-        if (Number.isNaN(hours) || Number.isNaN(minutes)) return false;
+    /**
+     * What the server currently holds. Auto-expiry runs against THIS, never the
+     * draft the user is typing — a time input fires onChange on every keystroke,
+     * so "11:30 PM" passes through "01:30" on the way and would otherwise trip
+     * the expiry check and switch the toggle off mid-edit.
+     */
+    const [savedIsEnabled, setSavedIsEnabled] = useState(false);
+    const [savedEndTiming, setSavedEndTiming] = useState('');
 
-        const now = new Date();
-        const endTime = new Date(now);
-        endTime.setHours(hours, minutes, 0, 0);
-
-        return now >= endTime;
-    };
-
-    const resetLiveMusicState = () => {
+    const resetLiveMusicState = useCallback(() => {
         setIsEnabled(false);
         setSelectedGenres([]);
         setEndTiming('');
         setSoundLevel('');
-    };
+        setSavedIsEnabled(false);
+        setSavedEndTiming('');
+    }, []);
 
-    const expireLiveMusic = async () => {
+    const expireLiveMusic = useCallback(async () => {
         resetLiveMusicState();
         if (!clubId) return;
         try {
@@ -56,7 +93,7 @@ function LiveMusicContent() {
         } catch (error) {
             console.error('Failed to auto-disable live music after end time:', error);
         }
-    };
+    }, [clubId, resetLiveMusicState]);
 
     useEffect(() => {
         const cid = getClubId(searchParams);
@@ -82,12 +119,13 @@ function LiveMusicContent() {
                 const data = await ClubService.getLiveMusic(clubId);
                 if (data) {
                     const endTimingValue = data.endTiming || '';
-                    const shouldExpire = endTimingValue && isEndTimingPassed(endTimingValue);
+                    const enabled = data.isEnabled || false;
 
-                    if (shouldExpire) {
+                    // Only a config that is actually live can expire.
+                    if (enabled && endTimingValue && isEndTimingPassed(endTimingValue)) {
                         await expireLiveMusic();
                     } else {
-                        setIsEnabled(data.isEnabled || false);
+                        setIsEnabled(enabled);
                         if (data.genres) {
                             setSelectedGenres(data.genres.map(g => ({
                                 id: g.toLowerCase().replace(/\s+/g, '-'),
@@ -97,6 +135,8 @@ function LiveMusicContent() {
                         }
                         setEndTiming(endTimingValue);
                         setSoundLevel(data.soundLevel || '');
+                        setSavedIsEnabled(enabled);
+                        setSavedEndTiming(endTimingValue);
                     }
                 }
             } catch (error) {
@@ -112,42 +152,36 @@ function LiveMusicContent() {
         };
 
         loadLiveMusic();
-    }, [clubId, toast]);
+    }, [clubId, toast, expireLiveMusic]);
 
-    // Auto-expire live music when end time passes
+    // Auto-expire live music once the SAVED end time passes
     useEffect(() => {
-        if (!isEnabled || !endTiming) return;
+        if (!clubId || !savedIsEnabled || !savedEndTiming) return;
 
-        // Check immediately on mount
-        if (isEndTimingPassed(endTiming)) {
-            expireLiveMusic();
-            return;
-        }
+        let cancelled = false;
 
-        // Check every 5 seconds for more responsive expiry
-        const interval = setInterval(() => {
-            if (isEndTimingPassed(endTiming)) {
+        const checkExpiry = () => {
+            if (cancelled) return;
+            if (isEndTimingPassed(savedEndTiming)) {
                 expireLiveMusic();
-                clearInterval(interval);
-            }
-        }, 5000);
-
-        // Also check when page comes back into focus (user returns after being away)
-        const handleVisibilityChange = async () => {
-            if (document.visibilityState === 'visible') {
-                if (isEndTimingPassed(endTiming)) {
-                    await expireLiveMusic();
-                }
             }
         };
 
+        checkExpiry();
+        const interval = setInterval(checkExpiry, 30000);
+
+        // Also check when the tab comes back into focus
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') checkExpiry();
+        };
         document.addEventListener('visibilitychange', handleVisibilityChange);
 
         return () => {
+            cancelled = true;
             clearInterval(interval);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
-    }, [clubId, endTiming, isEnabled]);
+    }, [clubId, savedEndTiming, savedIsEnabled, expireLiveMusic]);
 
     const handleGoBack = () => {
         router.back();
@@ -166,6 +200,15 @@ function LiveMusicContent() {
                 });
                 return;
             }
+
+            if (isEndTimingPassed(endTiming)) {
+                toast({
+                    title: 'End time already passed',
+                    description: 'Pick a later end time — this one is in the past.',
+                    variant: 'destructive'
+                });
+                return;
+            }
         }
 
         setIsSaving(true);
@@ -178,9 +221,12 @@ function LiveMusicContent() {
                 soundLevel: isEnabled ? soundLevel : null
             });
 
+            setSavedIsEnabled(isEnabled);
+            setSavedEndTiming(isEnabled ? endTiming : '');
+
             toast({
                 title: 'Success',
-                description: isEnabled 
+                description: isEnabled
                     ? 'Live music enabled and updated successfully!'
                     : 'Live music disabled successfully!',
                 className: 'bg-[#14FFEC] text-black border-none'
@@ -209,6 +255,8 @@ function LiveMusicContent() {
         );
     }
 
+    const endTimingHint = endTiming ? describeEndTiming(endTiming) : '';
+
     return (
         <div className="min-h-screen bg-[#021313] text-white relative">
             {/* Fixed Header with gradient background */}
@@ -228,7 +276,7 @@ function LiveMusicContent() {
             </div>
 
             {/* Main Content Card - Positioned below fixed header */}
-            <div className="px-0 relative mt-[100px] z-40">
+            <div className="px-0 relative mt-[140px] z-10">
                 {/* Main Container with rounded corners */}
                 <div className="w-full bg-[#021313] rounded-t-[40px] flex flex-col pt-8 px-6 pb-24">
                     <div className="max-w-xl mx-auto w-full space-y-6">
@@ -260,11 +308,11 @@ function LiveMusicContent() {
                                     <label className="text-[#14FFEC] font-semibold text-base px-2">
                                         Track Tags / Genres
                                     </label>
-                                    <MusicGenreAutocomplete 
-                                        musicGenres={[]} 
-                                        selectedGenres={selectedGenres} 
+                                    <MusicGenreAutocomplete
+                                        musicGenres={[]}
+                                        selectedGenres={selectedGenres}
                                         onSelectionChange={setSelectedGenres}
-                                        placeholder="Search or add genres..." 
+                                        placeholder="Search or add genres..."
                                     />
                                 </div>
 
@@ -282,6 +330,9 @@ function LiveMusicContent() {
                                             className="flex-1 bg-transparent text-white placeholder-[#9D9C9C] outline-none text-base font-semibold [color-scheme:dark]"
                                         />
                                     </div>
+                                    {endTimingHint && (
+                                        <p className="text-gray-400 text-xs px-2">{endTimingHint}</p>
+                                    )}
                                 </div>
 
                                 {/* Sound Level Radio Buttons */}
@@ -302,8 +353,8 @@ function LiveMusicContent() {
                                                     type="button"
                                                     onClick={() => setSoundLevel(level)}
                                                     className={`flex flex-col items-center justify-center p-5 rounded-[20px] border transition-all duration-300 gap-2 cursor-pointer ${
-                                                        isSelected 
-                                                            ? 'bg-[#14FFEC]/10 border-[#14FFEC] text-white shadow-[0_0_15px_rgba(20,255,236,0.1)]' 
+                                                        isSelected
+                                                            ? 'bg-[#14FFEC]/10 border-[#14FFEC] text-white shadow-[0_0_15px_rgba(20,255,236,0.1)]'
                                                             : 'bg-[#0D1F1F] border-[#0C898B]/30 text-gray-400 hover:border-[#14FFEC]/40 hover:bg-[#0D1F1F]/80'
                                                     }`}
                                                 >

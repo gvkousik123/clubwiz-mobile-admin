@@ -136,7 +136,7 @@ export default function ContactUsPage() {
             <PageHeader title="CONTACT US" />
 
             {/* Tab Navigation */}
-            <div className="px-6 py-6 pt-[20vh] flex gap-6 border-b border-[#0C898B]/30">
+            <div className="px-6 py-6 pt-[140px] flex gap-6 border-b border-[#0C898B]/30">
                 <button
                     onClick={() => setActiveTab('ticket')}
                     className={`pb-3 font-semibold transition-all relative ${

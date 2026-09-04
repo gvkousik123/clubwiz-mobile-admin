@@ -162,60 +162,112 @@ export default function NewClubPage() {
         }
     }, []);
 
-    // Load contact details from localStorage on mount
+    // Load contact details from user data on mount
     useEffect(() => {
-        try {
-            // Load location data first
-            const locationData = localStorage.getItem(STORAGE_KEYS.clubSelectedLocation);
-            if (locationData) {
-                const location = JSON.parse(locationData);
-                setSelectedLocation(location);
-                const locationString = buildLocationString(location);
-                setFormData(prev => ({
-                    ...prev,
-                    address1: location.address1 || prev.address1,
-                    address2: location.address2 || prev.address2,
-                    location: locationString,
-                }));
-                console.log('📍 Location Loaded on Mount:', location);
-            }
-
-            // Then load contact details
-            let email = localStorage.getItem('user-email');
-            let phone = localStorage.getItem('user-phone');
-
-            console.log('📱 localStorage keys - user-email:', email, 'user-phone:', phone);
-
-            // Fallback to clubviz-user if separate keys not found
-            if (!email || !phone) {
-                const userData = localStorage.getItem('clubviz-user');
-                if (userData) {
-                    const user = JSON.parse(userData);
-                    email = email || user.email || '';
-                    phone = phone || user.phoneNumber || user.mobileNumber || '';
-                    console.log('📱 Loaded from clubviz-user:', { email, phone });
+        const loadUserContactDetails = async () => {
+            try {
+                // Load location data first
+                const locationData = localStorage.getItem(STORAGE_KEYS.clubSelectedLocation);
+                if (locationData) {
+                    const location = JSON.parse(locationData);
+                    setSelectedLocation(location);
+                    const locationString = buildLocationString(location);
+                    setFormData(prev => ({
+                        ...prev,
+                        address1: location.address1 || prev.address1,
+                        address2: location.address2 || prev.address2,
+                        location: locationString,
+                    }));
+                    console.log('📍 Location Loaded on Mount:', location);
                 }
+
+                // Check multiple sources for user email and phone
+                let email = localStorage.getItem('user-email') || 
+                            localStorage.getItem('validatedEmail') || 
+                            localStorage.getItem('pendingEmail') || '';
+                let phone = localStorage.getItem('user-phone') || 
+                            localStorage.getItem('validatedPhone') || 
+                            localStorage.getItem(STORAGE_KEYS.pendingPhone) || '';
+
+                // Fallback to STORAGE_KEYS.user ('clubviz-user')
+                if (!email || !phone) {
+                    const userDataStr = localStorage.getItem(STORAGE_KEYS.user);
+                    if (userDataStr) {
+                        try {
+                            const user = JSON.parse(userDataStr);
+                            email = email || user.email || user.contactEmail || '';
+                            phone = phone || user.phoneNumber || user.mobileNumber || user.phone || user.contactPhone || '';
+                        } catch (e) {
+                            console.error('Error parsing stored user data:', e);
+                        }
+                    }
+                }
+
+                // Fallback to ProfileService or AuthService stored data
+                if (!email || !phone) {
+                    const currentUser = ProfileService.getCurrentUser();
+                    if (currentUser) {
+                        email = email || currentUser.email || '';
+                        phone = phone || currentUser.phoneNumber || currentUser.mobileNumber || '';
+                    }
+                }
+
+                // If still missing, fetch user profile directly from API endpoint
+                if (!email || !phone) {
+                    try {
+                        console.log('📡 Fetching profile from API for user contact details...');
+                        const profile = await ProfileService.getProfile();
+                        if (profile) {
+                            email = email || profile.email || '';
+                            phone = phone || profile.phoneNumber || profile.mobileNumber || '';
+
+                            // Cache for fast subsequent loads
+                            if (profile.email) localStorage.setItem('user-email', profile.email);
+                            if (profile.phoneNumber || profile.mobileNumber) {
+                                localStorage.setItem('user-phone', profile.phoneNumber || profile.mobileNumber || '');
+                            }
+                            ProfileService.updateStoredProfileData(profile);
+                        }
+                    } catch (apiErr) {
+                        console.warn('Could not fetch user profile API:', apiErr);
+                    }
+                }
+
+                if (email || phone) {
+                    const finalEmail = email || '';
+                    const finalPhone = phone || '';
+                    setAdminDetails({
+                        email: finalEmail,
+                        phone: finalPhone
+                    });
+
+                    // Pre-populate form with user account details
+                    setFormData(prev => ({
+                        ...prev,
+                        contactEmail: finalEmail || prev.contactEmail,
+                        contactPhone: finalPhone || prev.contactPhone
+                    }));
+
+                    console.log('✅ Contact details successfully loaded & set:', { email: finalEmail, phone: finalPhone });
+                }
+            } catch (error) {
+                console.error('Failed to load admin contact details:', error);
             }
+        };
 
-            if (email || phone) {
-                setAdminDetails({
-                    email: email || '',
-                    phone: phone || ''
-                });
-
-                // Pre-populate form with admin details
-                setFormData(prev => ({
-                    ...prev,
-                    contactEmail: email || '',
-                    contactPhone: phone || ''
-                }));
-
-                console.log('✅ Contact details loaded:', { email, phone });
-            }
-        } catch (error) {
-            console.error('Failed to load admin details:', error);
-        }
+        loadUserContactDetails();
     }, []);
+
+    // Ensure formData contact details are synchronized with adminDetails whenever available
+    useEffect(() => {
+        if (adminDetails.email || adminDetails.phone) {
+            setFormData(prev => ({
+                ...prev,
+                contactEmail: adminDetails.email || prev.contactEmail,
+                contactPhone: adminDetails.phone || prev.contactPhone
+            }));
+        }
+    }, [adminDetails]);
 
     useEffect(() => {
         if (isCheckingClubs) return; // Don't load anything until we verify club count
@@ -286,7 +338,9 @@ export default function NewClubPage() {
                     const formDataFromStorage = JSON.parse(savedFormData);
                     setFormData(prevData => ({
                         ...prevData,
-                        ...formDataFromStorage
+                        ...formDataFromStorage,
+                        contactEmail: prevData.contactEmail || formDataFromStorage.contactEmail || adminDetails.email || '',
+                        contactPhone: prevData.contactPhone || formDataFromStorage.contactPhone || adminDetails.phone || ''
                     }));
                     console.log('📝 Loaded Saved Form Data:', formDataFromStorage);
                 }
@@ -371,59 +425,61 @@ export default function NewClubPage() {
         }
     }, [formData]);
 
+    // Helper for safe localStorage persistence with quota handling
+    const safeSetLocalStorage = (key: string, value: string) => {
+        try {
+            // Skip storing massive base64 strings (> 1.5MB) to preserve localStorage quota
+            if (value && value.length > 1500000) {
+                console.warn(`⚠️ Skipping localStorage cache for ${key} (file size > 1.5MB)`);
+                return;
+            }
+            localStorage.setItem(key, value);
+        } catch (error: any) {
+            if (error?.name === 'QuotaExceededError' || error?.code === 22) {
+                console.warn(`⚠️ Storage quota exceeded while saving ${key}. Preview retained in active memory.`);
+            } else {
+                console.warn(`Could not save ${key} to localStorage:`, error);
+            }
+        }
+    };
+
     // Save logo preview to localStorage whenever it changes
     useEffect(() => {
-        try {
-            if (logoPreview) {
-                localStorage.setItem('clubviz-logo-preview', logoPreview);
-                console.log('💾 Saved Logo Preview to localStorage');
-            } else {
-                localStorage.removeItem('clubviz-logo-preview');
-            }
-        } catch (error) {
-            console.error('Failed to save logo preview to localStorage:', error);
+        if (logoPreview) {
+            safeSetLocalStorage('clubviz-logo-preview', logoPreview);
+            console.log('💾 Saved Logo Preview to localStorage');
+        } else {
+            try { localStorage.removeItem('clubviz-logo-preview'); } catch (e) {}
         }
     }, [logoPreview]);
 
     // Save food/drinks previews to localStorage whenever they change
     useEffect(() => {
-        try {
-            if (foodDrinksPreview.some(p => p)) {
-                localStorage.setItem('clubviz-food-drinks-preview', JSON.stringify(foodDrinksPreview));
-                console.log('💾 Saved Food/Drinks Previews to localStorage');
-            } else {
-                localStorage.removeItem('clubviz-food-drinks-preview');
-            }
-        } catch (error) {
-            console.error('Failed to save food/drinks previews to localStorage:', error);
+        if (foodDrinksPreview.some(p => p)) {
+            safeSetLocalStorage('clubviz-food-drinks-preview', JSON.stringify(foodDrinksPreview));
+            console.log('💾 Saved Food/Drinks Previews to localStorage');
+        } else {
+            try { localStorage.removeItem('clubviz-food-drinks-preview'); } catch (e) {}
         }
     }, [foodDrinksPreview]);
 
     // Save ambience previews to localStorage whenever they change
     useEffect(() => {
-        try {
-            if (ambiencePreview.some(p => p)) {
-                localStorage.setItem('clubviz-ambience-preview', JSON.stringify(ambiencePreview));
-                console.log('💾 Saved Ambience Previews to localStorage');
-            } else {
-                localStorage.removeItem('clubviz-ambience-preview');
-            }
-        } catch (error) {
-            console.error('Failed to save ambience previews to localStorage:', error);
+        if (ambiencePreview.some(p => p)) {
+            safeSetLocalStorage('clubviz-ambience-preview', JSON.stringify(ambiencePreview));
+            console.log('💾 Saved Ambience Previews to localStorage');
+        } else {
+            try { localStorage.removeItem('clubviz-ambience-preview'); } catch (e) {}
         }
     }, [ambiencePreview]);
 
     // Save menu previews to localStorage whenever they change
     useEffect(() => {
-        try {
-            if (menuPreview.some(p => p)) {
-                localStorage.setItem('clubviz-menu-preview', JSON.stringify(menuPreview));
-                console.log('💾 Saved Menu Previews to localStorage');
-            } else {
-                localStorage.removeItem('clubviz-menu-preview');
-            }
-        } catch (error) {
-            console.error('Failed to save menu previews to localStorage:', error);
+        if (menuPreview.some(p => p)) {
+            safeSetLocalStorage('clubviz-menu-preview', JSON.stringify(menuPreview));
+            console.log('💾 Saved Menu Previews to localStorage');
+        } else {
+            try { localStorage.removeItem('clubviz-menu-preview'); } catch (e) {}
         }
     }, [menuPreview]);
 
@@ -636,8 +692,21 @@ export default function NewClubPage() {
             return;
         }
 
+        // Resolve contact details from form data, admin details, or local storage fallbacks
+        const contactEmailToUse = (
+            formData.contactEmail || 
+            adminDetails.email || 
+            (typeof window !== 'undefined' ? (localStorage.getItem('user-email') || localStorage.getItem('validatedEmail') || '') : '')
+        ).trim();
+
+        const contactPhoneToUse = (
+            formData.contactPhone || 
+            adminDetails.phone || 
+            (typeof window !== 'undefined' ? (localStorage.getItem('user-phone') || localStorage.getItem('validatedPhone') || '') : '')
+        ).trim();
+
         // Validate contact email
-        if (!formData.contactEmail || !formData.contactEmail.trim()) {
+        if (!contactEmailToUse) {
             toast({
                 title: "Error",
                 description: "Contact email is required",
@@ -647,7 +716,7 @@ export default function NewClubPage() {
         }
 
         // Validate contact phone
-        if (!formData.contactPhone || !formData.contactPhone.trim()) {
+        if (!contactPhoneToUse) {
             toast({
                 title: "Error",
                 description: "Contact phone is required",
@@ -680,15 +749,27 @@ export default function NewClubPage() {
             const clubData: any = {
                 "name": formData.clubName.trim(),
                 "description": formData.description.trim() || "",
-                "contactEmail": formData.contactEmail.trim(),
-                "contactPhone": formData.contactPhone.trim(),
+                "contactEmail": contactEmailToUse,
+                "contactPhone": contactPhoneToUse,
                 locationText: {
-                    address1: formData.address1,
-                    address2: formData.address2,
+                    address1: selectedLocation.address1 || formData.address1 || "",
+                    address2: selectedLocation.address2 || formData.address2 || "",
                     city: selectedLocation.city || undefined,
                     state: selectedLocation.state || undefined,
+                    country: selectedLocation.country || undefined,
                     pincode: selectedLocation.pincode || undefined,
-                    fullAddress: [formData.address1, formData.address2, selectedLocation.city, selectedLocation.state, selectedLocation.pincode]
+                    latitude: selectedLocation.lat || undefined,
+                    longitude: selectedLocation.lng || undefined,
+                    lat: selectedLocation.lat || undefined,
+                    lng: selectedLocation.lng || undefined,
+                    fullAddress: [
+                        selectedLocation.address1 || formData.address1,
+                        selectedLocation.address2 || formData.address2,
+                        selectedLocation.city,
+                        selectedLocation.state,
+                        selectedLocation.pincode,
+                        selectedLocation.country
+                    ]
                         .filter(Boolean)
                         .join(', '),
                 },
@@ -1056,13 +1137,7 @@ export default function NewClubPage() {
                                 </div>
                             ) : (
                                 <>
-                                    <img
-                                        src="/admin/upload.svg"
-                                        alt="Upload"
-                                        width={40}
-                                        height={40}
-                                        className="mb-2"
-                                    />
+                                    <Upload className="w-[32px] h-[32px] text-[#14FFEC] mb-2 stroke-[1.5]" />
                                     <p className="text-white text-center text-[12px] font-semibold leading-[12px] tracking-[0.5px]">Upload logo</p>
                                 </>
                             )}
@@ -1108,37 +1183,37 @@ export default function NewClubPage() {
                             </div>
                         </div>
 
-                        {/* Contact Info - Auto-filled from user account */}
+                        {/* Contact Info - Auto-filled from user account (Disabled) */}
                         <div className="w-full flex flex-col gap-4">
                             <div className="flex flex-col gap-[11px]">
                                 <div className="px-5 flex items-center justify-between">
                                     <label className="text-[#14FFEC] font-semibold text-base">Contact Email <span className="text-red-500">*</span></label>
-                                    <span className="text-[#9D9C9C] text-xs">From your account</span>
+                                    <span className="text-[#9D9C9C] text-xs font-medium">From your account</span>
                                 </div>
-                                <div className="w-full bg-[#0D1F1F] border border-[#0C898B] rounded-[30px] p-[10px] px-5 opacity-70">
+                                <div className="w-full bg-[#0D1F1F]/60 border border-[#0C898B]/50 rounded-[30px] p-[10px] px-5 opacity-80 cursor-not-allowed">
                                     <input
                                         type="email"
-                                        value={formData.contactEmail}
-                                        readOnly
-                                        disabled
-                                        className="w-full bg-transparent text-white/80 placeholder-[#9D9C9C] outline-none text-base font-semibold cursor-not-allowed"
-                                        placeholder="Enter contact email"
+                                        value={formData.contactEmail || adminDetails.email || ''}
+                                        disabled={true}
+                                        readOnly={true}
+                                        className="w-full bg-transparent text-[#14FFEC] placeholder-[#9D9C9C] outline-none text-base font-semibold cursor-not-allowed select-none"
+                                        placeholder="From your account"
                                     />
                                 </div>
                             </div>
                             <div className="flex flex-col gap-[11px]">
                                 <div className="px-5 flex items-center justify-between">
                                     <label className="text-[#14FFEC] font-semibold text-base">Contact Phone <span className="text-red-500">*</span></label>
-                                    <span className="text-[#9D9C9C] text-xs">From your account</span>
+                                    <span className="text-[#9D9C9C] text-xs font-medium">From your account</span>
                                 </div>
-                                <div className="w-full bg-[#0D1F1F] border border-[#0C898B] rounded-[30px] p-[10px] px-5 opacity-70">
+                                <div className="w-full bg-[#0D1F1F]/60 border border-[#0C898B]/50 rounded-[30px] p-[10px] px-5 opacity-80 cursor-not-allowed">
                                     <input
                                         type="text"
-                                        value={formData.contactPhone}
-                                        readOnly
-                                        disabled
-                                        className="w-full bg-transparent text-white/80 placeholder-[#9D9C9C] outline-none text-base font-semibold cursor-not-allowed"
-                                        placeholder="Enter contact phone"
+                                        value={formData.contactPhone || adminDetails.phone || ''}
+                                        disabled={true}
+                                        readOnly={true}
+                                        className="w-full bg-transparent text-[#14FFEC] placeholder-[#9D9C9C] outline-none text-base font-semibold cursor-not-allowed select-none"
+                                        placeholder="From your account"
                                     />
                                 </div>
                             </div>
@@ -1297,54 +1372,93 @@ export default function NewClubPage() {
 
                         {/* Location */}
                         <div className="w-full flex flex-col gap-[11px]">
-                            <div className="px-5">
-                                <label className="text-[#14FFEC] font-semibold text-base">Location</label>
-                            </div>
-                            <div
-                                onClick={() => handleNavigate('/location')}
-                                className="w-full h-[55px] bg-[#0D1F1F] border border-[#0C898B] rounded-[30px] p-[10px] px-5 flex items-center justify-between cursor-pointer mb-2"
-                            >
-                                <span className="text-white text-base font-semibold">
-                                    {selectedLocation.city && selectedLocation.state
-                                        ? `${selectedLocation.city}, ${selectedLocation.state}${selectedLocation.pincode ? ' - ' + selectedLocation.pincode : ''}`
-                                        : 'Select on Map (City/State)'}
-                                </span>
-                                <ChevronRight className="text-[#14FFEC]" size={18} />
+                            <div className="px-5 flex items-center justify-between">
+                                <label className="text-[#14FFEC] font-semibold text-base">Club Location <span className="text-red-500">*</span></label>
+                                {selectedLocation.city && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowLocationModal(true)}
+                                        className="text-[#14FFEC] text-xs font-semibold hover:underline flex items-center gap-1"
+                                    >
+                                        <Edit3 size={13} /> Edit Location
+                                    </button>
+                                )}
                             </div>
 
-                            {selectedLocation.city && selectedLocation.state && (
-                                <div className="px-5 text-sm text-white/70 mb-2">
-                                    {selectedLocation.country && <span>{selectedLocation.country} · </span>}
-                                    <span>{selectedLocation.city}, {selectedLocation.state}</span>
-                                    {selectedLocation.pincode ? <span> · {selectedLocation.pincode}</span> : null}
+                            {/* Location Display Card or Selector */}
+                            {selectedLocation.city && selectedLocation.state ? (
+                                <div
+                                    onClick={() => setShowLocationModal(true)}
+                                    className="w-full bg-[#0D1F1F] border border-[#0C898B] rounded-[24px] p-5 cursor-pointer hover:border-[#14FFEC] transition-all relative overflow-hidden group"
+                                >
+                                    <div className="flex items-start gap-3.5">
+                                        <div className="w-10 h-10 bg-[#14FFEC]/10 border border-[#14FFEC]/30 rounded-2xl flex items-center justify-center text-[#14FFEC] flex-shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
+                                            <MapPin size={20} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center justify-between">
+                                                <h4 className="text-white font-bold text-base truncate">
+                                                    {selectedLocation.city}, {selectedLocation.state}
+                                                </h4>
+                                                {selectedLocation.lat && selectedLocation.lng ? (
+                                                    <span className="text-[10px] bg-[#14FFEC]/15 text-[#14FFEC] font-mono px-2 py-0.5 rounded-full border border-[#14FFEC]/30">
+                                                        GPS PIN
+                                                    </span>
+                                                ) : null}
+                                            </div>
+                                            {(selectedLocation.address1 || formData.address1) && (
+                                                <p className="text-white/80 text-sm mt-1 truncate">
+                                                    {selectedLocation.address1 || formData.address1}
+                                                    {selectedLocation.address2 || formData.address2 ? `, ${selectedLocation.address2 || formData.address2}` : ''}
+                                                </p>
+                                            )}
+                                            <p className="text-[#14FFEC]/70 text-xs mt-1.5 font-medium">
+                                                {selectedLocation.pincode ? `Pincode: ${selectedLocation.pincode} · ` : ''}
+                                                {selectedLocation.country || 'India'}
+                                            </p>
+                                        </div>
+                                        <ChevronRight className="text-[#14FFEC]/60 group-hover:text-[#14FFEC] group-hover:translate-x-0.5 transition-all self-center ml-1" size={20} />
+                                    </div>
+                                </div>
+                            ) : (
+                                <div
+                                    onClick={() => setShowLocationModal(true)}
+                                    className="w-full h-[60px] bg-[#0D1F1F] border border-[#0C898B] rounded-[30px] p-[10px] px-5 flex items-center justify-between cursor-pointer hover:border-[#14FFEC] transition-all group"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <MapPin className="text-[#14FFEC]" size={20} />
+                                        <span className="text-white/70 text-base font-medium group-hover:text-white transition-colors">
+                                            Set Club Location (GPS / Search / Manual)
+                                        </span>
+                                    </div>
+                                    <ChevronRight className="text-[#14FFEC]" size={18} />
                                 </div>
                             )}
 
-                            {formData.location && (
-                                <div className="w-full bg-[#0D1F1F] border border-[#0C898B] rounded-[30px] p-[12px] px-5 mb-3">
-                                    <p className="text-[#14FFEC] text-[11px] uppercase tracking-[0.18em] mb-2">Selected Location</p>
-                                    <p className="text-white text-sm break-words">{formData.location}</p>
-                                </div>
-                            )}
-
-                            {/* Additional Address Fields */}
-                            <div className="w-full flex flex-col gap-3">
-                                <div className="w-full bg-[#0D1F1F] border border-[#0C898B] rounded-[30px] p-[10px] px-5">
+                            {/* Address Line inputs for fine tuning */}
+                            <div className="w-full flex flex-col gap-3 mt-1">
+                                <div className="w-full bg-[#0D1F1F] border border-[#0C898B]/60 rounded-[30px] p-[10px] px-5 focus-within:border-[#14FFEC]/60 transition-colors">
                                     <input
                                         type="text"
                                         value={formData.address1}
-                                        onChange={(e) => handleInputChange('address1', e.target.value)}
-                                        className="w-full bg-transparent text-white placeholder-[#9D9C9C] outline-none text-base font-semibold"
-                                        placeholder="Address Line 1"
+                                        onChange={(e) => {
+                                            handleInputChange('address1', e.target.value);
+                                            setSelectedLocation(prev => ({ ...prev, address1: e.target.value }));
+                                        }}
+                                        className="w-full bg-transparent text-white placeholder-[#9D9C9C] outline-none text-sm font-semibold"
+                                        placeholder="Street Address / Line 1"
                                     />
                                 </div>
-                                <div className="w-full bg-[#0D1F1F] border border-[#0C898B] rounded-[30px] p-[10px] px-5">
+                                <div className="w-full bg-[#0D1F1F] border border-[#0C898B]/60 rounded-[30px] p-[10px] px-5 focus-within:border-[#14FFEC]/60 transition-colors">
                                     <input
                                         type="text"
                                         value={formData.address2}
-                                        onChange={(e) => handleInputChange('address2', e.target.value)}
-                                        className="w-full bg-transparent text-white placeholder-[#9D9C9C] outline-none text-base font-semibold"
-                                        placeholder="Address Line 2 (Optional)"
+                                        onChange={(e) => {
+                                            handleInputChange('address2', e.target.value);
+                                            setSelectedLocation(prev => ({ ...prev, address2: e.target.value }));
+                                        }}
+                                        className="w-full bg-transparent text-white placeholder-[#9D9C9C] outline-none text-sm font-semibold"
+                                        placeholder="Landmark / Locality / Line 2 (Optional)"
                                     />
                                 </div>
                             </div>
