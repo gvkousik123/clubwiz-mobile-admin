@@ -35,11 +35,11 @@ export function ClubwizLogo({ size = 'md', variant = 'full' }: LogoProps) {
                 />
             </div>*/}
 
-            {/* ClubWiz text with original branding */}
+            {/* ClubWiz text with neon effect */}
             {variant === 'full' && (
                 <div className="relative z-50 text-center mt-2">
                     <Image
-                        src="/logo/CLUBWIZ.png"
+                        src="/logo/clubwizlogo.png"
                         alt="CLUBWIZ"
                         width={textSizes[size].width}
                         height={size === 'lg' ? 70 : size === 'md' ? 56 : 44}

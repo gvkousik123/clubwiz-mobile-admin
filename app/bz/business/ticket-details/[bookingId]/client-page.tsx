@@ -148,7 +148,7 @@ export default function TicketDetailsPage() {
             <div className="min-h-screen bg-[#021313] flex items-center justify-center">
                 <div className="relative w-32 h-32">
                     <Image
-                        src="/logo/CLUBWIZ.png"
+                        src="/logo/logo.png"
                         alt="ClubWiz Logo"
                         width={128}
                         height={128}

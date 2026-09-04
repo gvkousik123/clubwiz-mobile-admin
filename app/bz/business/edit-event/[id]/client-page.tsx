@@ -718,7 +718,7 @@ function EditEventPageContent() {
     return (
         <div className="min-h-screen bg-[#021313] text-white relative">
             {/* Fixed Header with gradient background */}
-            <div className="fixed top-0 left-0 right-0 z-30 flex flex-col pt-10 bg-gradient-to-b from-[#11B9AB] to-[#222831] h-[140px] w-full">
+            <div className="fixed top-0 app-bar z-30 flex flex-col pt-10 bg-gradient-to-b from-[#11B9AB] to-[#222831] h-[140px] w-full">
                 <div className="absolute top-10 left-6">
                     <button
                         onClick={handleGoBack}
@@ -1537,7 +1537,7 @@ function EditEventPageContent() {
                 </div>
 
                 {/* Bottom Save Button with Close Option */}
-                <div className="fixed bottom-0 left-0 right-0 z-50">
+                <div className="fixed bottom-0 app-bar z-50">
                     <div className="w-full h-[80px] relative bg-[#0D1F1F] shadow-[0px_30px_30px_-40px_#00968A_inset] overflow-hidden rounded-t-[40px] border-t-2 border-[#14FFEC]">
                         <div className="flex justify-between items-center px-6 h-full gap-4">
                             {/* Close Button */}

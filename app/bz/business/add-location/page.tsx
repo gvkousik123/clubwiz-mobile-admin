@@ -217,7 +217,7 @@ export default function AddLocationPage() {
 
             {/* Bottom Container */}
             {!showAddressForm ? (
-                <div className="fixed bottom-0 left-0 right-0 z-40 w-full py-7 px-5 bg-[#021313] overflow-hidden rounded-t-[40px] rounded-b-[20px] border-t-2 border-[#14FFEC] flex flex-col gap-6">
+                <div className="fixed bottom-0 app-bar z-40 w-full py-7 px-5 bg-[#021313] overflow-hidden rounded-t-[40px] rounded-b-[20px] border-t-2 border-[#14FFEC] flex flex-col gap-6">
                     <div className="flex flex-col gap-4">
                         {/* Search Box */}
                         <div className="h-[51px] py-[6px] relative">
@@ -313,7 +313,7 @@ export default function AddLocationPage() {
                     </div>
                 </div>
             ) : (
-                <div className="fixed bottom-0 left-0 right-0 z-40 w-full pt-8 pb-10 px-6 bg-[#021313] overflow-hidden rounded-t-[40px] rounded-b-[20px] border-t-2 border-[#14FFEC] flex flex-col items-center gap-8 max-h-[80vh] overflow-y-auto">
+                <div className="fixed bottom-0 app-bar z-40 w-full pt-8 pb-10 px-6 bg-[#021313] overflow-hidden rounded-t-[40px] rounded-b-[20px] border-t-2 border-[#14FFEC] flex flex-col items-center gap-8 max-h-[80vh] overflow-y-auto">
                     <div className="flex flex-col items-center gap-6 w-full max-w-[360px]">
                         <div className="text-center text-[#14FFEC] text-[16px] font-semibold leading-[21px] tracking-[0.16px]">
                             Enter location manually

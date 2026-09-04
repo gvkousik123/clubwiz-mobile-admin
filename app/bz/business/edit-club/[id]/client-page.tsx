@@ -789,7 +789,7 @@ function EditClubContent() {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex gap-3 pt-6 fixed bottom-0 left-0 right-0 max-w-[430px] mx-auto px-4 bg-[#021313] py-4 border-t border-[#14FFEC]/30">
+                <div className="flex gap-3 pt-6 fixed bottom-0 app-bar max-w-[430px] mx-auto px-4 bg-[#021313] py-4 border-t border-[#14FFEC]/30">
                     <button
                         onClick={handleGoBack}
                         className="flex-1 px-4 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition"

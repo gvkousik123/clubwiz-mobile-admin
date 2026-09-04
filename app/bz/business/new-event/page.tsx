@@ -1545,7 +1545,7 @@ function NewEventPageContent() {
                 </div>
 
                 {/* Bottom Save Button */}
-                <div className="fixed bottom-0 left-0 right-0 z-50">
+                <div className="fixed bottom-0 app-bar z-50">
                     <div className="w-full h-[80px] relative bg-[#0D1F1F] shadow-[0px_30px_30px_-40px_#00968A_inset] overflow-hidden rounded-t-[40px] border-t-2 border-[#14FFEC]">
                         <div className="flex justify-center items-center px-8 h-full">
                             <div className="w-[220px] h-[45px] bg-[#0F6861] rounded-[30px] flex justify-center items-center">

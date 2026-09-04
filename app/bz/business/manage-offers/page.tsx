@@ -14,6 +14,39 @@ import {
     toLocalInput,
 } from '@/components/offers/offer-composer';
 
+/**
+ * Where an offer sits relative to its window right now (display only).
+ * 'expired' is decided by the actual end date AND time, not just the day.
+ * 'draft' means the offer is switched off, regardless of its dates.
+ */
+type OfferStatus = 'live' | 'scheduled' | 'expired' | 'draft';
+
+const getOfferStatus = (offer: ClubOffer): OfferStatus => {
+    if (!offer.isActive) return 'draft';
+    if (!offer.startDate || !offer.endDate) return 'live';
+
+    const now = new Date();
+    const startDate = new Date(offer.startDate);
+    const endDate = new Date(offer.endDate);
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return 'live';
+
+    if (now.getTime() > endDate.getTime()) return 'expired';
+    if (now.getTime() < startDate.getTime()) return 'scheduled';
+    return 'live';
+};
+
+// Live first, then scheduled, then expired, then drafts.
+const STATUS_ORDER: Record<OfferStatus, number> = { live: 0, scheduled: 1, expired: 2, draft: 3 };
+
+const STATUS_FILTERS: { value: OfferStatus | 'all'; label: string }[] = [
+    { value: 'all', label: 'All' },
+    { value: 'live', label: 'Live' },
+    { value: 'scheduled', label: 'Scheduled' },
+    { value: 'expired', label: 'Expired' },
+    { value: 'draft', label: 'Draft' },
+];
+
 export default function ManageOffersPage() {
     const router = useRouter();
     const { toast } = useToast();
@@ -25,6 +58,7 @@ export default function ManageOffersPage() {
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [selectedOffer, setSelectedOffer] = useState<ClubOffer | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [statusFilter, setStatusFilter] = useState<OfferStatus | 'all'>('all');
 
     // Fetch club ID and offers on mount
     useEffect(() => {
@@ -73,30 +107,6 @@ export default function ManageOffersPage() {
         fetchClubAndOffers();
     }, [toast, router]);
 
-    /**
-     * Where the offer sits relative to its window right now (display only).
-     * 'draft' means the offer is switched off, regardless of its dates.
-     */
-    type OfferStatus = 'live' | 'scheduled' | 'expired' | 'draft';
-
-    const getOfferStatus = (offer: ClubOffer): OfferStatus => {
-        if (!offer.isActive) return 'draft';
-        if (!offer.startDate || !offer.endDate) return 'live';
-
-        const now = new Date();
-        const startDate = new Date(offer.startDate);
-        const endDate = new Date(offer.endDate);
-
-        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return 'live';
-
-        if (now > endDate) return 'expired';
-        if (now < startDate) return 'scheduled';
-        return 'live';
-    };
-
-    // Live first, then scheduled, then expired, then drafts.
-    const STATUS_ORDER: Record<OfferStatus, number> = { live: 0, scheduled: 1, expired: 2, draft: 3 };
-
     const sortedOffers = [...offers].sort((a, b) => {
         const rank = STATUS_ORDER[getOfferStatus(a)] - STATUS_ORDER[getOfferStatus(b)];
         if (rank !== 0) return rank;
@@ -106,6 +116,16 @@ export default function ManageOffersPage() {
         if (isNaN(aStart) || isNaN(bStart)) return 0;
         return aStart - bStart;
     });
+
+    const statusCounts = offers.reduce((acc, offer) => {
+        const s = getOfferStatus(offer);
+        acc[s] = (acc[s] || 0) + 1;
+        return acc;
+    }, {} as Record<OfferStatus, number>);
+
+    const visibleOffers = statusFilter === 'all'
+        ? sortedOffers
+        : sortedOffers.filter(offer => getOfferStatus(offer) === statusFilter);
 
     const buildPayload = (values: OfferFormValues) => ({
         title: values.title.trim(),
@@ -246,7 +266,7 @@ export default function ManageOffersPage() {
     return (
         <div className="min-h-screen bg-[#021313] text-white">
             {/* Header */}
-            <div className="fixed top-0 left-0 right-0 z-30 flex flex-col pt-8 bg-gradient-to-b from-[#11B9AB] to-[#222831] h-[140px] w-full">
+            <div className="fixed top-0 app-bar z-30 flex flex-col pt-8 bg-gradient-to-b from-[#11B9AB] to-[#222831] h-[140px] w-full">
                 <div className="px-6">
                     <div className="flex items-center justify-between gap-4 mb-4">
                         <div className="flex items-center gap-4">
@@ -269,15 +289,50 @@ export default function ManageOffersPage() {
             {/* Content */}
             <div className="pt-[160px] px-6 pb-6">
                 <div className="max-w-4xl mx-auto w-full">
+                    {offers.length > 0 && (
+                        <div className="mb-4 flex flex-wrap gap-2">
+                            {STATUS_FILTERS.map(f => {
+                                const count = f.value === 'all' ? offers.length : (statusCounts[f.value] || 0);
+                                const active = statusFilter === f.value;
+                                return (
+                                    <button
+                                        key={f.value}
+                                        type="button"
+                                        onClick={() => setStatusFilter(f.value)}
+                                        aria-pressed={active}
+                                        className={`flex-shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${active
+                                            ? 'border-[#14FFEC] bg-[#14FFEC] text-black'
+                                            : 'border-[#14FFEC]/25 bg-[#0D1F1F] text-white/70'
+                                            }`}
+                                    >
+                                        {f.label} ({count})
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
+
                     {offers.length === 0 ? (
                         <div className="text-center py-12">
                             <Tag className="w-16 h-16 text-[#14FFEC] mx-auto mb-4" />
                             <p className="text-white/60">No offers yet</p>
                             <p className="text-white/40 text-sm mt-2">Create your first offer to attract customers</p>
                         </div>
+                    ) : visibleOffers.length === 0 ? (
+                        <div className="text-center py-12">
+                            <Tag className="w-16 h-16 text-[#14FFEC]/50 mx-auto mb-4" />
+                            <p className="text-white/60">No {statusFilter} offers</p>
+                            <button
+                                type="button"
+                                onClick={() => setStatusFilter('all')}
+                                className="text-[#14FFEC] text-sm mt-2 underline"
+                            >
+                                Show all offers
+                            </button>
+                        </div>
                     ) : (
                         <div className="space-y-4">
-                            {sortedOffers.map(offer => (
+                            {visibleOffers.map(offer => (
                                 <div key={offer.id} className="bg-[#0D1F1F] rounded-[15px] p-4 border border-[#14FFEC]/20">
                                     <div className="flex items-start justify-between mb-3">
                                         <div className="flex-1 min-w-0">

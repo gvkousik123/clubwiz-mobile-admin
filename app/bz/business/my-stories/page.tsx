@@ -207,7 +207,7 @@ function MyStoriesContent() {
     return (
         <div className="min-h-screen bg-[#021313] text-white">
             {/* Header */}
-            <div className="fixed top-0 left-0 right-0 z-30 bg-gradient-to-b from-[#11B9AB] to-[#222831] h-[140px] w-full">
+            <div className="fixed top-0 app-bar z-30 bg-gradient-to-b from-[#11B9AB] to-[#222831] h-[140px] w-full">
                 <div className="px-6 pt-8 flex items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
                         <button

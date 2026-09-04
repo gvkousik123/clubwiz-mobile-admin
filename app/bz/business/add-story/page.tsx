@@ -98,7 +98,7 @@ export default function AddStoryPage() {
                     </div>
 
                     {/* Bottom action bar - styled like new-club */}
-                    <div className="fixed bottom-0 left-0 right-0 z-50">
+                    <div className="fixed bottom-0 app-bar z-50">
                         <div className="w-full h-[80px] relative bg-[#0D1F1F] shadow-[0px_30px_30px_-40px_#00968A_inset] overflow-hidden rounded-t-[40px] border-t-2 border-[#14FFEC]">
                             <div className="flex items-center h-full px-5 gap-3 justify-center">
                                 <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-[#14FFEC] flex-shrink-0">

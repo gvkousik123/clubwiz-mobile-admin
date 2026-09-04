@@ -162,7 +162,7 @@ export default function ClubEventsPage() {
     return (
         <div className="min-h-screen bg-[#021313] text-white relative">
             {/* Fixed Header */}
-            <div className="fixed top-0 left-0 right-0 z-30 flex flex-col pt-8 bg-gradient-to-b from-[#11B9AB] to-[#222831] h-[140px] w-full">
+            <div className="fixed top-0 app-bar z-30 flex flex-col pt-8 bg-gradient-to-b from-[#11B9AB] to-[#222831] h-[140px] w-full">
                 <div className="px-6">
                     <div className="flex items-center gap-4 mb-4">
                         <button onClick={() => router.push('/bz/business')} className="text-white hover:text-[#14FFEC] transition-colors">

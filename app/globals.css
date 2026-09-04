@@ -529,3 +529,36 @@
     transform: scaleX(0);
   }
 }
+
+
+/* ---------------------------------------------------------------------------
+   Phone frame.
+
+   /bz/business and /bz/admin are phone-designed screens (almost no responsive
+   breakpoints), so they are framed to a single width in BOTH the web admin and
+   the Capacitor build rather than stretching edge to edge on a desktop. The
+   /bz/superadmin console is a real desktop layout and is deliberately excluded.
+
+   .app-bar exists because a `fixed` element is positioned against the viewport,
+   not against .app-frame - so `left-0 right-0` bars spanned the whole screen
+   while the content under them stayed centred. Centring the bar on the same
+   width keeps the two aligned at any viewport size.
+   --------------------------------------------------------------------------- */
+:root {
+  --app-frame-width: 28rem;
+  /* 448px, matches Tailwind's max-w-md */
+}
+
+.app-frame {
+  width: 100%;
+  max-width: var(--app-frame-width);
+  margin-inline: auto;
+}
+
+.app-bar {
+  left: 50%;
+  right: auto;
+  width: 100%;
+  max-width: var(--app-frame-width);
+  transform: translateX(-50%);
+}

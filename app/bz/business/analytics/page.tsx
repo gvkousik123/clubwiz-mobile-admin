@@ -274,7 +274,7 @@ export default function AnalyticsPage() {
         return (
             <div className="min-h-screen bg-[#021313] flex items-center justify-center">
                 <Image
-                    src="/logo/CLUBWIZ.png"
+                    src="/logo/logo.png"
                     alt="ClubWiz Logo"
                     width={112}
                     height={112}

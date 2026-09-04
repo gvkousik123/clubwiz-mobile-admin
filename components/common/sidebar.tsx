@@ -215,7 +215,7 @@ export default function Sidebar({
                     </div>
 
                     {/* Brand Name */}
-                    <img src="/logo/CLUBWIZ.png" alt="Brand Name" className="w-55 h-auto mb-6" />
+                    <img src="/logo/clubwizlogo.png" alt="ClubWiz" className="w-44 h-auto mb-6" />
                 </div>
             </div>
         </>

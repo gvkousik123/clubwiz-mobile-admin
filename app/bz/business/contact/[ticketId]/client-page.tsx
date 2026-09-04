@@ -80,7 +80,7 @@ export default function TicketDetailPage() {
     return (
         <div className="min-h-screen w-full bg-[#021313] text-white">
             {/* Fixed Header */}
-            <div className="fixed top-0 left-0 right-0 z-30 flex flex-col pt-10 bg-gradient-to-b from-[#11B9AB] to-[#222831] h-[140px] w-full">
+            <div className="fixed top-0 app-bar z-30 flex flex-col pt-10 bg-gradient-to-b from-[#11B9AB] to-[#222831] h-[140px] w-full">
                 <div className="absolute top-10 left-6">
                     <button
                         onClick={handleGoBack}

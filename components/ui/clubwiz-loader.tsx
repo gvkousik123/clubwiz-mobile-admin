@@ -39,7 +39,7 @@ export function ClubWizLoader({ size = 'md', message }: ClubWizLoaderProps) {
                     style={{ width: dimension, height: dimension }}
                 >
                     <Image
-                        src="/logo/CLUBWIZ.png"
+                        src="/logo/logo.png"
                         alt="ClubWiz Loading"
                         width={dimension}
                         height={dimension}
