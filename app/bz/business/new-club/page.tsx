@@ -751,6 +751,12 @@ export default function NewClubPage() {
                 "description": formData.description.trim() || "",
                 "contactEmail": contactEmailToUse,
                 "contactPhone": contactPhoneToUse,
+                // The API reads coordinates from these top-level fields
+                // (ClubCreateWithImagesRequest.locationLat / locationLng). The copies
+                // nested inside locationText below are not in that schema and are
+                // ignored, which is why a club's pin never persisted.
+                locationLat: selectedLocation.lat || undefined,
+                locationLng: selectedLocation.lng || undefined,
                 locationText: {
                     address1: selectedLocation.address1 || formData.address1 || "",
                     address2: selectedLocation.address2 || formData.address2 || "",

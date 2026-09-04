@@ -1,12 +1,13 @@
 'use client';
 
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Upload, Calendar, Clock, Music, User, Building2, Instagram, Music2, ImageIcon, VideoIcon, ChevronDown, Plus, Trash2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, MapPin, Upload, Calendar, Clock, Music, User, Building2, Instagram, Music2, ImageIcon, VideoIcon, ChevronDown, Plus, Trash2, AlertCircle } from 'lucide-react';
 import { useState, useRef, useEffect, Suspense } from 'react';
 import { Dialog, DialogContent, DialogOverlay } from '@/components/ui/dialog';
 import { EventService } from '@/lib/services/event.service';
 import { ClubService } from '@/lib/services/club.service';
 import { useToast } from '@/hooks/use-toast';
+import LocationModal from '@/components/common/location-modal';
 import DatePicker from '@/components/common/date-picker';
 import TimePicker from '@/components/common/time-picker';
 import { formatDateTimeForAPI, formatDateToDDMMYYYY, parseDDMMYYYYToDate } from '@/lib/date-utils';
@@ -473,11 +474,14 @@ function EditEventPageContent() {
                 description: formData.description.trim(),
                 startDateTime: startDateTime,
                 endDateTime: startDateTime,
-                location: "Club Location",
-                locationText: "Club Location Text",
+                // Previously hardcoded to "Club Location" / 0,0. Now taken from the
+                // location overlay; falls back to the old placeholders only when the
+                // organiser has not picked one.
+                location: eventLocationLabel || "Club Location",
+                locationText: eventLocationLabel || "Club Location Text",
                 locationMap: {
-                    lat: 0,
-                    lng: 0
+                    lat: eventLocation?.lat || 0,
+                    lng: eventLocation?.lng || 0
                 },
                 clubId: selectedClubId,
                 maxAttendees: formData.totalTickets || 500,
@@ -898,6 +902,25 @@ function EditEventPageContent() {
                                 </div>
 
                                 {/* Event Organizer */}
+                                {/* Event Location */}
+                                <div className="space-y-3">
+                                    <div className="px-5">
+                                        <label className="text-[#14FFEC] font-semibold text-base">Event Location</label>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowLocationModal(true)}
+                                        className="w-full bg-[#0D1F1F] border border-[#0C898B]/30 rounded-[30px] p-[10px] px-5 text-left"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <MapPin size={20} className="text-[#14FFEC] flex-shrink-0" />
+                                            <span className={`truncate ${eventLocationLabel ? 'text-white' : 'text-white/40'}`}>
+                                                {eventLocationLabel || 'Set the event location'}
+                                            </span>
+                                        </div>
+                                    </button>
+                                </div>
+
                                 <div className="space-y-3">
                                     <div className="px-5">
                                         <label className="text-[#14FFEC] font-semibold text-base">Event Organizer</label>
@@ -1652,6 +1675,14 @@ function EditEventPageContent() {
                     </div>
                 </DialogContent>
             </Dialog>
+
+            <LocationModal
+                title="Event Location"
+                isOpen={showLocationModal}
+                onClose={() => setShowLocationModal(false)}
+                onSelectLocation={(loc: any) => { setEventLocation(loc); setShowLocationModal(false); }}
+                initialAddress={eventLocation || undefined}
+            />
         </div>
     );
 }

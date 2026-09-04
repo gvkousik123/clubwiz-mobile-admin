@@ -20,6 +20,8 @@ const INDIAN_STATES = [
 
 interface LocationModalProps {
     isOpen: boolean;
+    /** Heading shown in the sheet. Defaults to the club wording. */
+    title?: string;
     onClose: () => void;
     onSelectLocation: (location: any) => void;
     initialAddress?: {
@@ -99,7 +101,7 @@ const parseNominatimAddress = (result: any) => {
     };
 };
 
-export default function LocationModal({ isOpen, onClose, onSelectLocation, initialAddress }: LocationModalProps) {
+export default function LocationModal({ isOpen, title = 'Club Location', onClose, onSelectLocation, initialAddress }: LocationModalProps) {
     const { toast } = useToast();
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -399,7 +401,7 @@ export default function LocationModal({ isOpen, onClose, onSelectLocation, initi
                 {/* Header */}
                 <div className="flex items-center justify-between p-5 pb-3 border-b border-[#14FFEC]/15">
                     <div>
-                        <h2 className="text-lg font-bold text-white">Club Location</h2>
+                        <h2 className="text-lg font-bold text-white">{title}</h2>
                         <p className="text-white/40 text-xs mt-0.5">Search, use GPS, or enter manually</p>
                     </div>
                     <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition">

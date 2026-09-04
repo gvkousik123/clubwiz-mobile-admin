@@ -305,6 +305,11 @@ function EditClubContent() {
                 facilities: facilitiesTags,
                 foodCuisines: foodCuisinesTags,
                 barOptions: barOptionsTags,
+                // The API reads coordinates from these top-level fields
+                // (ClubCreateWithImagesRequest.locationLat / locationLng), not from
+                // locationText, which only defines address1/address2/city/pincode/state.
+                locationLat: editData.lat || selectedLocation.lat || undefined,
+                locationLng: editData.lng || selectedLocation.lng || undefined,
                 locationText: {
                     address1: editData.address1 || selectedLocation.address1 || "",
                     address2: editData.address2 || selectedLocation.address2 || "",
