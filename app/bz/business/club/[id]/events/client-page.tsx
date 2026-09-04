@@ -91,7 +91,7 @@ export default function ClubEventsPage() {
     }, [events]);
 
     const handleCreateEvent = () => {
-        router.push(`/business/new-event?clubId=${clubId}`); // FIXED: Extra — Navigate to business route, not admin
+        router.push(`/bz/business/new-event?clubId=${clubId}`); // FIXED: Extra — Navigate to business route, not admin
     };
 
     const handleEditEvent = (eventId: string) => {

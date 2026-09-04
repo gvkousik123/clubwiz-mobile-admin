@@ -21,10 +21,10 @@ export const RoleRedirect = () => {
         const performRedirect = () => {
             // Skip redirect if already on auth pages or admin/business/superadmin pages
             if (
-                pathname?.startsWith('/auth/') ||
-                pathname?.startsWith('/admin') ||
-                pathname?.startsWith('/business') ||
-                pathname?.startsWith('/superadmin')
+                pathname?.startsWith('/bz/auth/') ||
+                pathname?.startsWith('/bz/admin') ||
+                pathname?.startsWith('/bz/business') ||
+                pathname?.startsWith('/bz/superadmin')
             ) {
                 setIsChecking(false);
                 return;
@@ -39,14 +39,14 @@ export const RoleRedirect = () => {
 
             // User is logged in, redirect based on role (admin/business admin/superadmin only)
             if (ProfileService.isSuperAdmin()) {
-                router.replace('/superadmin');
+                router.replace('/bz/superadmin');
             } else if (ProfileService.isBusinessAdmin()) {
-                router.replace('/business');
+                router.replace('/bz/business');
             } else if (ProfileService.isAdmin()) {
-                router.replace('/admin');
+                router.replace('/bz/admin');
             } else {
                 // Regular users not allowed - redirect to login
-                router.replace('/auth/intro');
+                router.replace('/bz/auth/intro');
             }
 
             setIsChecking(false);

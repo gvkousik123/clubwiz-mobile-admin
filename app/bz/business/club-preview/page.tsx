@@ -93,11 +93,11 @@ function ClubPreviewContent() {
     }, [clubId]);
 
     const handleGoBack = () => {
-        router.push('/business');
+        router.push('/bz/business');
     };
 
     const handleEdit = () => {
-        router.push(`/business/edit-club/${clubId}`);
+        router.push(`/bz/business/edit-club/${clubId}`);
     };
 
     const handleShare = async () => {

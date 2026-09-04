@@ -502,7 +502,7 @@ export default function NewClubPage() {
     };
 
     const handleGoBack = () => {
-        router.push('/business');
+        router.push('/bz/business');
     };
 
     const handleInputChange = (field: string, value: string) => {

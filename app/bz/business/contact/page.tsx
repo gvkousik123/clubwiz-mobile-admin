@@ -74,7 +74,7 @@ export default function ContactUsPage() {
 
     // Navigate to ticket detail page
     const handleViewTicketDetail = (ticketId: string) => {
-        router.push(`/business/contact/${ticketId}`);
+        router.push(`/bz/business/contact/${ticketId}`);
     };
 
     // Submit Business Inquiry

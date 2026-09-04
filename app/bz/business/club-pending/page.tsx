@@ -20,7 +20,7 @@ export default function ClubPendingPage() {
 
         // If club is active, redirect to business dashboard
         if (clubStatus.isActive) {
-            router.replace('/business');
+            router.replace('/bz/business');
             return;
         }
     }, [router]);

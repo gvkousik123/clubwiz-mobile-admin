@@ -46,15 +46,15 @@ export const useRoleRouting = (): UseRoleRoutingReturn => {
 
     const getRedirectPath = useCallback((): string => {
         if (isSuperAdmin()) {
-            return '/superadmin';
+            return '/bz/superadmin';
         }
         if (isBusinessAdmin()) {
-            return '/business';
+            return '/bz/business';
         }
         if (isAdmin()) {
-            return '/admin';
+            return '/bz/admin';
         }
-        return '/auth/intro'; // Default to login
+        return '/bz/auth/intro'; // Default to login
     }, [isSuperAdmin, isBusinessAdmin, isAdmin]);
 
     return {
