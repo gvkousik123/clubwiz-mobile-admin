@@ -620,10 +620,11 @@ function EventPreviewContent() {
                         </div>
                     </div>
 
-                    {/* Location Info */}
-                    <div className="flex items-center gap-3 mb-4 px-2">
-                        <MapPin size={24} className="text-[#14FFEC]" />
-                        {isEditing ? (
+                    {/* Location Info - the raw string is only editable copy; in read mode
+                        the map card below carries the address, so it is not repeated here. */}
+                    {isEditing && (
+                        <div className="flex items-center gap-3 mb-4 px-2">
+                            <MapPin size={24} className="text-[#14FFEC]" />
                             <input
                                 type="text"
                                 value={editData.location}
@@ -631,19 +632,18 @@ function EventPreviewContent() {
                                 className="bg-[#0D1F1F] text-white font-['Manrope'] rounded-lg px-3 py-1 border border-[#14FFEC]/30 focus:border-[#14FFEC] outline-none flex-1"
                                 placeholder="Location"
                             />
-                        ) : (
-                            <p className="text-white font-['Manrope']">
-                                {eventData?.location || eventData?.club?.name || ''}
-                            </p>
-                        )}
-                    </div>
+                        </div>
+                    )}
 
-                    {/* Location map, matching the club preview */}
+                    {/* Location map, matching the club preview.
+                        EventDetailResponse carries only a `location` string - the structured
+                        address and the coordinates live on the nested club, which is the venue. */}
                     <div className="px-2 mb-4">
                         <LocationMapView
-                            lat={eventData?.locationMap?.lat}
-                            lng={eventData?.locationMap?.lng}
-                            address1={typeof eventData?.locationText === 'string' ? eventData.locationText : undefined}
+                            lat={eventData?.club?.locationMap?.lat}
+                            lng={eventData?.club?.locationMap?.lng}
+                            address1={eventData?.club?.locationText?.address1 || eventData?.location}
+                            address2={eventData?.club?.locationText?.address2}
                             city={eventData?.club?.locationText?.city}
                             state={eventData?.club?.locationText?.state}
                             pincode={eventData?.club?.locationText?.pincode}
