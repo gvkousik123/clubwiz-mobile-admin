@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
+import LocationMapView from '@/components/common/location-map-view';
 import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 import {
@@ -292,45 +293,51 @@ function ClubPreviewContent() {
                 <div className="w-full" style={{ paddingLeft: '16px', paddingRight: '16px', paddingTop: '25px', paddingBottom: '9px' }}>
                     <div className="w-full flex flex-col justify-center items-center gap-[11px] bg-[rgba(40,60,61,0.3)] py-[15px] rounded-[15px]" style={{ paddingLeft: '17px', paddingRight: '17px' }}>
                         
-                        {/* About Section */}
-                        <div className="flex flex-col self-stretch">
-                            <div className="flex items-center gap-2.5 self-stretch mb-3">
-                                <span className="font-semibold text-[16px] leading-[16px] text-[#fffeff]">About</span>
+                        {/* About Section - hidden when the club has no description */}
+                        {clubData?.description && (
+                            <div className="flex flex-col self-stretch">
+                                <div className="flex items-center gap-2.5 self-stretch mb-3">
+                                    <span className="font-semibold text-[16px] leading-[16px] text-[#fffeff]">About</span>
+                                </div>
+                                <p className="text-white/80 text-xs leading-5 px-1">
+                                    {clubData.description}
+                                </p>
                             </div>
-                            <p className="text-white/80 text-xs leading-5 px-1">
-                                {clubData?.description || 'Not available'}
-                            </p>
-                        </div>
+                        )}
 
                         {/* Contact Section */}
-                        <div className="flex flex-col self-stretch mt-2">
-                            <div className="flex items-center gap-2.5 self-stretch mb-3">
-                                <span className="font-semibold text-[16px] leading-[16px] text-[#fffeff]">Contact</span>
+                        {(clubData?.contactPhone || clubData?.phone || clubData?.contactEmail || clubData?.email) && (
+                            <div className="flex flex-col self-stretch mt-2">
+                                <div className="flex items-center gap-2.5 self-stretch mb-3">
+                                    <span className="font-semibold text-[16px] leading-[16px] text-[#fffeff]">Contact</span>
+                                </div>
+                                <div className="flex flex-col gap-1.5 px-1">
+                                    {(clubData?.contactPhone || clubData?.phone) && (
+                                        <p className="text-white/80 text-xs">📞 {clubData?.contactPhone || clubData?.phone}</p>
+                                    )}
+                                    {(clubData?.contactEmail || clubData?.email) && (
+                                        <p className="text-white/80 text-xs">✉️ {clubData?.contactEmail || clubData?.email}</p>
+                                    )}
+                                </div>
                             </div>
-                            <div className="flex flex-col gap-1.5 px-1">
-                                {clubData?.contactPhone || clubData?.phone ? (
-                                    <p className="text-white/80 text-xs">📞 {clubData?.contactPhone || clubData?.phone}</p>
-                                ) : (
-                                    <p className="text-white/60 text-xs">Not available</p>
-                                )}
-                                {clubData?.contactEmail || clubData?.email ? (
-                                    <p className="text-white/80 text-xs">✉️ {clubData?.contactEmail || clubData?.email}</p>
-                                ) : (
-                                    <p className="text-white/60 text-xs">Not available</p>
-                                )}
-                            </div>
-                        </div>
+                        )}
 
-                        {/* Category and Capacity Section */}
-                        <div className="flex flex-col self-stretch mt-2">
-                            <div className="flex items-center gap-2.5 self-stretch mb-3">
-                                <span className="font-semibold text-[16px] leading-[16px] text-[#fffeff]">Details</span>
+                        {/* Details - each line appears only when the club actually has that value */}
+                        {(clubData?.category || clubData?.maxMembers) && (
+                            <div className="flex flex-col self-stretch mt-2">
+                                <div className="flex items-center gap-2.5 self-stretch mb-3">
+                                    <span className="font-semibold text-[16px] leading-[16px] text-[#fffeff]">Details</span>
+                                </div>
+                                <div className="flex flex-col gap-1.5 px-1">
+                                    {clubData?.category && (
+                                        <p className="text-white/80 text-xs">Category: {clubData.category}</p>
+                                    )}
+                                    {clubData?.maxMembers && (
+                                        <p className="text-white/80 text-xs">Capacity: {clubData.maxMembers} members</p>
+                                    )}
+                                </div>
                             </div>
-                            <div className="flex flex-col gap-1.5 px-1">
-                                <p className="text-white/80 text-xs">Category: {clubData?.category || 'Not available'}</p>
-                                <p className="text-white/80 text-xs">Capacity: {clubData?.maxMembers ? `${clubData.maxMembers} members` : 'Not available'}</p>
-                            </div>
-                        </div>
+                        )}
                     </div>
                 </div>
 
@@ -346,30 +353,16 @@ function ClubPreviewContent() {
                             <span className="font-semibold text-[16px] leading-[16px] text-[#fffeff]">Location</span>
                         </div>
 
-                        <div className="w-full max-w-[398px] mx-auto bg-[rgba(40,60,61,0.3)] rounded-[15px] overflow-hidden p-4">
-                            {clubData?.locationText ? (
-                                <div className="flex flex-col gap-2">
-                                    <p className="text-white/80 text-xs">
-                                        {clubData.locationText.address1 && `${clubData.locationText.address1}, `}
-                                        {clubData.locationText.address2 && `${clubData.locationText.address2}, `}
-                                        {clubData.locationText.city && `${clubData.locationText.city}, `}
-                                        {clubData.locationText.state && `${clubData.locationText.state} `}
-                                        {clubData.locationText.pincode && `${clubData.locationText.pincode}`}
-                                    </p>
-                                    {clubData?.locationMap && (
-                                        <a
-                                            href={`https://maps.google.com/?q=${clubData.locationMap.lat},${clubData.locationMap.lng}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-[#14FFEC] text-xs hover:underline"
-                                        >
-                                            View on Map
-                                        </a>
-                                    )}
-                                </div>
-                            ) : (
-                                <p className="text-white/60 text-xs">Not available</p>
-                            )}
+                        <div className="w-full max-w-[398px] mx-auto">
+                            <LocationMapView
+                                lat={clubData?.locationMap?.lat}
+                                lng={clubData?.locationMap?.lng}
+                                address1={clubData?.locationText?.address1}
+                                address2={clubData?.locationText?.address2}
+                                city={clubData?.locationText?.city}
+                                state={clubData?.locationText?.state}
+                                pincode={clubData?.locationText?.pincode}
+                            />
                         </div>
                     </div>
                 </div>
@@ -491,39 +484,29 @@ function ClubPreviewContent() {
                         </div>
 
                         <div className="w-full bg-[rgba(40,60,61,0.3)] rounded-[15px] p-4 flex flex-col gap-3">
-                            {clubData?.entryPricing ? (
+                            {clubData?.entryPricing && Object.values(clubData.entryPricing).some(Boolean) ? (
                                 <>
-                                    {clubData.entryPricing.coupleEntryPrice ? (
+                                    {clubData.entryPricing.coupleEntryPrice && (
                                         <p className="text-white/80 text-xs">💑 Couple Entry: Rs {clubData.entryPricing.coupleEntryPrice}</p>
-                                    ) : (
-                                        <p className="text-white/60 text-xs">💑 Couple Entry: Not available</p>
                                     )}
-                                    {clubData.entryPricing.groupEntryPrice ? (
+                                    {clubData.entryPricing.groupEntryPrice && (
                                         <p className="text-white/80 text-xs">👥 Group Entry: Rs {clubData.entryPricing.groupEntryPrice}</p>
-                                    ) : (
-                                        <p className="text-white/60 text-xs">👥 Group Entry: Not available</p>
                                     )}
-                                    {clubData.entryPricing.maleStagEntryPrice ? (
+                                    {clubData.entryPricing.maleStagEntryPrice && (
                                         <p className="text-white/80 text-xs">👨 Male Stag: Rs {clubData.entryPricing.maleStagEntryPrice}</p>
-                                    ) : (
-                                        <p className="text-white/60 text-xs">👨 Male Stag: Not available</p>
                                     )}
-                                    {clubData.entryPricing.femaleStagEntryPrice ? (
+                                    {clubData.entryPricing.femaleStagEntryPrice && (
                                         <p className="text-white/80 text-xs">👩 Female Stag: Rs {clubData.entryPricing.femaleStagEntryPrice}</p>
-                                    ) : (
-                                        <p className="text-white/60 text-xs">👩 Female Stag: Not available</p>
                                     )}
-                                    {clubData.entryPricing.coverCharge ? (
+                                    {clubData.entryPricing.coverCharge && (
                                         <p className="text-white/80 text-xs">🎫 Cover Charge: Rs {clubData.entryPricing.coverCharge}</p>
-                                    ) : (
-                                        <p className="text-white/60 text-xs">🎫 Cover Charge: Not available</p>
                                     )}
                                     {clubData.entryPricing.redeemDetails && (
                                         <p className="text-white/80 text-xs">📝 Redeem: {clubData.entryPricing.redeemDetails}</p>
                                     )}
                                 </>
                             ) : (
-                                <p className="text-white/60 text-xs">Not available</p>
+                                <p className="text-white/60 text-xs">No entry pricing set</p>
                             )}
                         </div>
                     </div>

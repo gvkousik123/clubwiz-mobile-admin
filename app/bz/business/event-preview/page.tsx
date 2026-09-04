@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
+import LocationMapView from '@/components/common/location-map-view';
 import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -353,11 +354,14 @@ function EventPreviewContent() {
             const updateData = {
                 title: editData.title || eventData?.title,
                 description: editData.description || eventData?.description,
-                location: editData.location || eventData?.location || "Club Location",
-                locationText: "Club Location Text",
+                // Preserve whatever the event already carries instead of overwriting it
+                // with placeholders. locationText was hardcoded to "Club Location Text"
+                // and locationMap to 0,0, which wiped the real values on every save.
+                location: editData.location || eventData?.location || "",
+                locationText: eventData?.locationText || editData.location || "",
                 locationMap: {
-                    lat: 0,
-                    lng: 0
+                    lat: eventData?.locationMap?.lat ?? 0,
+                    lng: eventData?.locationMap?.lng ?? 0
                 },
                 startDateTime: editData.startDateTime || eventData?.startDateTime,
                 endDateTime: editData.endDateTime || eventData?.endDateTime,
@@ -632,6 +636,18 @@ function EventPreviewContent() {
                                 {eventData?.location || eventData?.club?.name || ''}
                             </p>
                         )}
+                    </div>
+
+                    {/* Location map, matching the club preview */}
+                    <div className="px-2 mb-4">
+                        <LocationMapView
+                            lat={eventData?.locationMap?.lat}
+                            lng={eventData?.locationMap?.lng}
+                            address1={typeof eventData?.locationText === 'string' ? eventData.locationText : undefined}
+                            city={eventData?.club?.locationText?.city}
+                            state={eventData?.club?.locationText?.state}
+                            pincode={eventData?.club?.locationText?.pincode}
+                        />
                     </div>
 
                     {/* Date & Time */}
